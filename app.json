@@ -28,6 +28,9 @@
       "eas": {
         "projectId": "88553ff6-ef91-4843-9837-4385cbe0089a"
       }
-    }
+    },
+    "plugins": [
+      "react-native-svg"
+    ]
   }
 }

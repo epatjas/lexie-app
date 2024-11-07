@@ -1,48 +1,69 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
 import theme from '../styles/theme';
+import StudySetItem from '../components/StudySetItem';
 
 export default function HomeScreen() {
-  // This would come from your storage later
-  const hasExistingContent = false;
+  const hasExistingContent = true;
+
+  const studySets = [
+    { id: '1', title: 'Niityn ja pientareen kasveja', date: '3. LOKAKUUTA 2024' },
+    { id: '2', title: 'Study set name', date: '3. LOKAKUUTA 2024' },
+    { id: '3', title: 'Study set name which is like real..', date: '3. LOKAKUUTA 2024' },
+    { id: '4', title: 'Study set name', date: '3. LOKAKUUTA 2024' },
+  ];
+
+  const handleStudySetPress = (id: string) => {
+    console.log('Study set pressed:', id);
+  };
 
   return (
-    <View style={styles.container}>
-      {!hasExistingContent ? (
-        // Empty state view
-        <View style={styles.welcomeContainer}>
-          <Text style={styles.greeting}>Hei 👋🏻 Ilona!</Text>
-          <Text style={styles.question}>What do you want to learn today?</Text>
-          <TouchableOpacity style={styles.button}>
-            <Text style={styles.buttonText}>Create new study set</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        // Content view
-        <>
-          <View style={styles.header}>
-            <Text style={styles.greeting}>Hei 👋 Ilona!</Text>
-            <Text style={styles.subheading}>Tervetuloa takaisin.</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        {!hasExistingContent ? (
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.greeting}>Hei 👋🏻 Ilona!</Text>
+            <Text style={styles.question}>What do you want to learn today?</Text>
+            <TouchableOpacity style={styles.button}>
+              <Text style={styles.buttonText}>Create new study set</Text>
+            </TouchableOpacity>
           </View>
-          
-          <Text style={styles.sectionTitle}>My study sets</Text>
-          
-          <ScrollView style={styles.studySetsList}>
-            {/* Study set items will go here */}
-          </ScrollView>
-          
-          <TouchableOpacity style={styles.button}>
-            <Text style={styles.buttonText}>Create new study set</Text>
-          </TouchableOpacity>
-        </>
-      )}
-    </View>
+        ) : (
+          <>
+            <View style={styles.header}>
+              <Text style={styles.greeting}>Hei 👋🏻  Ilona!</Text>
+              <Text style={styles.subheading}>Welcome back!</Text>
+            </View>
+            
+            <Text style={styles.sectionTitle}>My study sets</Text>
+            
+            <ScrollView style={styles.studySetsList}>
+              {studySets.map((set) => (
+                <StudySetItem
+                  key={set.id}
+                  title={set.title}
+                  date={set.date}
+                  onPress={() => handleStudySetPress(set.id)}
+                />
+              ))}
+            </ScrollView>
+            
+            <TouchableOpacity style={styles.button}>
+              <Text style={styles.buttonText}>Create new study set</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  container: {
+    flex: 1,
     padding: theme.spacing.md,
   },
   welcomeContainer: {
