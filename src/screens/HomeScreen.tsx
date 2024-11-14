@@ -30,8 +30,8 @@ export default function HomeScreen() {
         ) : (
           <>
             <View style={styles.header}>
-              <Text style={styles.greeting}>Hei 👋🏻  Ilona!</Text>
-              <Text style={styles.subheading}>Welcome back!</Text>
+              <Text style={styles.greeting}>Hei 👋🏻 Ilona!</Text>
+              <Text style={styles.subheading}>Tervetuloa takaisin.</Text>
             </View>
             
             <Text style={styles.sectionTitle}>My study sets</Text>
@@ -79,11 +79,10 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.regular,
     fontSize: theme.fontSizes.xxl,
     color: theme.colors.text,
-    marginBottom: theme.spacing.md,
   },
   subheading: {
     fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSizes.lg,
+    fontSize: theme.fontSizes.xxl,
     color: theme.colors.text,
   },
   question: {
