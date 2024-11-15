@@ -1,8 +1,19 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
 import theme from '../styles/theme';
 import StudySetItem from '../components/StudySetItem';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+type RootStackParamList = {
+  Home: undefined;
+  ScanPage: undefined;
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 export default function HomeScreen() {
+  const navigation = useNavigation<NavigationProp>();
+
   const hasExistingContent = true;
 
   const studySets = [
@@ -14,6 +25,10 @@ export default function HomeScreen() {
 
   const handleStudySetPress = (id: string) => {
     console.log('Study set pressed:', id);
+  };
+
+  const handleCreateNewStudySet = () => {
+    navigation.navigate('ScanPage');
   };
 
   return (
@@ -47,7 +62,10 @@ export default function HomeScreen() {
               ))}
             </ScrollView>
             
-            <TouchableOpacity style={styles.button}>
+            <TouchableOpacity 
+              style={styles.button}
+              onPress={handleCreateNewStudySet}
+            >
               <Text style={styles.buttonText}>Create new study set</Text>
             </TouchableOpacity>
           </>

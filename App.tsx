@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import React from 'react';
 import { useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -12,6 +12,8 @@ import {
 } from '@expo-google-fonts/inter';
 
 import HomeScreen from './src/screens/HomeScreen';
+import ScanPageScreen from './src/screens/ScanPageScreen';
+import PreviewScreen from './src/screens/PreviewScreen';
 import theme from './src/styles/theme';
 
 // Create stack navigator
@@ -49,6 +51,8 @@ export default function App() {
         }}
       >
         <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="ScanPage" component={ScanPageScreen} />
+        <Stack.Screen name="Preview" component={PreviewScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
