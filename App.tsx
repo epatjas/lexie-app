@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -15,6 +15,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import ScanPageScreen from './src/screens/ScanPageScreen';
 import PreviewScreen from './src/screens/PreviewScreen';
 import theme from './src/styles/theme';
+import { initDatabase } from './src/services/Database';
 
 // Create stack navigator
 const Stack = createNativeStackNavigator();
@@ -35,6 +36,10 @@ export default function App() {
       await SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
+
+  useEffect(() => {
+    initDatabase();
+  }, []);
 
   if (!fontsLoaded) {
     return null;
