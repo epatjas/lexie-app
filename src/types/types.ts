@@ -1,8 +1,7 @@
 export interface StudySet {
     id: string;
     title: string;
-    description: string;
-    text: string;
+    text_content: string;
     created_at: number;
     updated_at: number;
     flashcards?: Flashcard[];
@@ -11,8 +10,7 @@ export interface StudySet {
   
   export interface CreateStudySetInput {
     title: string;
-    description: string;
-    text: string;
+    text_content: string;
     flashcards?: Flashcard[];
     quiz?: QuizQuestion[];
   }
@@ -30,7 +28,7 @@ export interface StudySet {
 
   export interface StudyMaterials {
     title: string;
-    text: string;
+    text_content: string;
     flashcards: Flashcard[];
     quiz: QuizQuestion[];
   }

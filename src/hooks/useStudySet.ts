@@ -8,7 +8,9 @@ export function useStudySet(id: string) {
   useEffect(() => {
     const loadStudySet = async () => {
       try {
+        console.log('Loading study set with id:', id);
         const data = await getStudySet(id);
+        console.log('Loaded study set data:', data);
         setStudySet(data);
       } catch (error) {
         console.error('Error loading study set:', error);

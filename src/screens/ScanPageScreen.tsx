@@ -99,23 +99,20 @@ export default function ScanPageScreen() {
 
       <View style={styles.bottomBar}>
         <View style={styles.controls}>
-          <TouchableOpacity style={styles.controlButton} onPress={() => navigation.goBack()}>
-            <X size={24} color="#4A6BE5" />
-          </TouchableOpacity>
           <TouchableOpacity 
             style={styles.captureButton} 
             onPress={startCapture}
             disabled={isCapturing}
           >
             <View style={styles.captureButtonOuterRing}>
-              <Camera size={24} color="#4A6BE5" />
+              <Camera size={24} color={theme.colors.text} />
             </View>
             <Animated.View 
               style={[
                 styles.progressRing,
                 {
                   borderWidth: isCapturing ? 3 : 0,
-                  borderColor: '#4A6BE5',
+                  borderColor: theme.colors.text,
                   transform: [{
                     rotate: progressAnimation.interpolate({
                       inputRange: [0, 1],
@@ -125,9 +122,6 @@ export default function ScanPageScreen() {
                 }
               ]}
             />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.controlButton}>
-            <ImageIcon size={24} color="#4A6BE5" />
           </TouchableOpacity>
         </View>
       </View>
@@ -201,15 +195,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 24,
-  },
-  controlButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   captureButton: {
     width: 70,
@@ -221,7 +206,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: theme.colors.background02,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'absolute',

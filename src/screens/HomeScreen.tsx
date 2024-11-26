@@ -1,40 +1,66 @@
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
 import theme from '../styles/theme';
 import StudySetItem from '../components/StudySetItem';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
+import { getAllStudySets } from '../services/Database';
+import { StudySet } from '../types/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const [studySets, setStudySets] = useState<StudySet[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const hasExistingContent = true;
+  useEffect(() => {
+    loadStudySets();
+  }, []);
 
-  const studySets = [
-    { id: '1', title: 'Niityn ja pientareen kasveja', date: '3. LOKAKUUTA 2024' },
-    { id: '2', title: 'Study set name', date: '3. LOKAKUUTA 2024' },
-    { id: '3', title: 'Study set name which is like real..', date: '3. LOKAKUUTA 2024' },
-    { id: '4', title: 'Study set name', date: '3. LOKAKUUTA 2024' },
-  ];
+  const loadStudySets = async () => {
+    try {
+      const sets = await getAllStudySets();
+      setStudySets(sets);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to load study sets:', error);
+      setIsLoading(false);
+    }
+  };
 
   const handleStudySetPress = (id: string) => {
-    console.log('Study set pressed:', id);
+    navigation.navigate('StudySet', { id });
   };
 
   const handleCreateNewStudySet = () => {
     navigation.navigate('ScanPage');
   };
 
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString('fi-FI', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    }).toUpperCase();
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {!hasExistingContent ? (
+        {isLoading ? (
+          <View style={styles.welcomeContainer}>
+            <Text>Loading...</Text>
+          </View>
+        ) : studySets.length === 0 ? (
           <View style={styles.welcomeContainer}>
             <Text style={styles.greeting}>Hei 👋🏻 Ilona!</Text>
             <Text style={styles.question}>What do you want to learn today?</Text>
-            <TouchableOpacity style={styles.button}>
+            <TouchableOpacity 
+              style={styles.button}
+              onPress={handleCreateNewStudySet}
+            >
               <Text style={styles.buttonText}>Create new study set</Text>
             </TouchableOpacity>
           </View>
@@ -52,7 +78,7 @@ export default function HomeScreen() {
                 <StudySetItem
                   key={set.id}
                   title={set.title}
-                  date={set.date}
+                  date={formatDate(set.created_at)}
                   onPress={() => handleStudySetPress(set.id)}
                 />
               ))}

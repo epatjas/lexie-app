@@ -26,7 +26,6 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
           CREATE TABLE IF NOT EXISTS study_sets (
             id TEXT PRIMARY KEY NOT NULL,
             title TEXT NOT NULL,
-            description TEXT,
             text_content TEXT,
             created_at INTEGER NOT NULL,
             updated_at INTEGER NOT NULL
@@ -89,7 +88,6 @@ export const initDatabase = async (): Promise<void> => {
       CREATE TABLE IF NOT EXISTS study_sets (
         id TEXT PRIMARY KEY NOT NULL,
         title TEXT NOT NULL,
-        description TEXT,
         text_content TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
@@ -131,15 +129,23 @@ export const initDatabase = async (): Promise<void> => {
  * @param id - The unique identifier of the study set
  * @returns Promise<StudySet | null> - The study set if found, null otherwise
  */
-export const getStudySet = async (id: string): Promise<StudySet | null> => {
+export const getStudySet = async (id: string): Promise<StudySet> => {
   try {
     const db = await getDatabase();
-    // Use getFirstAsync to get a single row or null if not found
-    const result = await db.getFirstAsync<StudySet>(
+    console.log('Fetching study set with id:', id);
+    
+    const studySet = await db.getFirstAsync<StudySet>(
       'SELECT * FROM study_sets WHERE id = ?',
       [id]
     );
-    return result || null;
+    
+    console.log('Retrieved study set:', studySet);
+    
+    if (!studySet) {
+      throw new Error(`Study set with id ${id} not found`);
+    }
+
+    return studySet;
   } catch (error) {
     console.error('Failed to get study set:', error);
     throw error;
@@ -157,9 +163,11 @@ export const createStudySet = async (input: CreateStudySetInput): Promise<StudyS
     const id = uuidv4();
     const timestamp = Date.now();
 
+    console.log('Creating study set with text_content:', input.text_content);
+
     await db.runAsync(
-      'INSERT INTO study_sets (id, title, description, text_content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, input.title, input.description, input.text, timestamp, timestamp]
+      'INSERT INTO study_sets (id, title, text_content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [id, input.title, input.text_content || '', timestamp, timestamp]
     );
 
     // Then insert flashcards
@@ -190,8 +198,7 @@ export const createStudySet = async (input: CreateStudySetInput): Promise<StudyS
     return {
       id,
       title: input.title,
-      description: input.description,
-      text: input.text,
+      text_content: input.text_content,
       created_at: timestamp,
       updated_at: timestamp,
       flashcards: input.flashcards || [],
@@ -316,6 +323,19 @@ export const verifyDatabaseTables = async (): Promise<void> => {
     
   } catch (error) {
     console.error('Database verification failed:', error);
+    throw error;
+  }
+};
+
+export const getAllStudySets = async (): Promise<StudySet[]> => {
+  try {
+    const db = await getDatabase();
+    const studySets = await db.getAllAsync<StudySet>(
+      'SELECT id, title, text_content, created_at, updated_at FROM study_sets ORDER BY created_at DESC'
+    );
+    return studySets;
+  } catch (error) {
+    console.error('Failed to get study sets:', error);
     throw error;
   }
 };
