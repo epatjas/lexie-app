@@ -9,7 +9,7 @@ import {
   StyleSheet
 } from 'react-native';
 import { analyzeImage } from '../services/api';
-import { createStudySet } from '../services/Database';
+import { createStudySet, verifyDatabaseTables } from '../services/Database';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 
@@ -26,16 +26,26 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       const studyMaterials = await analyzeImage(photo.base64);
       
       // Save study materials to local database
+      await verifyDatabaseTables();
+      
+      console.log('Creating study set with data:', {
+        title: 'Study Set Title',
+        description: 'Generated from image',
+        text: studyMaterials.text,
+        flashcardsCount: studyMaterials.flashcards.length,
+        quizCount: studyMaterials.quiz.length
+      });
+      
       const studySet = await createStudySet({
-        title: studyMaterials.title,
-        description: studyMaterials.text,
-        flashcards: studyMaterials.flashcards.map(card => ({
-          front: card.front,
-          back: card.back
-        })),
+        title: 'Study Set Title',
+        description: 'Generated from image',
+        text: studyMaterials.text,
+        flashcards: studyMaterials.flashcards,
         quiz: studyMaterials.quiz
       });
-
+      
+      console.log('Study set created:', studySet);
+      
       // Show success message and navigate to study set
       Alert.alert(
         'Success',
@@ -48,19 +58,11 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
         ]
       );
     } catch (error) {
+      console.error('Failed to create study set:', error);
+      // Show error to user
       Alert.alert(
         'Error',
-        'Failed to process image. Please try again.',
-        [
-          {
-            text: 'Retry',
-            onPress: handleAnalyze
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel'
-          }
-        ]
+        'Failed to save study materials. Please try again.'
       );
     } finally {
       setIsProcessing(false);

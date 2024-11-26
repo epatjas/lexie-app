@@ -15,7 +15,7 @@ import ScanPageScreen from './src/screens/ScanPageScreen';
 import PreviewScreen from './src/screens/PreviewScreen';
 import { RootStackParamList } from './src/types/navigation';
 import theme from './src/styles/theme';
-import { initDatabase } from './src/services/Database';
+import { testDatabaseConnection, initDatabase } from './src/services/Database';
 import StudySetScreen from './src/screens/StudySetScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -24,12 +24,16 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 SplashScreen.preventAutoHideAsync();
 
 export default function App() {
+  console.log('App is rendering');
+  
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
   });
+
+  console.log('Fonts loaded:', fontsLoaded);
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) {
@@ -38,7 +42,16 @@ export default function App() {
   }, [fontsLoaded]);
 
   useEffect(() => {
-    initDatabase();
+    const setupDatabase = async () => {
+      try {
+        await initDatabase();
+        console.log('Database initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize database:', error);
+      }
+    };
+
+    setupDatabase();
   }, []);
 
   if (!fontsLoaded) {
@@ -46,7 +59,7 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer onReady={onLayoutRootView}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
