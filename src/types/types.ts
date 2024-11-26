@@ -1,25 +1,32 @@
-export type CreateStudySetInput = Omit<StudySet, 'id' | 'createdAt'>;
-
 export interface StudySet {
     id: string;
     title: string;
-    text: string;
-    flashcards: Flashcard[];
-    quiz: QuizQuestion[];
-    createdAt: Date;
+    description: string;
+    created_at: number;
+    updated_at: number;
+  }
+  
+  export interface CreateStudySetInput {
+    title: string;
+    description: string;
+    flashcards?: Flashcard[];
+    quiz?: QuizQuestion[];
   }
   
   export interface Flashcard {
-    id: string;
-    study_set_id: string;
     front: string;
     back: string;
   }
   
   export interface QuizQuestion {
-    id: string;
-    study_set_id: string;
     question: string;
     options: string[];
     correctAnswer: string;
+  }
+
+  export interface StudyMaterials {
+    title: string;
+    text: string;
+    flashcards: Flashcard[];
+    quiz: QuizQuestion[];
   }

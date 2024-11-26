@@ -1,5 +1,4 @@
-import React, { useEffect } from 'react';
-import { useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as SplashScreen from 'expo-splash-screen';
@@ -14,11 +13,12 @@ import {
 import HomeScreen from './src/screens/HomeScreen';
 import ScanPageScreen from './src/screens/ScanPageScreen';
 import PreviewScreen from './src/screens/PreviewScreen';
+import { RootStackParamList } from './src/types/navigation';
 import theme from './src/styles/theme';
 import { initDatabase } from './src/services/Database';
+import StudySetScreen from './src/screens/StudySetScreen';
 
-// Create stack navigator
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // Keep splash screen visible while loading fonts
 SplashScreen.preventAutoHideAsync();
@@ -58,6 +58,7 @@ export default function App() {
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="ScanPage" component={ScanPageScreen} />
         <Stack.Screen name="Preview" component={PreviewScreen} />
+        <Stack.Screen name="StudySet" component={StudySetScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

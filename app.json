@@ -4,6 +4,7 @@
     "slug": "lexie-app",
     "version": "1.0.0",
     "orientation": "portrait",
+    "entryPoint": "./index.js",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
@@ -36,7 +37,14 @@
         {
           "cameraPermission": "Allow Lexie App to access your camera."
         }
-      ]
+      ],
+      [
+        "expo-sqlite",
+        {
+          "enableFTS": true
+        }
+      ],
+      "expo-font"
     ]
   }
 }

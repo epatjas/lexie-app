@@ -3,11 +3,7 @@ import theme from '../styles/theme';
 import StudySetItem from '../components/StudySetItem';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-
-type RootStackParamList = {
-  Home: undefined;
-  ScanPage: undefined;
-};
+import { RootStackParamList } from '../types/navigation';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 

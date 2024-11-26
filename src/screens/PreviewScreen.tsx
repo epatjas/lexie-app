@@ -1,126 +1,135 @@
 import React from 'react';
-import { View, Image, StyleSheet, Text, TouchableOpacity, SafeAreaView } from 'react-native';
-import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft } from 'lucide-react-native';
-import theme from '../styles/theme';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  StyleSheet
+} from 'react-native';
+import { analyzeImage } from '../services/api';
+import { createStudySet } from '../services/Database';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types/navigation';
 
-type RootStackParamList = {
-  Home: undefined;
-  ScanPage: undefined;
-  Preview: {
-    photo: {
-      uri: string;
-      base64?: string;
-    };
-  };
-};
+type PreviewScreenNavigationProp = NativeStackScreenProps<RootStackParamList, 'Preview'>;
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
-type PreviewRouteParams = {
-  Preview: {
-    photo: {
-      uri: string;
-      base64?: string;
-    };
-  };
-};
-
-export default function PreviewScreen() {
-  const route = useRoute<RouteProp<PreviewRouteParams, 'Preview'>>();
-  const navigation = useNavigation<NavigationProp>();
+export default function PreviewScreen({ route, navigation }: PreviewScreenNavigationProp) {
   const { photo } = route.params;
-  
-  // Get current date in format DD/MM/YYYY
-  const currentDate = new Date().toLocaleDateString('en-GB');
+  const [isProcessing, setIsProcessing] = React.useState(false);
+
+  const handleAnalyze = async () => {
+    setIsProcessing(true);
+    try {
+      // Send image to server for analysis
+      const studyMaterials = await analyzeImage(photo.base64);
+      
+      // Save study materials to local database
+      const studySet = await createStudySet({
+        title: studyMaterials.title,
+        description: studyMaterials.text,
+        flashcards: studyMaterials.flashcards.map(card => ({
+          front: card.front,
+          back: card.back
+        })),
+        quiz: studyMaterials.quiz
+      });
+
+      // Show success message and navigate to study set
+      Alert.alert(
+        'Success',
+        'Study materials created successfully!',
+        [
+          {
+            text: 'View Study Set',
+            onPress: () => navigation.navigate('StudySet', { id: studySet.id })
+          }
+        ]
+      );
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        'Failed to process image. Please try again.',
+        [
+          {
+            text: 'Retry',
+            onPress: handleAnalyze
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          }
+        ]
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <ArrowLeft size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Scan - {currentDate}</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      {/* Image Preview */}
-      <View style={styles.previewContainer}>
-        <Image source={{ uri: photo.uri }} style={styles.preview} />
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.actionButtons}>
-        <TouchableOpacity 
-          style={styles.primaryButton}
-          onPress={() => {
-            // TODO: Handle image upload and analysis
-            console.log('Analyze image');
-          }}
+    <View style={styles.container}>
+      <Image
+        source={{ uri: photo.uri }}
+        style={styles.preview}
+        resizeMode="contain"
+      />
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.goBack()}
+          disabled={isProcessing}
         >
-          <Text style={styles.primaryButtonText}>I'm happy, let's go</Text>
+          <Text style={styles.buttonText}>Retake</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.secondaryButton}
-          onPress={() => navigation.navigate('ScanPage')}
+        <TouchableOpacity
+          style={[styles.button, styles.primaryButton]}
+          onPress={handleAnalyze}
+          disabled={isProcessing}
         >
-          <Text style={styles.secondaryButtonText}>Scan more</Text>
+          {isProcessing ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={[styles.buttonText, styles.primaryButtonText]}>
+              Create Study Set
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  headerTitle: {
-    fontSize: 17,
-    color: theme.colors.text,
-    fontFamily: theme.fonts.medium,
-  },
-  previewContainer: {
-    flex: 1,
-    margin: 20,
-    position: 'relative',
+    backgroundColor: '#FFFFFF',
   },
   preview: {
     flex: 1,
-    borderRadius: 8,
+    width: '100%',
   },
-  actionButtons: {
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     padding: 20,
-    gap: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  button: {
+    padding: 15,
+    borderRadius: 8,
+    width: '45%',
+    alignItems: 'center',
+    backgroundColor: '#F0F0F0',
   },
   primaryButton: {
-    backgroundColor: '#4A6BE5',
-    borderRadius: 100,
-    padding: 16,
-    alignItems: 'center',
+    backgroundColor: '#007AFF',
+  },
+  buttonText: {
+    fontSize: 16,
+    color: '#000000',
   },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: theme.fonts.medium,
-  },
-  secondaryButton: {
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: '#4A6BE5',
-    fontSize: 16,
-    fontFamily: theme.fonts.medium,
   },
 });
