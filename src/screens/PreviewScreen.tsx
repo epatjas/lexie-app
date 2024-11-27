@@ -18,6 +18,21 @@ import theme from '../styles/theme';
 
 type PreviewScreenNavigationProp = NativeStackScreenProps<RootStackParamList, 'Preview'>;
 
+// Update the interface to match the OpenAI response format
+interface StudyMaterials {
+  title: string;
+  text_content: string;
+  flashcards: {
+    front: string;
+    back: string;
+  }[];
+  quiz: {
+    question: string;
+    options: string[];  // This matches the format in your OpenAI prompt
+    correct: string;
+  }[];
+}
+
 export default function PreviewScreen({ route, navigation }: PreviewScreenNavigationProp) {
   const { photo } = route.params;
   const [isProcessing, setIsProcessing] = React.useState(false);
@@ -30,42 +45,32 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
   });
 
   const handleAnalyze = async () => {
-    setIsProcessing(true);
     try {
-      // Send image to server for analysis
-      const studyMaterials = await analyzeImage(photo.base64);
+      setIsProcessing(true);
+      console.log('Starting image analysis...');
+
+      // Analyze image - this returns already parsed JSON from our server
+      const result = await analyzeImage(photo.base64);
+      console.log('Server response:', result);
       
-      // Save study materials to local database
-      await verifyDatabaseTables();
-      
+      // Create study set with the data
       const studySet = await createStudySet({
-        title: studyMaterials.title || 'New Study Set',
-        text_content: studyMaterials.text_content,
-        flashcards: studyMaterials.flashcards,
-        quiz: studyMaterials.quiz
+        title: result.title,
+        text_content: result.text_content,
+        quiz: result.quiz
       });
-      
-      console.log('Study set created:', studySet);
-      
-      // Show success message and navigate to study set
-      Alert.alert(
-        'Success',
-        'Study materials created successfully!',
-        [
-          {
-            text: 'View Study Set',
-            onPress: () => navigation.navigate('StudySet', { id: studySet.id })
-          }
-        ]
-      );
+
+      setIsProcessing(false);
+      navigation.navigate('StudySet', { id: studySet.id });
     } catch (error) {
-      console.error('Failed to create study set:', error);
+      setIsProcessing(false);
+      console.error('Full error details:', error);
       Alert.alert(
         'Error',
-        'Failed to save study materials. Please try again.'
+        error instanceof Error 
+          ? `Failed to process: ${error.message}`
+          : 'Failed to process image. Please try again.'
       );
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -103,7 +108,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={styles.analyzeButtonText}>
-              I'm happy, let's go
+              Tällä mennään!
             </Text>
           )}
         </TouchableOpacity>
@@ -113,7 +118,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
           onPress={() => navigation.goBack()}
           disabled={isProcessing}
         >
-          <Text style={styles.scanMoreText}>Retake or scan more</Text>
+          <Text style={styles.scanMoreText}>Ota uusi kuva</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -145,14 +150,13 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     flex: 1,
-   
-    borderRadius: 0,
+    borderRadius: 24,
     overflow: 'hidden',
   },
   preview: {
     flex: 1,
     width: '100%',
-    borderRadius: 0,
+    borderRadius: 24,
   },
   bottomContainer: {
     padding: theme.spacing.lg,
@@ -180,6 +184,8 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 56,
     backgroundColor: theme.colors.background02,
+    borderWidth: 1,
+    borderColor: theme.colors.stroke,
   },
   scanMoreText: {
     color: theme.colors.text,

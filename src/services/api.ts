@@ -36,7 +36,7 @@ export const analyzeImage = async (base64Image: string): Promise<StudyMaterials>
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: 30000
+      timeout: 60000
     });
     
     // Extract the JSON content from the response

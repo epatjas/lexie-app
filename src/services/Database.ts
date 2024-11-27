@@ -160,51 +160,49 @@ export const getStudySet = async (id: string): Promise<StudySet> => {
 export const createStudySet = async (input: CreateStudySetInput): Promise<StudySet> => {
   try {
     const db = await getDatabase();
+    console.log('Creating study set with input:', input);
+
+    const now = Date.now();
     const id = uuidv4();
-    const timestamp = Date.now();
 
-    console.log('Creating study set with text_content:', input.text_content);
-
+    // Create the study set
     await db.runAsync(
-      'INSERT INTO study_sets (id, title, text_content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-      [id, input.title, input.text_content || '', timestamp, timestamp]
+      `INSERT INTO study_sets (id, title, text_content, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, input.title, input.text_content, now, now]
     );
 
-    // Then insert flashcards
-    console.log('Inserting flashcards...');
-    for (const card of input.flashcards || []) {
-      await db.runAsync(
-        'INSERT INTO flashcards (id, study_set_id, front, back) VALUES (?, ?, ?, ?)',
-        [uuidv4(), id, card.front, card.back]
-      );
+    // If there are quiz questions in the input, save them
+    if (input.quiz && input.quiz.length > 0) {
+      console.log('Saving quiz questions...');
+      for (const question of input.quiz) {
+        await db.runAsync(
+          `INSERT INTO quiz_questions (id, study_set_id, question, options, correct) 
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            uuidv4(),
+            id,
+            question.question,
+            JSON.stringify(question.options),
+            question.correct
+          ]
+        );
+      }
+      console.log(`Saved ${input.quiz.length} quiz questions`);
     }
 
-    // Finally insert quiz questions
-    console.log('Inserting quiz questions...');
-    for (const question of input.quiz || []) {
-      await db.runAsync(
-        'INSERT INTO quiz_questions (id, study_set_id, question, options, correct) VALUES (?, ?, ?, ?, ?)',
-        [
-          uuidv4(),
-          id,
-          question.question,
-          JSON.stringify(question.options),
-          question.correct
-        ]
-      );
+    // Fetch the created record
+    const studySet = await db.getFirstAsync<StudySet>(
+      'SELECT * FROM study_sets WHERE id = ?',
+      [id]
+    );
+
+    if (!studySet) {
+      throw new Error('Failed to create study set');
     }
 
-    console.log('Study set created successfully');
-    return {
-      id,
-      title: input.title,
-      text_content: input.text_content,
-      created_at: timestamp,
-      updated_at: timestamp,
-      flashcards: input.flashcards || [],
-      quiz: input.quiz || []
-    };
-
+    console.log('Study set created successfully:', studySet);
+    return studySet;
   } catch (error) {
     console.error('Failed to create study set:', error);
     throw error;
@@ -336,6 +334,72 @@ export const getAllStudySets = async (): Promise<StudySet[]> => {
     return studySets;
   } catch (error) {
     console.error('Failed to get study sets:', error);
+    throw error;
+  }
+};
+
+// Add this function to Database.ts
+export const getQuizFromStudySet = async (studySetId: string): Promise<QuizQuestion[]> => {
+  try {
+    const db = await getDatabase();
+    
+    // Get quiz questions for the study set
+    const rawQuizQuestions = await db.getAllAsync<RawQuizQuestion>(
+      'SELECT * FROM quiz_questions WHERE study_set_id = ?',
+      [studySetId]
+    );
+    
+    // Parse the options from JSON string back to array
+    const quizQuestions = rawQuizQuestions.map(q => ({
+      question: q.question,
+      options: JSON.parse(q.options) as string[],
+      correct: q.correct
+    }));
+    
+    return quizQuestions;
+  } catch (error) {
+    console.error('Failed to get quiz questions:', error);
+    throw error;
+  }
+};
+
+// Add this test function
+export const createTestQuiz = async (studySetId: string): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    
+    // Sample quiz questions
+    const questions: QuizQuestion[] = [
+      {
+        question: "What is the capital of Finland?",
+        options: ["Helsinki", "Stockholm", "Oslo", "Copenhagen"],
+        correct: "Helsinki"
+      },
+      {
+        question: "What is 2 + 2?",
+        options: ["3", "4", "5", "6"],
+        correct: "4"
+      }
+    ];
+    
+    // Insert each question
+    for (const q of questions) {
+      await db.runAsync(
+        `INSERT INTO quiz_questions (id, study_set_id, question, options, correct) 
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          uuidv4(),
+          studySetId,
+          q.question,
+          JSON.stringify(q.options),
+          q.correct
+        ]
+      );
+    }
+    
+    console.log('Test quiz created successfully');
+  } catch (error) {
+    console.error('Failed to create test quiz:', error);
     throw error;
   }
 };

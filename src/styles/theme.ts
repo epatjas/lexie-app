@@ -22,6 +22,7 @@ export const theme = {
     buttonTextDark: '#1A1A1A',
     pink: 'hsl(11, 33%, 88%)',
     pinkDark: 'hsl(11, 49%, 81%)',
+    blue: '#82B4F9',
   },
   
   fonts: {

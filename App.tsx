@@ -13,10 +13,12 @@ import {
 import HomeScreen from './src/screens/HomeScreen';
 import ScanPageScreen from './src/screens/ScanPageScreen';
 import PreviewScreen from './src/screens/PreviewScreen';
+import StudySetScreen from './src/screens/StudySetScreen';
+import QuizScreen from './src/screens/QuizScreen';
+import QuizCompleteScreen from './src/screens/QuizComplete';
 import { RootStackParamList } from './src/types/navigation';
 import theme from './src/styles/theme';
 import { testDatabaseConnection, initDatabase } from './src/services/Database';
-import StudySetScreen from './src/screens/StudySetScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -72,6 +74,8 @@ export default function App() {
         <Stack.Screen name="ScanPage" component={ScanPageScreen} />
         <Stack.Screen name="Preview" component={PreviewScreen} />
         <Stack.Screen name="StudySet" component={StudySetScreen} />
+        <Stack.Screen name="Quiz" component={QuizScreen} />
+        <Stack.Screen name="QuizComplete" component={QuizCompleteScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

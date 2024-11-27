@@ -56,12 +56,12 @@ export default function HomeScreen() {
         ) : studySets.length === 0 ? (
           <View style={styles.welcomeContainer}>
             <Text style={styles.greeting}>Hei 👋🏻 Ilona!</Text>
-            <Text style={styles.question}>What do you want to learn today?</Text>
+            <Text style={styles.question}>Mitä haluat oppia tänään?</Text>
             <TouchableOpacity 
               style={styles.button}
               onPress={handleCreateNewStudySet}
             >
-              <Text style={styles.buttonText}>Create new study set</Text>
+              <Text style={styles.buttonText}>Luo uusi harjoittelusetti</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -71,7 +71,7 @@ export default function HomeScreen() {
               <Text style={styles.subheading}>Tervetuloa takaisin.</Text>
             </View>
             
-            <Text style={styles.sectionTitle}>My study sets</Text>
+            <Text style={styles.sectionTitle}>Harjoittelusetit</Text>
             
             <ScrollView style={styles.studySetsList}>
               {studySets.map((set) => (
@@ -88,7 +88,7 @@ export default function HomeScreen() {
               style={styles.button}
               onPress={handleCreateNewStudySet}
             >
-              <Text style={styles.buttonText}>Create new study set</Text>
+              <Text style={styles.buttonText}>Luo uusi harjoittelusetti</Text>
             </TouchableOpacity>
           </>
         )}

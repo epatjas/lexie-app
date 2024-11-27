@@ -12,6 +12,7 @@ import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
 import { useStudySet } from '../hooks/useStudySet';
 import { ArrowLeft, FlipHorizontal, Zap, Play } from 'lucide-react-native';
+import { createTestQuiz } from '../services/Database';
 
 type StudySetScreenProps = NativeStackScreenProps<RootStackParamList, 'StudySet'>;
 
@@ -32,6 +33,15 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     month: 'long',
     year: 'numeric'
   });
+
+  const handleCreateTestQuiz = async () => {
+    try {
+      await createTestQuiz(id);
+      navigation.navigate('Quiz', { studySetId: id });
+    } catch (error) {
+      console.error('Error creating test quiz:', error);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -63,7 +73,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
         <TouchableOpacity
           style={styles.optionButton}
-          onPress={() => navigation.navigate('Quiz', { studySetId: id })}
+          onPress={handleCreateTestQuiz}
         >
           <View style={[styles.optionIcon, { backgroundColor: theme.colors.mint + '20' }]}>
             <Zap color={theme.colors.background} size={24} />
