@@ -39,22 +39,24 @@ export const analyzeImage = async (base64Image: string): Promise<StudyMaterials>
       timeout: 60000
     });
     
-    // Extract the JSON content from the response
     const content = response.data.choices[0].message.content;
-    // Remove the ```json and ``` wrapper if present
     const jsonString = content.replace(/```json\n|\n```/g, '');
-    // Parse the JSON string into an object
     const studyMaterials: StudyMaterialsResponse = JSON.parse(jsonString);
     
-    // Map the response to StudyMaterials type
+    console.log('Raw flashcards from API:', studyMaterials.flashcards);
+    
+    // Ensure flashcards are properly structured
     const mappedMaterials: StudyMaterials = {
       title: studyMaterials.title,
       text_content: studyMaterials.text_content,
-      flashcards: studyMaterials.flashcards,
+      flashcards: studyMaterials.flashcards.map(card => ({
+        front: card.front,
+        back: card.back
+      })),
       quiz: studyMaterials.quiz
     };
     
-    console.log('Parsed study materials:', mappedMaterials);
+    console.log('Mapped flashcards:', mappedMaterials.flashcards);
     return mappedMaterials;
   } catch (error) {
     if (axios.isAxiosError(error)) {

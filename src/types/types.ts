@@ -11,8 +11,15 @@ export interface StudySet {
   export interface CreateStudySetInput {
     title: string;
     text_content: string;
-    flashcards?: Flashcard[];
-    quiz?: QuizQuestion[];
+    flashcards?: {
+      front: string;
+      back: string;
+    }[];
+    quiz?: {
+      question: string;
+      options: string[];
+      correct: string;
+    }[];
   }
   
   export interface Flashcard {

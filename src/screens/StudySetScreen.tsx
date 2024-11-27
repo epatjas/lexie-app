@@ -6,24 +6,50 @@ import {
   StyleSheet,
   ScrollView,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
 import { useStudySet } from '../hooks/useStudySet';
 import { ArrowLeft, FlipHorizontal, Zap, Play } from 'lucide-react-native';
-import { createTestQuiz } from '../services/Database';
 
 type StudySetScreenProps = NativeStackScreenProps<RootStackParamList, 'StudySet'>;
 
 export default function StudySetScreen({ route, navigation }: StudySetScreenProps) {
+  if (!route.params?.id) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <ArrowLeft color={theme.colors.text} size={24} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitleText}>Error</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Invalid study set ID</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const { id } = route.params;
   const studySet = useStudySet(id);
 
   if (!studySet) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text>Loading...</Text>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <ArrowLeft color={theme.colors.text} size={24} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitleText}>Loading...</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading study set...</Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -34,12 +60,21 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     year: 'numeric'
   });
 
-  const handleCreateTestQuiz = async () => {
+  const handleCreateQuiz = async () => {
     try {
-      await createTestQuiz(id);
       navigation.navigate('Quiz', { studySetId: id });
     } catch (error) {
-      console.error('Error creating test quiz:', error);
+      console.error('Error navigating to quiz:', error);
+      Alert.alert('Error', 'Failed to load quiz');
+    }
+  };
+
+  const handleFlashcardsPress = async () => {
+    try {
+      navigation.navigate('Flashcards', { studySetId: id });
+    } catch (error) {
+      console.error('Error navigating to flashcards:', error);
+      Alert.alert('Error', 'Failed to load flashcards');
     }
   };
 
@@ -62,23 +97,23 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
         <TouchableOpacity
           style={styles.optionButton}
-          onPress={() => navigation.navigate('Flashcards', { studySetId: id })}
+          onPress={handleFlashcardsPress}
         >
           <View style={[styles.optionIcon, { backgroundColor: theme.colors.lavender + '20' }]}>
             <FlipHorizontal color={theme.colors.background} size={24} />
           </View>
-          <Text style={styles.optionTitle}>Memorize key concepts</Text>
+          <Text style={styles.optionTitle}>Harjoittele avainkäsitteitä</Text>
           <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.optionButton}
-          onPress={handleCreateTestQuiz}
+          onPress={handleCreateQuiz}
         >
           <View style={[styles.optionIcon, { backgroundColor: theme.colors.mint + '20' }]}>
             <Zap color={theme.colors.background} size={24} />
           </View>
-          <Text style={styles.optionTitle}>Test your skills</Text>
+          <Text style={styles.optionTitle}>Testaa taitosi</Text>
           <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
 
@@ -197,5 +232,20 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     lineHeight: 28,
     padding: theme.spacing.sm,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: theme.fontSizes.lg,
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  headerTitleText: {
+    fontSize: theme.fontSizes.lg,
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.text,
   },
 });

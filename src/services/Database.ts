@@ -3,69 +3,92 @@ import { CreateStudySetInput, StudySet, Flashcard, QuizQuestion } from '../types
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
-// Singleton pattern: Maintain a single database connection throughout the app
 let db: SQLite.SQLiteDatabase | null = null;
 
-/**
- * Gets or creates a database connection.
- * Uses singleton pattern to avoid multiple database connections.
- * @returns Promise<SQLite.SQLiteDatabase> - The database connection
- */
+const initializeTables = async (database: SQLite.SQLiteDatabase) => {
+  try {
+    // Create tables one by one with error handling
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS study_sets (
+        id TEXT PRIMARY KEY NOT NULL,
+        title TEXT NOT NULL,
+        text_content TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    `);
+    console.log('study_sets table created/verified');
+
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS flashcards (
+        id TEXT PRIMARY KEY NOT NULL,
+        study_set_id TEXT NOT NULL,
+        front TEXT NOT NULL,
+        back TEXT NOT NULL,
+        FOREIGN KEY (study_set_id) REFERENCES study_sets (id) ON DELETE CASCADE
+      );
+    `);
+    console.log('flashcards table created/verified');
+
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS quiz_questions (
+        id TEXT PRIMARY KEY NOT NULL,
+        study_set_id TEXT NOT NULL,
+        question TEXT NOT NULL,
+        options TEXT NOT NULL,
+        correct TEXT NOT NULL,
+        FOREIGN KEY (study_set_id) REFERENCES study_sets (id) ON DELETE CASCADE
+      );
+    `);
+    console.log('quiz_questions table created/verified');
+
+  } catch (error) {
+    console.error('Error creating tables:', error);
+    throw error;
+  }
+};
+
 export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
   try {
     console.log('Attempting to get database connection...');
-    if (db === null) {
-      console.log('Opening new database connection...');
+    
+    // If there's an existing connection, close it first
+    if (db !== null) {
       try {
-        // Use openDatabaseAsync instead of openDatabase
-        db = await SQLite.openDatabaseAsync('studysets.db');
-        console.log('Database connection successful');
-        
-        // Create tables
-        await db.execAsync(`
-          CREATE TABLE IF NOT EXISTS study_sets (
-            id TEXT PRIMARY KEY NOT NULL,
-            title TEXT NOT NULL,
-            text_content TEXT,
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL
-          );
-        `);
-
-        await db.execAsync(`
-          CREATE TABLE IF NOT EXISTS flashcards (
-            id TEXT PRIMARY KEY NOT NULL,
-            study_set_id TEXT NOT NULL,
-            front TEXT NOT NULL,
-            back TEXT NOT NULL,
-            FOREIGN KEY (study_set_id) REFERENCES study_sets (id) ON DELETE CASCADE
-          );
-        `);
-
-        await db.execAsync(`
-          CREATE TABLE IF NOT EXISTS quiz_questions (
-            id TEXT PRIMARY KEY NOT NULL,
-            study_set_id TEXT NOT NULL,
-            question TEXT NOT NULL,
-            options TEXT NOT NULL,
-            correct TEXT NOT NULL,
-            FOREIGN KEY (study_set_id) REFERENCES study_sets (id) ON DELETE CASCADE
-          );
-        `);
-
-      } catch (error) {
-        console.error('Error opening database:', error);
-        if (error instanceof Error) {
-          console.error('Error message:', error.message);
-          console.error('Error stack:', error.stack);
-        }
-        throw error;
+        await db.closeAsync();
+        db = null;
+        console.log('Closed existing database connection');
+      } catch (closeError) {
+        console.warn('Error closing existing database:', closeError);
       }
     }
+
+    // Open new connection
+    db = await SQLite.openDatabaseAsync('studysets.db');
+    console.log('New database connection opened');
+
+    // Initialize tables
+    await initializeTables(db);
+    console.log('Database initialized successfully');
+
     return db;
   } catch (error) {
     console.error('Failed to get database:', error);
     throw error;
+  }
+};
+
+// Add a cleanup function to close the database
+export const closeDatabase = async () => {
+  if (db) {
+    try {
+      await db.closeAsync();
+      db = null;
+      console.log('Database connection closed');
+    } catch (error) {
+      console.error('Error closing database:', error);
+      throw error;
+    }
   }
 };
 
@@ -172,37 +195,25 @@ export const createStudySet = async (input: CreateStudySetInput): Promise<StudyS
       [id, input.title, input.text_content, now, now]
     );
 
-    // If there are quiz questions in the input, save them
+    // Create flashcards if they exist
+    if (input.flashcards && input.flashcards.length > 0) {
+      console.log('Creating flashcards:', input.flashcards);
+      await createFlashcards(id, input.flashcards);
+    }
+
+    // Create quiz if it exists
     if (input.quiz && input.quiz.length > 0) {
-      console.log('Saving quiz questions...');
-      for (const question of input.quiz) {
-        await db.runAsync(
-          `INSERT INTO quiz_questions (id, study_set_id, question, options, correct) 
-           VALUES (?, ?, ?, ?, ?)`,
-          [
-            uuidv4(),
-            id,
-            question.question,
-            JSON.stringify(question.options),
-            question.correct
-          ]
-        );
-      }
-      console.log(`Saved ${input.quiz.length} quiz questions`);
+      console.log('Creating quiz:', input.quiz);
+      await createQuiz(id, input.quiz);
     }
 
-    // Fetch the created record
-    const studySet = await db.getFirstAsync<StudySet>(
-      'SELECT * FROM study_sets WHERE id = ?',
-      [id]
-    );
-
-    if (!studySet) {
-      throw new Error('Failed to create study set');
-    }
-
-    console.log('Study set created successfully:', studySet);
-    return studySet;
+    return {
+      id,
+      title: input.title,
+      text_content: input.text_content,
+      created_at: now,
+      updated_at: now
+    };
   } catch (error) {
     console.error('Failed to create study set:', error);
     throw error;
@@ -363,24 +374,16 @@ export const getQuizFromStudySet = async (studySetId: string): Promise<QuizQuest
   }
 };
 
-// Add this test function
-export const createTestQuiz = async (studySetId: string): Promise<void> => {
+export const createQuiz = async (studySetId: string, questions: QuizQuestion[]): Promise<void> => {
   try {
     const db = await getDatabase();
+    console.log('Creating quiz for study set:', studySetId);
     
-    // Sample quiz questions
-    const questions: QuizQuestion[] = [
-      {
-        question: "What is the capital of Finland?",
-        options: ["Helsinki", "Stockholm", "Oslo", "Copenhagen"],
-        correct: "Helsinki"
-      },
-      {
-        question: "What is 2 + 2?",
-        options: ["3", "4", "5", "6"],
-        correct: "4"
-      }
-    ];
+    // First, clear any existing questions for this study set
+    await db.runAsync(
+      'DELETE FROM quiz_questions WHERE study_set_id = ?',
+      [studySetId]
+    );
     
     // Insert each question
     for (const q of questions) {
@@ -397,9 +400,71 @@ export const createTestQuiz = async (studySetId: string): Promise<void> => {
       );
     }
     
-    console.log('Test quiz created successfully');
+    console.log('Quiz created successfully');
   } catch (error) {
-    console.error('Failed to create test quiz:', error);
+    console.error('Failed to create quiz:', error);
+    throw error;
+  }
+};
+
+export const getFlashcardsFromStudySet = async (studySetId: string): Promise<Flashcard[]> => {
+  const db = await getDatabase();
+  
+  try {
+    console.log('Getting flashcards for study set:', studySetId);
+    
+    // First verify the study set exists
+    const studySet = await db.getFirstAsync(
+      'SELECT id FROM study_sets WHERE id = ?',
+      [studySetId]
+    );
+    console.log('Found study set:', studySet);
+
+    // Then get the flashcards
+    const results = await db.getAllAsync<Flashcard>(
+      `SELECT id, study_set_id, front, back 
+       FROM flashcards 
+       WHERE study_set_id = ?`,
+      [studySetId]
+    );
+    
+    console.log('Database query results:', results);
+    
+    if (!results || results.length === 0) {
+      console.log('No flashcards found in database for study set:', studySetId);
+    }
+    
+    return results;
+  } catch (error) {
+    console.error('Error in getFlashcardsFromStudySet:', error);
+    throw error;
+  }
+};
+
+export const createFlashcards = async (studySetId: string, flashcards: { front: string; back: string }[]): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    console.log('Creating flashcards for study set:', studySetId);
+    
+    // First, clear any existing flashcards for this study set
+    await db.runAsync(
+      'DELETE FROM flashcards WHERE study_set_id = ?',
+      [studySetId]
+    );
+    
+    // Insert each flashcard
+    for (const card of flashcards) {
+      console.log('Inserting flashcard:', card);
+      await db.runAsync(
+        `INSERT INTO flashcards (id, study_set_id, front, back) 
+         VALUES (?, ?, ?, ?)`,
+        [uuidv4(), studySetId, card.front, card.back]
+      );
+    }
+    
+    console.log('Flashcards created successfully');
+  } catch (error) {
+    console.error('Failed to create flashcards:', error);
     throw error;
   }
 };

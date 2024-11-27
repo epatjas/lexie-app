@@ -57,6 +57,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       const studySet = await createStudySet({
         title: result.title,
         text_content: result.text_content,
+        flashcards: result.flashcards,
         quiz: result.quiz
       });
 
