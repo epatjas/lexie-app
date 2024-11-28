@@ -1,157 +1,251 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
-import theme from '../styles/theme';
-import StudySetItem from '../components/StudySetItem';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  SafeAreaView,
+  Alert,
+} from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
-import { getAllStudySets } from '../services/Database';
+import theme from '../styles/theme';
 import { StudySet } from '../types/types';
+import StudySetItem from '../components/StudySetItem';
+import { useFolders } from '../hooks/useFolders';
+import { useStudySets } from '../hooks/useStudySet';
+import FolderCard from '../components/FolderCard';
+import { Folder } from 'lucide-react-native';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
+type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
+type ViewMode = 'all' | 'folders';
 
-export default function HomeScreen() {
-  const navigation = useNavigation<NavigationProp>();
-  const [studySets, setStudySets] = useState<StudySet[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export default function HomeScreen({ navigation }: HomeScreenProps) {
+  const [viewMode, setViewMode] = useState<ViewMode>('all');
+  const { folders } = useFolders();
+  const { studySets } = useStudySets();
 
-  useEffect(() => {
-    loadStudySets();
-  }, []);
+  const isEmpty = studySets.length === 0;
 
-  const loadStudySets = async () => {
-    try {
-      const sets = await getAllStudySets();
-      setStudySets(sets);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Failed to load study sets:', error);
-      setIsLoading(false);
+  const getStudySetsByFolder = (folderId: string) => {
+    return studySets.filter((set: StudySet) => set.folder_id === folderId);
+  };
+
+  const renderContent = () => {
+    if (viewMode === 'folders') {
+      if (folders.length === 0) {
+        return (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconContainer}>
+              <Folder color={theme.colors.textSecondary} size={32} />
+            </View>
+            <Text style={styles.emptyText}>
+              Sinulla ei ole vielä yhtään kansiota
+            </Text>
+          </View>
+        );
+      }
+
+      return folders.map(folder => {
+        const folderStudySets = getStudySetsByFolder(folder.id);
+        console.log(`Folder ${folder.name} has ${folderStudySets.length} study sets`);
+        
+        return (
+          <FolderCard
+            key={folder.id}
+            folder={folder}
+            studySetCount={folderStudySets.length}
+            onPress={() => navigation.navigate('Folder', { folderId: folder.id })}
+          />
+        );
+      });
     }
-  };
 
-  const handleStudySetPress = (id: string) => {
-    navigation.navigate('StudySet', { id });
-  };
-
-  const handleCreateNewStudySet = () => {
-    navigation.navigate('ScanPage');
-  };
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('fi-FI', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    }).toUpperCase();
+    return studySets.map((studySet: StudySet) => (
+      <StudySetItem
+        key={studySet.id}
+        studySet={studySet}
+        onPress={() => navigation.navigate('StudySet', { id: studySet.id })}
+      />
+    ));
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {isLoading ? (
-          <View style={styles.welcomeContainer}>
-            <Text>Loading...</Text>
-          </View>
-        ) : studySets.length === 0 ? (
-          <View style={styles.welcomeContainer}>
-            <Text style={styles.greeting}>Hei 👋🏻 Ilona!</Text>
-            <Text style={styles.question}>Mitä haluat oppia tänään?</Text>
-            <TouchableOpacity 
-              style={styles.button}
-              onPress={handleCreateNewStudySet}
+    <SafeAreaView style={styles.container}>
+      {isEmpty ? (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyContent}>
+            <Text style={styles.greeting}>
+              Hei 👋🏻 Ilona!
+            </Text>
+            <Text style={styles.emptyMessage}>
+              Mitä haluaisit oppia tänään?
+            </Text>
+            <TouchableOpacity
+              style={[styles.createButton, styles.createButtonEmpty]}
+              onPress={() => navigation.navigate('ScanPage')}
             >
-              <Text style={styles.buttonText}>Luo uusi harjoittelusetti</Text>
+              <Text style={styles.createButtonText}>Luo uusi harjoittelusetti</Text>
             </TouchableOpacity>
           </View>
-        ) : (
-          <>
-            <View style={styles.header}>
-              <Text style={styles.greeting}>Hei 👋🏻 Ilona!</Text>
-              <Text style={styles.subheading}>Tervetuloa takaisin.</Text>
+        </View>
+      ) : (
+        <>
+          <ScrollView style={styles.scrollView}>
+            <Text style={styles.greeting}>
+              Hei 👋🏻 Ilona!{'\n'}
+              Tervetuloa takaisin.
+            </Text>
+
+            <View style={styles.viewToggle}>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  viewMode === 'all' && styles.toggleButtonActive,
+                ]}
+                onPress={() => setViewMode('all')}
+              >
+                <Text style={[
+                  styles.toggleButtonText,
+                  viewMode === 'all' && styles.toggleButtonTextActive,
+                ]}>
+                  Kaikki setit
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  viewMode === 'folders' && styles.toggleButtonActive,
+                ]}
+                onPress={() => setViewMode('folders')}
+              >
+                <Text style={[
+                  styles.toggleButtonText,
+                  viewMode === 'folders' && styles.toggleButtonTextActive,
+                ]}>
+                  Kansiot
+                </Text>
+              </TouchableOpacity>
             </View>
-            
-            <Text style={styles.sectionTitle}>Harjoittelusetit</Text>
-            
-            <ScrollView style={styles.studySetsList}>
-              {studySets.map((set) => (
-                <StudySetItem
-                  key={set.id}
-                  title={set.title}
-                  date={formatDate(set.created_at)}
-                  onPress={() => handleStudySetPress(set.id)}
-                />
-              ))}
-            </ScrollView>
-            
-            <TouchableOpacity 
-              style={styles.button}
-              onPress={handleCreateNewStudySet}
-            >
-              <Text style={styles.buttonText}>Luo uusi harjoittelusetti</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
+
+            <View style={styles.content}>
+              {renderContent()}
+            </View>
+          </ScrollView>
+
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={() => navigation.navigate('ScanPage')}
+          >
+            <Text style={styles.createButtonText}>Luo uusi harjoittelusetti</Text>
+          </TouchableOpacity>
+        </>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  container: {
+  scrollView: {
     flex: 1,
-    padding: theme.spacing.md,
+    padding: theme.spacing.lg,
   },
-  welcomeContainer: {
+  greeting: {
+    fontSize: 28,
+    fontFamily: theme.fonts.bold,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    marginBottom: theme.spacing.lg,
+    gap: theme.spacing.sm,
+  },
+  toggleButton: {
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: 100,
+    backgroundColor: theme.colors.background02,
+    borderWidth: 1,
+    borderColor: theme.colors.stroke,
+  },
+  toggleButtonActive: {
+    backgroundColor: theme.colors.text,
+    borderWidth: 0,
+  },
+  toggleButtonText: {
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.textSecondary,
+  },
+  toggleButtonTextActive: {
+    color: theme.colors.background,
+  },
+  content: {
+    flex: 1,
+  },
+  createButton: {
+    margin: theme.spacing.lg,
+    padding: theme.spacing.md,
+    borderRadius: 64,
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+  },
+  createButtonText: {
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.lg,
+    fontFamily: theme.fonts.medium,
+  },
+  emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 100,
   },
-  header: {
-    marginTop: theme.spacing.xl,
-    marginBottom: theme.spacing.xl,
-  },
-  greeting: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSizes.xxl,
-    color: theme.colors.text,
-  },
-  subheading: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSizes.xxl,
-    color: theme.colors.text,
-  },
-  question: {
-    fontFamily: theme.fonts.regular,
-    fontSize: theme.fontSizes.lg,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.xl,
-  },
-  sectionTitle: {
-    fontFamily: theme.fonts.medium,
-    fontSize: theme.fontSizes.lg,
-    color: theme.colors.text,
+  emptyIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: theme.colors.background02,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: theme.spacing.md,
   },
-  studySetsList: {
-    flex: 1,
-  },
-  button: {
-    backgroundColor: theme.colors.primary,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.xxxxl,
-    alignItems: 'center',
-    marginTop: theme.spacing.md,
-    width: '80%',
-    alignSelf: 'center',
-  },
-  buttonText: {
-    color: theme.colors.buttonText,
-    fontFamily: theme.fonts.medium,
+  emptyText: {
     fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: theme.spacing.xl,
+  },
+  emptyContent: {
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: theme.spacing.lg,
+  },
+  emptyMessage: {
+    fontSize: 18,
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.text,
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.md,
+  },
+  createButtonEmpty: {
+    width: '80%',
+    marginTop: theme.spacing.md,
+    marginBottom: 0,
+    marginHorizontal: 0,
   },
 });

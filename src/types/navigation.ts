@@ -18,4 +18,7 @@ export type RootStackParamList = {
     };
   };
   ScanPage: undefined;
+  Folder: {
+    folderId: string;
+  };
 };

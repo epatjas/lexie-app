@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
 import { StudySet } from '../types/types';
-import { getStudySet } from '../services/Database';
+import { getCompleteStudySet, getAllStudySets, getDatabase } from '../services/Database';
 
+// For getting a single study set
 export function useStudySet(id: string) {
   const [studySet, setStudySet] = useState<StudySet | null>(null);
 
   useEffect(() => {
     const loadStudySet = async () => {
       try {
-        console.log('Loading study set with id:', id);
-        const data = await getStudySet(id);
-        console.log('Loaded study set data:', data);
-        setStudySet(data);
+        const set = await getCompleteStudySet(id);
+        setStudySet(set);
       } catch (error) {
         console.error('Error loading study set:', error);
       }
@@ -20,5 +19,41 @@ export function useStudySet(id: string) {
     loadStudySet();
   }, [id]);
 
-  return studySet;
+  const refreshStudySet = async () => {
+    try {
+      const set = await getCompleteStudySet(id);
+      setStudySet(set);
+    } catch (error) {
+      console.error('Error refreshing study set:', error);
+    }
+  };
+
+  return { studySet, refreshStudySet };
+}
+
+// For getting all study sets
+export function useStudySets() {
+  const [studySets, setStudySets] = useState<StudySet[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadStudySets = async () => {
+    try {
+      const db = await getDatabase();
+      const sets = await db.getAllAsync<StudySet>(
+        'SELECT id, title, text_content, created_at, updated_at, folder_id FROM study_sets ORDER BY created_at DESC'
+      );
+      console.log('Loaded study sets:', sets); // Debug log
+      setStudySets(sets);
+    } catch (error) {
+      console.error('Error loading study sets:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStudySets();
+  }, []);
+
+  return { studySets, loading, refreshStudySets: loadStudySets };
 } 

@@ -2,30 +2,32 @@ import React from 'react';
 import { TouchableOpacity, Text, View, StyleSheet } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
 import theme from '../styles/theme';
-import { StudySet } from '../types/types';
+import { Folder } from '../types/types';
+import { FOLDER_COLORS } from '../constants/colors';
 
-interface StudySetItemProps {
-  studySet: StudySet;
+interface FolderCardProps {
+  folder: Folder;
+  studySetCount: number;
   onPress: () => void;
 }
 
-export default function StudySetItem({ studySet, onPress }: StudySetItemProps) {
-  const formattedDate = new Date(studySet.created_at).toLocaleDateString('fi-FI', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  }).toUpperCase();
-
+export default function FolderCard({ folder, studySetCount, onPress }: FolderCardProps) {
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress}>
+    <TouchableOpacity
+      style={[
+        styles.container,
+        { backgroundColor: folder.color }
+      ]}
+      onPress={onPress}
+    >
       <View style={styles.content}>
-        <Text style={styles.title} numberOfLines={1}>
-          {studySet.title}
-        </Text>
-        <Text style={styles.date}>{formattedDate}</Text>
+        <Text style={styles.title}>{folder.name}</Text>
+        <Text style={styles.count}>{studySetCount} STUDY SETS</Text>
       </View>
       <View style={styles.iconContainer}>
-        <ArrowRight color={theme.colors.text} size={20} />
+        <View style={styles.iconBackground}>
+          <ArrowRight color={theme.colors.text} size={20} />
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -36,33 +38,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: theme.spacing.md,
-    backgroundColor: theme.colors.background02,
     borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.stroke,
   },
   content: {
     flex: 1,
-    marginRight: theme.spacing.md,
   },
   title: {
     fontSize: theme.fontSizes.lg,
     fontFamily: theme.fonts.medium,
-    color: theme.colors.text,
+    color: theme.colors.background,
     marginBottom: theme.spacing.xs,
   },
-  date: {
-    fontSize: theme.fontSizes.sm,
+  count: {
+    fontSize: theme.fontSizes.xs,
     fontFamily: theme.fonts.regular,
-    color: theme.colors.textSecondary,
+    color: theme.colors.background,
   },
   iconContainer: {
+    marginLeft: theme.spacing.md,
+  },
+  iconBackground: {
     width: 32,
     height: 32,
-    borderRadius: theme.borderRadius.xxxl,
+    borderRadius: 16,
     backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
-});
+}); 

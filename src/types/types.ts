@@ -6,6 +6,7 @@ export interface StudySet {
     updated_at: number;
     flashcards?: Flashcard[];
     quiz?: QuizQuestion[];
+    folder_id?: string | null;
   }
   
   export interface CreateStudySetInput {
@@ -50,4 +51,12 @@ export interface StudySet {
 
   export interface ApiResponse extends OpenAIResponse {
     // ... other fields if needed
+  }
+
+  export interface Folder {
+    id: string;
+    name: string;
+    color: string;
+    created_at: string;
+    updated_at: string;
   }

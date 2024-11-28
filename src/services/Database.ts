@@ -1,25 +1,95 @@
 import * as SQLite from 'expo-sqlite';
-import { CreateStudySetInput, StudySet, Flashcard, QuizQuestion } from '../types/types';
+import { CreateStudySetInput, StudySet, Flashcard, QuizQuestion, Folder } from '../types/types';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
 let db: SQLite.SQLiteDatabase | null = null;
+let isInitializing = false;
 
-const initializeTables = async (database: SQLite.SQLiteDatabase) => {
+// Add this interface near the top of the file
+interface TableColumn {
+  cid: number;
+  name: string;
+  type: string;
+  notnull: number;
+  dflt_value: string | null;
+  pk: number;
+}
+
+// Add this function near the top of the file, after the imports
+const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
   try {
-    // Create tables one by one with error handling
-    await database.execAsync(`
+    console.log('Verifying database schema...');
+    
+    // Add type annotation to tableInfo
+    const tableInfo = await db.getAllAsync<TableColumn>(
+      "PRAGMA table_info('study_sets')"
+    );
+    
+    const hasFolder = tableInfo.some(column => column.name === 'folder_id');
+    
+    if (!hasFolder) {
+      console.log('Adding folder_id column to study_sets table...');
+      await db.execAsync(`
+        ALTER TABLE study_sets
+        ADD COLUMN folder_id TEXT
+        REFERENCES folders(id);
+      `);
+      console.log('Added folder_id column successfully');
+    }
+  } catch (error) {
+    console.error('Schema verification failed:', error);
+    throw error;
+  }
+};
+
+/**
+ * Initializes the database schema.
+ * Creates necessary tables if they don't exist.
+ * @returns Promise<void>
+ */
+export const initDatabase = async (): Promise<void> => {
+  if (isInitializing) {
+    console.log('Database initialization already in progress...');
+    return;
+  }
+
+  try {
+    isInitializing = true;
+    console.log('Initializing database...');
+    
+    if (!db) {
+      throw new Error('Database connection not established');
+    }
+
+    // Create folders table first
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS folders (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        color TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    `);
+    console.log('Folders table created/verified');
+
+    // Create study_sets table with folder_id reference
+    await db.execAsync(`
       CREATE TABLE IF NOT EXISTS study_sets (
         id TEXT PRIMARY KEY NOT NULL,
         title TEXT NOT NULL,
         text_content TEXT,
         created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
+        updated_at INTEGER NOT NULL,
+        folder_id TEXT,
+        FOREIGN KEY (folder_id) REFERENCES folders(id)
       );
     `);
-    console.log('study_sets table created/verified');
+    console.log('Study sets table created/verified');
 
-    await database.execAsync(`
+    // Create other tables...
+    await db.execAsync(`
       CREATE TABLE IF NOT EXISTS flashcards (
         id TEXT PRIMARY KEY NOT NULL,
         study_set_id TEXT NOT NULL,
@@ -28,9 +98,9 @@ const initializeTables = async (database: SQLite.SQLiteDatabase) => {
         FOREIGN KEY (study_set_id) REFERENCES study_sets (id) ON DELETE CASCADE
       );
     `);
-    console.log('flashcards table created/verified');
+    console.log('Flashcards table created/verified');
 
-    await database.execAsync(`
+    await db.execAsync(`
       CREATE TABLE IF NOT EXISTS quiz_questions (
         id TEXT PRIMARY KEY NOT NULL,
         study_set_id TEXT NOT NULL,
@@ -40,37 +110,33 @@ const initializeTables = async (database: SQLite.SQLiteDatabase) => {
         FOREIGN KEY (study_set_id) REFERENCES study_sets (id) ON DELETE CASCADE
       );
     `);
-    console.log('quiz_questions table created/verified');
+    console.log('Quiz questions table created/verified');
 
+    // Verify and update schema if needed
+    await verifyAndUpdateSchema(db);
+
+    console.log('Database initialization completed successfully');
   } catch (error) {
-    console.error('Error creating tables:', error);
+    console.error('Failed to initialize database:', error);
     throw error;
+  } finally {
+    isInitializing = false;
   }
 };
 
 export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
   try {
-    console.log('Attempting to get database connection...');
-    
-    // If there's an existing connection, close it first
+    // If we already have a connection, return it
     if (db !== null) {
-      try {
-        await db.closeAsync();
-        db = null;
-        console.log('Closed existing database connection');
-      } catch (closeError) {
-        console.warn('Error closing existing database:', closeError);
-      }
+      return db;
     }
 
-    // Open new connection
+    console.log('Opening new database connection...');
     db = await SQLite.openDatabaseAsync('studysets.db');
-    console.log('New database connection opened');
-
+    
     // Initialize tables
-    await initializeTables(db);
-    console.log('Database initialized successfully');
-
+    await initDatabase();
+    
     return db;
   } catch (error) {
     console.error('Failed to get database:', error);
@@ -89,61 +155,6 @@ export const closeDatabase = async () => {
       console.error('Error closing database:', error);
       throw error;
     }
-  }
-};
-
-/**
- * Initializes the database schema.
- * Creates necessary tables if they don't exist.
- * @returns Promise<void>
- */
-export const initDatabase = async (): Promise<void> => {
-  try {
-    const db = await getDatabase();
-    
-    // Drop existing tables if they exist (CAUTION: this will delete existing data)
-    await db.execAsync(`DROP TABLE IF EXISTS quiz_questions;`);
-    await db.execAsync(`DROP TABLE IF EXISTS flashcards;`);
-    await db.execAsync(`DROP TABLE IF EXISTS study_sets;`);
-    
-    // Create study_sets table with text_content column
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS study_sets (
-        id TEXT PRIMARY KEY NOT NULL,
-        title TEXT NOT NULL,
-        text_content TEXT,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
-    `);
-
-    // Create flashcards table
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS flashcards (
-        id TEXT PRIMARY KEY NOT NULL,
-        study_set_id TEXT NOT NULL,
-        front TEXT NOT NULL,
-        back TEXT NOT NULL,
-        FOREIGN KEY (study_set_id) REFERENCES study_sets (id) ON DELETE CASCADE
-      );
-    `);
-
-    // Create quiz_questions table
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS quiz_questions (
-        id TEXT PRIMARY KEY NOT NULL,
-        study_set_id TEXT NOT NULL,
-        question TEXT NOT NULL,
-        options TEXT NOT NULL,
-        correct TEXT NOT NULL,
-        FOREIGN KEY (study_set_id) REFERENCES study_sets (id) ON DELETE CASCADE
-      );
-    `);
-
-    console.log('Database tables created successfully');
-  } catch (error) {
-    console.error('Failed to initialize database:', error);
-    throw error;
   }
 };
 
@@ -465,6 +476,117 @@ export const createFlashcards = async (studySetId: string, flashcards: { front: 
     console.log('Flashcards created successfully');
   } catch (error) {
     console.error('Failed to create flashcards:', error);
+    throw error;
+  }
+};
+
+// Add folder-related database functions
+export const createFolder = async (folder: { name: string; color: string }): Promise<Folder> => {
+  try {
+    const db = await getDatabase();
+    const id = uuidv4();
+    const now = Date.now(); // Use timestamp instead of ISO string for consistency
+    
+    await db.runAsync(
+      `INSERT INTO folders (id, name, color, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, folder.name, folder.color, now, now]
+    );
+    
+    return {
+      id,
+      ...folder,
+      created_at: now.toString(),
+      updated_at: now.toString(),
+    };
+  } catch (error) {
+    console.error('Failed to create folder:', error);
+    throw error;
+  }
+};
+
+export const getFolders = async (): Promise<Folder[]> => {
+  try {
+    const db = await getDatabase();
+    const folders = await db.getAllAsync<Folder>(
+      'SELECT * FROM folders ORDER BY created_at DESC'
+    );
+    return folders;
+  } catch (error) {
+    console.error('Failed to get folders:', error);
+    throw error;
+  }
+};
+
+export const updateStudySetFolder = async (studySetId: string, folderId: string | null): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    console.log(`Assigning study set ${studySetId} to folder ${folderId}`); // Debug log
+    
+    await db.runAsync(
+      'UPDATE study_sets SET folder_id = ? WHERE id = ?',
+      [folderId, studySetId]
+    );
+
+    // Verify the update
+    const updatedSet = await db.getFirstAsync(
+      'SELECT * FROM study_sets WHERE id = ?',
+      [studySetId]
+    );
+    console.log('Updated study set:', updatedSet); // Debug log
+  } catch (error) {
+    console.error('Failed to update study set folder:', error);
+    throw error;
+  }
+};
+
+export const updateFolder = async (folderId: string, updates: { name?: string; color?: string }): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    const now = Date.now();
+    
+    const updateFields = [];
+    const values = [];
+    
+    if (updates.name) {
+      updateFields.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.color) {
+      updateFields.push('color = ?');
+      values.push(updates.color);
+    }
+    
+    updateFields.push('updated_at = ?');
+    values.push(now);
+    values.push(folderId);
+
+    await db.runAsync(
+      `UPDATE folders SET ${updateFields.join(', ')} WHERE id = ?`,
+      values
+    );
+  } catch (error) {
+    console.error('Failed to update folder:', error);
+    throw error;
+  }
+};
+
+export const clearDatabase = async (): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    
+    // Drop all tables in the correct order (due to foreign key constraints)
+    await db.execAsync('DROP TABLE IF EXISTS quiz_questions;');
+    await db.execAsync('DROP TABLE IF EXISTS flashcards;');
+    await db.execAsync('DROP TABLE IF EXISTS study_sets;');
+    await db.execAsync('DROP TABLE IF EXISTS folders;');
+    
+    // Reinitialize the database with fresh tables
+    await initDatabase();
+    
+    console.log('Database cleared successfully');
+  } catch (error) {
+    console.error('Failed to clear database:', error);
     throw error;
   }
 };
