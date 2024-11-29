@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { ArrowLeft, Check, X } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -64,6 +65,21 @@ const ProgressCircle = ({ current, total }: { current: number; total: number }) 
   );
 };
 
+const formatOption = (option: string, index: number): string => {
+  const letters = ['A', 'B', 'C', 'D'];
+  if (/^[A-D][\.\)]/.test(option)) {
+    return option;
+  }
+  return `${letters[index]}) ${option}`;
+};
+
+const getOptionLetter = (option: string, index: number): string => {
+  if (/^[A-D][\.\)]/.test(option)) {
+    return option[0];
+  }
+  return ['A', 'B', 'C', 'D'][index];
+};
+
 export default function QuizScreen({ route, navigation }: QuizScreenProps) {
   const { quiz, studySetId } = route.params;
   const [questions, setQuestions] = useState<QuizQuestion[]>(quiz || []);
@@ -81,7 +97,29 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
 
   useEffect(() => {
     if (!quiz && studySetId) {
-      fetchQuizQuestions(studySetId).then(setQuestions);
+      console.log('Fetching quiz questions for study set:', studySetId);
+      fetchQuizQuestions(studySetId)
+        .then(fetchedQuestions => {
+          if (fetchedQuestions && fetchedQuestions.length > 0) {
+            console.log('Successfully loaded questions:', fetchedQuestions);
+            setQuestions(fetchedQuestions);
+          } else {
+            console.warn('No quiz questions found');
+            Alert.alert(
+              'Error',
+              'No quiz questions found for this study set.',
+              [{ text: 'OK', onPress: () => navigation.goBack() }]
+            );
+          }
+        })
+        .catch(error => {
+          console.error('Error loading quiz questions:', error);
+          Alert.alert(
+            'Error',
+            'Failed to load quiz questions.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+        });
     }
   }, [studySetId, quiz]);
 
@@ -94,8 +132,11 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
 
   useEffect(() => {
     if (currentQuestion) {
-      console.log('Current Question Updated:', currentQuestion);
-      console.log('Correct Answer:', currentQuestion.correct);
+      console.log('Current question data:', {
+        question: currentQuestion.question,
+        options: currentQuestion.options,
+        correct: currentQuestion.correct
+      });
     }
   }, [currentQuestion]);
 
@@ -124,12 +165,15 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
     setValidationMessage(null);
     setIsAnswerChecked(true);
     
-    const selectedLetter = selectedAnswer.split(')')[0].trim();
+    const selectedLetter = getOptionLetter(selectedAnswer, currentQuestion.options.indexOf(selectedAnswer));
     
     if (selectedLetter === currentQuestion.correct) {
       setCorrectAnswers(prev => prev + 1);
+      setAttempts(0);
     } else {
-      setWrongAnswers(prev => prev + 1);
+      if (attempts >= 1) {
+        setWrongAnswers(prev => prev + 1);
+      }
       setAttempts(prev => prev + 1);
     }
   };
@@ -144,8 +188,10 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
       
       const timeSpent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
+      const finalCorrectAnswers = correctAnswers + (attempts === 1 ? 1 : 0);
+
       navigation.navigate('QuizComplete', {
-        correctAnswers,
+        correctAnswers: finalCorrectAnswers,
         totalQuestions: questions.length,
         timeSpent,
         studySetId
@@ -198,30 +244,29 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
               key={index}
               style={[
                 styles.optionButton,
-                selectedAnswer === option && styles.selectedOption,
+                selectedAnswer === formatOption(option, index) && styles.selectedOption,
                 isAnswerChecked && 
-                  selectedAnswer === option && 
-                  selectedAnswer.split(')')[0].trim() === currentQuestion.correct && 
+                  selectedAnswer === formatOption(option, index) && 
+                  getOptionLetter(option, index) === currentQuestion.correct && 
                   styles.correctOption,
                 isAnswerChecked && 
-                  selectedAnswer === option && 
-                  selectedAnswer.split(')')[0].trim() !== currentQuestion.correct && 
+                  selectedAnswer === formatOption(option, index) && 
+                  getOptionLetter(option, index) !== currentQuestion.correct && 
                   styles.wrongOption,
               ]}
-              onPress={() => handleAnswerSelect(option)}
-              disabled={isAnswerChecked && 
-                selectedAnswer?.split(')')[0].trim() === currentQuestion.correct}
+              onPress={() => handleAnswerSelect(formatOption(option, index))}
+              disabled={isAnswerChecked}
             >
-              <Text style={styles.optionText}>{option}</Text>
-              {isAnswerChecked && selectedAnswer === option && (
+              <Text style={styles.optionText}>{formatOption(option, index)}</Text>
+              {isAnswerChecked && selectedAnswer === formatOption(option, index) && (
                 <View style={[
                   styles.indicator, 
-                  { backgroundColor: selectedAnswer.split(')')[0].trim() === currentQuestion.correct
+                  { backgroundColor: getOptionLetter(option, index) === currentQuestion.correct
                     ? theme.colors.correct + '20'
                     : theme.colors.incorrect + '20'
                   }
                 ]}>
-                  {selectedAnswer.split(')')[0].trim() === currentQuestion.correct ? (
+                  {getOptionLetter(option, index) === currentQuestion.correct ? (
                     <Check size={16} color={theme.colors.correct} />
                   ) : (
                     <X size={16} color={theme.colors.incorrect} />
@@ -240,12 +285,12 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
           <Text style={[
             styles.feedbackText,
             { 
-              color: selectedAnswer?.split(')')[0].trim() === currentQuestion.correct
+              color: getOptionLetter(selectedAnswer || '', currentQuestion.options.indexOf(selectedAnswer || '')) === currentQuestion.correct
                 ? theme.colors.correct 
                 : theme.colors.incorrect 
             }
           ]}>
-            {selectedAnswer?.split(')')[0].trim() === currentQuestion.correct
+            {getOptionLetter(selectedAnswer || '', currentQuestion.options.indexOf(selectedAnswer || '')) === currentQuestion.correct
               ? 'Hienoa, oikein meni!'
               : attempts >= 2
                 ? `Se meni väärin. Oikea vastaus on ${currentQuestion.correct}.`
@@ -259,13 +304,13 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
               style={[
                 styles.actionButton,
                 { 
-                  backgroundColor: selectedAnswer?.split(')')[0].trim() === currentQuestion.correct
+                  backgroundColor: getOptionLetter(selectedAnswer || '', currentQuestion.options.indexOf(selectedAnswer || '')) === currentQuestion.correct
                     ? theme.colors.correct
                     : theme.colors.incorrect
                 }
               ]}
               onPress={
-                selectedAnswer?.split(')')[0].trim() === currentQuestion.correct || attempts >= 2
+                getOptionLetter(selectedAnswer || '', currentQuestion.options.indexOf(selectedAnswer || '')) === currentQuestion.correct || attempts >= 2
                   ? handleNext
                   : () => {
                       setIsAnswerChecked(false);
@@ -278,12 +323,12 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
                 styles.actionButtonText, 
                 { color: theme.colors.background }
               ]}>
-                {selectedAnswer?.split(')')[0].trim() === currentQuestion.correct || attempts >= 2
+                {getOptionLetter(selectedAnswer || '', currentQuestion.options.indexOf(selectedAnswer || '')) === currentQuestion.correct || attempts >= 2
                   ? 'Jatka'
                   : 'Selvä'}
               </Text>
             </TouchableOpacity>
-            {selectedAnswer?.split(')')[0].trim() !== currentQuestion.correct && 
+            {getOptionLetter(selectedAnswer || '', currentQuestion.options.indexOf(selectedAnswer || '')) !== currentQuestion.correct && 
              attempts < 2 && (
               <TouchableOpacity
                 style={styles.skipButton}
@@ -471,5 +516,17 @@ const styles = StyleSheet.create({
       borderRadius: 12,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    debugText: {
+      color: theme.colors.textSecondary,
+      fontSize: theme.fontSizes.sm,
+      textAlign: 'center',
+      marginTop: theme.spacing.lg,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: theme.spacing.lg,
     },
   });

@@ -47,13 +47,14 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.md,
   },
   title: {
-    fontSize: theme.fontSizes.lg,
+    fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.medium,
     color: theme.colors.text,
     marginBottom: theme.spacing.xs,
   },
   date: {
-    fontSize: theme.fontSizes.sm,
+    fontSize: theme.fontSizes.xs,
+    letterSpacing: 0.5,
     fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
   },

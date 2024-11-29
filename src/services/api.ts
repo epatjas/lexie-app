@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { StudyMaterials, Flashcard, QuizQuestion } from '../types/types';
+import { StudyMaterials, Flashcard, QuizQuestion, TextContent, TextSection } from '../types/types';
 
 const API_URL = 'http://192.168.1.103:3000'; 
 
@@ -41,23 +41,85 @@ export const analyzeImage = async (base64Image: string): Promise<StudyMaterials>
     
     const content = response.data.choices[0].message.content;
     const jsonString = content.replace(/```json\n|\n```/g, '');
-    const studyMaterials: StudyMaterialsResponse = JSON.parse(jsonString);
+    const rawMaterials = JSON.parse(jsonString);
     
-    console.log('Raw flashcards from API:', studyMaterials.flashcards);
+    // Parse the text content into sections
+    const textLines = rawMaterials.text_content.split('\n');
+    const sections: TextSection[] = [];
+    let currentSection: TextSection | null = null;
     
-    // Ensure flashcards are properly structured
-    const mappedMaterials: StudyMaterials = {
-      title: studyMaterials.title,
-      text_content: studyMaterials.text_content,
-      flashcards: studyMaterials.flashcards.map(card => ({
-        front: card.front,
-        back: card.back
-      })),
-      quiz: studyMaterials.quiz
+    textLines.forEach((line: string) => {
+      // Skip empty lines
+      if (!line.trim()) return;
+      
+      // Check if it's a heading (followed by content)
+      if (textLines[textLines.indexOf(line) + 1]?.trim() && !line.startsWith('-')) {
+        if (currentSection) {
+          sections.push(currentSection);
+        }
+        currentSection = {
+          type: 'heading',
+          level: 1,
+          content: line.trim()
+        };
+      }
+      // Check if it's a bullet point
+      else if (line.trim().startsWith('-')) {
+        if (!sections.find(s => s.type === 'list' && s.style === 'bullet')) {
+          sections.push({
+            type: 'list',
+            style: 'bullet',
+            items: []
+          });
+        }
+        const listSection = sections.find(s => s.type === 'list' && s.style === 'bullet');
+        if (listSection && listSection.items) {
+          listSection.items.push(line.trim().substring(2));
+        }
+      }
+      // Otherwise, it's paragraph content
+      else if (line.trim()) {
+        if (currentSection) {
+          sections.push(currentSection);
+          currentSection = null;
+        }
+        sections.push({
+          type: 'paragraph',
+          content: line.trim()
+        });
+      }
+    });
+    
+    // Add the last section if exists
+    if (currentSection) {
+      sections.push(currentSection);
+    }
+    
+    // Format the text content with markdown
+    const markdownText = textLines.map((line: string) => {
+      if (!line.trim()) return '';
+      if (line.trim().startsWith('-')) return `• ${line.trim().substring(2)}`;
+      if (textLines[textLines.indexOf(line) + 1]?.trim() && !line.startsWith('-')) {
+        return `# ${line.trim()}\n`;
+      }
+      return line.trim();
+    }).join('\n');
+    
+    const formattedTextContent: TextContent = {
+      raw_text: markdownText,
+      sections: sections
     };
     
-    console.log('Mapped flashcards:', mappedMaterials.flashcards);
-    return mappedMaterials;
+    // Create properly structured study materials
+    const studyMaterials: StudyMaterials = {
+      title: rawMaterials.title,
+      text_content: formattedTextContent,
+      flashcards: rawMaterials.flashcards,
+      quiz: rawMaterials.quiz
+    };
+    
+    console.log('Formatted study materials:', studyMaterials);
+    return studyMaterials;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       console.error('Detailed API error:', {

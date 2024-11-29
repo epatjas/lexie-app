@@ -1,7 +1,7 @@
 export interface StudySet {
     id: string;
     title: string;
-    text_content: string;
+    text_content: TextContent;
     created_at: number;
     updated_at: number;
     flashcards?: Flashcard[];
@@ -11,7 +11,7 @@ export interface StudySet {
   
   export interface CreateStudySetInput {
     title: string;
-    text_content: string;
+    text_content: TextContent;
     flashcards?: {
       front: string;
       back: string;
@@ -34,9 +34,24 @@ export interface StudySet {
     correct: string;
   }
 
+  export interface TextSection {
+    type: 'heading' | 'paragraph' | 'list' | 'quote' | 'definition';
+    level?: number;  // for headings
+    content?: string;
+    style?: 'bullet' | 'numbered';  // for lists
+    items?: string[];  // for lists
+    term?: string;  // for definitions
+    definition?: string;  // for definitions
+  }
+
+  export interface TextContent {
+    raw_text: string;
+    sections: TextSection[];
+  }
+
   export interface StudyMaterials {
     title: string;
-    text_content: string;
+    text_content: TextContent;
     flashcards: Flashcard[];
     quiz: QuizQuestion[];
   }

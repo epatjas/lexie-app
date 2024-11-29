@@ -168,17 +168,22 @@ export const getStudySet = async (id: string): Promise<StudySet> => {
     const db = await getDatabase();
     console.log('Fetching study set with id:', id);
     
-    const studySet = await db.getFirstAsync<StudySet>(
+    const rawStudySet = await db.getFirstAsync<any>(
       'SELECT * FROM study_sets WHERE id = ?',
       [id]
     );
     
-    console.log('Retrieved study set:', studySet);
-    
-    if (!studySet) {
+    if (!rawStudySet) {
       throw new Error(`Study set with id ${id} not found`);
     }
 
+    // Parse the text_content JSON string back to object
+    const studySet: StudySet = {
+      ...rawStudySet,
+      text_content: JSON.parse(rawStudySet.text_content)
+    };
+    
+    console.log('Retrieved study set:', studySet);
     return studySet;
   } catch (error) {
     console.error('Failed to get study set:', error);
@@ -194,37 +199,45 @@ export const getStudySet = async (id: string): Promise<StudySet> => {
 export const createStudySet = async (input: CreateStudySetInput): Promise<StudySet> => {
   try {
     const db = await getDatabase();
-    console.log('Creating study set with input:', input);
+    console.log('Creating study set with input:', JSON.stringify(input, null, 2));
 
     const now = Date.now();
     const id = uuidv4();
+
+    // Ensure text_content has the required structure
+    const textContent = {
+      raw_text: input.text_content?.raw_text || '',
+      sections: input.text_content?.sections || []
+    };
+
+    // Serialize text_content to JSON string for storage
+    const serializedTextContent = JSON.stringify(textContent);
 
     // Create the study set
     await db.runAsync(
       `INSERT INTO study_sets (id, title, text_content, created_at, updated_at) 
        VALUES (?, ?, ?, ?, ?)`,
-      [id, input.title, input.text_content, now, now]
+      [id, input.title, serializedTextContent, now, now]
     );
+    console.log('Study set created with ID:', id);
 
     // Create flashcards if they exist
     if (input.flashcards && input.flashcards.length > 0) {
-      console.log('Creating flashcards:', input.flashcards);
       await createFlashcards(id, input.flashcards);
     }
 
-    // Create quiz if it exists
+    // Create quiz questions if they exist from OpenAI response
     if (input.quiz && input.quiz.length > 0) {
-      console.log('Creating quiz:', input.quiz);
       await createQuiz(id, input.quiz);
+      console.log('Created quiz questions from OpenAI response');
     }
 
-    return {
-      id,
-      title: input.title,
-      text_content: input.text_content,
-      created_at: now,
-      updated_at: now
-    };
+    const createdSet = await getCompleteStudySet(id);
+    if (!createdSet) {
+      throw new Error('Failed to retrieve created study set');
+    }
+
+    return createdSet;
   } catch (error) {
     console.error('Failed to create study set:', error);
     throw error;
@@ -253,7 +266,7 @@ interface RawQuizQuestion {
   id: string;
   study_set_id: string;
   question: string;
-  options: string; // This is the JSON string from the database
+  options: string; // JSON string in database
   correct: string;
 }
 
@@ -266,30 +279,33 @@ export const getCompleteStudySet = async (id: string): Promise<StudySet | null> 
   try {
     const db = await getDatabase();
     
-    // Get the study set
-    const studySet = await db.getFirstAsync<StudySet>(
+    const rawStudySet = await db.getFirstAsync<any>(
       'SELECT * FROM study_sets WHERE id = ?',
       [id]
     );
     
-    if (!studySet) return null;
+    if (!rawStudySet) return null;
     
-    // Get flashcards
+    // Parse the text_content JSON
+    const studySet: StudySet = {
+      ...rawStudySet,
+      text_content: JSON.parse(rawStudySet.text_content)
+    };
+    
+    // Get flashcards and quiz questions
     const flashcards = await db.getAllAsync<Flashcard>(
       'SELECT * FROM flashcards WHERE study_set_id = ?',
       [id]
     );
     
-    // Get quiz questions
     const quizQuestions = await db.getAllAsync<RawQuizQuestion>(
       'SELECT * FROM quiz_questions WHERE study_set_id = ?',
       [id]
     );
     
-    // Parse the options from JSON string back to array
     const parsedQuizQuestions = quizQuestions.map(q => ({
       ...q,
-      options: JSON.parse(q.options) as string[] // Add type assertion here
+      options: JSON.parse(q.options) as string[]
     }));
     
     return {
@@ -360,37 +376,79 @@ export const getAllStudySets = async (): Promise<StudySet[]> => {
   }
 };
 
-// Add this function to Database.ts
-export const getQuizFromStudySet = async (studySetId: string): Promise<QuizQuestion[]> => {
+// Add this debug function to check table structure
+export const debugQuizTable = async () => {
   try {
     const db = await getDatabase();
+    console.log('Checking quiz_questions table structure...');
     
-    // Get quiz questions for the study set
-    const rawQuizQuestions = await db.getAllAsync<RawQuizQuestion>(
+    // Check if table exists
+    const tableInfo = await db.getAllAsync<TableColumn>(
+      "PRAGMA table_info('quiz_questions')"
+    );
+    console.log('Quiz table structure:', tableInfo);
+    
+    // Check all quiz questions in the database
+    const allQuestions = await db.getAllAsync(
+      'SELECT * FROM quiz_questions'
+    );
+    console.log('All quiz questions in database:', allQuestions);
+    
+    // Check study set IDs that have questions
+    const studySetIds = await db.getAllAsync(
+      'SELECT DISTINCT study_set_id FROM quiz_questions'
+    );
+    console.log('Study set IDs with questions:', studySetIds);
+    
+  } catch (error) {
+    console.error('Error debugging quiz table:', error);
+  }
+};
+
+// Update getQuizFromStudySet to properly handle JSON string options
+export const getQuizFromStudySet = async (studySetId: string): Promise<QuizQuestion[]> => {
+  try {
+    console.log('Getting quiz for study set:', studySetId);
+    const db = await getDatabase();
+    
+    // Get raw questions with string options
+    const rawQuestions = await db.getAllAsync<RawQuizQuestion>(
       'SELECT * FROM quiz_questions WHERE study_set_id = ?',
       [studySetId]
     );
     
-    // Parse the options from JSON string back to array
-    const quizQuestions = rawQuizQuestions.map(q => ({
+    console.log('Raw questions from database:', rawQuestions);
+    
+    // Parse the options JSON string into array
+    const questions = rawQuestions.map(q => ({
+      id: q.id,
+      study_set_id: q.study_set_id,
       question: q.question,
-      options: JSON.parse(q.options) as string[],
+      options: JSON.parse(q.options),
       correct: q.correct
     }));
     
-    return quizQuestions;
+    console.log('Parsed questions:', questions);
+    return questions;
   } catch (error) {
     console.error('Failed to get quiz questions:', error);
     throw error;
   }
 };
 
+// Update the helper function to handle different option formats
+const stripOptionPrefix = (option: string): string => {
+  // Remove only the letter prefix formats: "A) ", "A. ", "A ", etc.
+  return option.replace(/^[A-D][\.\)]\s*/, '');
+};
+
+// Update createQuiz to handle the OpenAI response format
 export const createQuiz = async (studySetId: string, questions: QuizQuestion[]): Promise<void> => {
   try {
     const db = await getDatabase();
     console.log('Creating quiz for study set:', studySetId);
     
-    // First, clear any existing questions for this study set
+    // First, clear existing questions
     await db.runAsync(
       'DELETE FROM quiz_questions WHERE study_set_id = ?',
       [studySetId]
@@ -398,6 +456,17 @@ export const createQuiz = async (studySetId: string, questions: QuizQuestion[]):
     
     // Insert each question
     for (const q of questions) {
+      // Clean up options if they have prefixes
+      const cleanOptions = q.options.map(stripOptionPrefix);
+      
+      console.log('Processing question:', {
+        question: q.question,
+        originalOptions: q.options,
+        cleanedOptions: cleanOptions
+      });
+      
+      const optionsString = JSON.stringify(cleanOptions);
+      
       await db.runAsync(
         `INSERT INTO quiz_questions (id, study_set_id, question, options, correct) 
          VALUES (?, ?, ?, ?, ?)`,
@@ -405,7 +474,7 @@ export const createQuiz = async (studySetId: string, questions: QuizQuestion[]):
           uuidv4(),
           studySetId,
           q.question,
-          JSON.stringify(q.options),
+          optionsString,
           q.correct
         ]
       );
@@ -453,19 +522,26 @@ export const getFlashcardsFromStudySet = async (studySetId: string): Promise<Fla
 };
 
 export const createFlashcards = async (studySetId: string, flashcards: { front: string; back: string }[]): Promise<void> => {
+  if (!flashcards || !Array.isArray(flashcards)) {
+    console.error('Invalid flashcards input:', flashcards);
+    throw new Error('Invalid flashcards input');
+  }
+
   try {
     const db = await getDatabase();
     console.log('Creating flashcards for study set:', studySetId);
+    console.log('Flashcards to create:', JSON.stringify(flashcards, null, 2));
     
     // First, clear any existing flashcards for this study set
     await db.runAsync(
       'DELETE FROM flashcards WHERE study_set_id = ?',
       [studySetId]
     );
+    console.log('Cleared existing flashcards');
     
     // Insert each flashcard
     for (const card of flashcards) {
-      console.log('Inserting flashcard:', card);
+      console.log('Inserting flashcard:', JSON.stringify(card, null, 2));
       await db.runAsync(
         `INSERT INTO flashcards (id, study_set_id, front, back) 
          VALUES (?, ?, ?, ?)`,
@@ -587,6 +663,44 @@ export const clearDatabase = async (): Promise<void> => {
     console.log('Database cleared successfully');
   } catch (error) {
     console.error('Failed to clear database:', error);
+    throw error;
+  }
+};
+
+// Update createQuizQuestions to properly format questions from flashcards
+export const createQuizQuestions = async (studySetId: string, flashcards: { front: string; back: string }[]): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    console.log('Creating quiz questions from flashcards for study set:', studySetId);
+    
+    const questions: QuizQuestion[] = flashcards.map(card => {
+      // Create wrong answers (you might want to improve this logic)
+      const wrongAnswers = [
+        'Incorrect answer 1',
+        'Incorrect answer 2',
+        'Incorrect answer 3'
+      ];
+      
+      // Create options array without the A), B), etc. prefixes
+      const options = [
+        card.back, // Correct answer without prefix
+        wrongAnswers[0],
+        wrongAnswers[1],
+        wrongAnswers[2]
+      ];
+      
+      return {
+        question: card.front,
+        options: options,
+        correct: 'A' // Since we put the correct answer first
+      };
+    });
+    
+    // Use createQuiz to store the questions
+    await createQuiz(studySetId, questions);
+    
+  } catch (error) {
+    console.error('Failed to create quiz questions from flashcards:', error);
     throw error;
   }
 };

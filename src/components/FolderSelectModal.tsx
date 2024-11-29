@@ -20,6 +20,7 @@ import theme from '../styles/theme';
 import { Folder as FolderType } from '../types/types';
 import { FOLDER_COLORS } from '../constants/colors';
 import FolderEditModal from './FolderEditModal';
+import DragHandle from './DragHandle';
 
 interface FolderSelectModalProps {
   visible: boolean;
@@ -90,6 +91,10 @@ export default function FolderSelectModal({
             exiting={SlideOutDown}
             style={styles.contentContainer}
           >
+            <View style={styles.dragHandleContainer}>
+              <DragHandle />
+            </View>
+
             <View style={styles.header}>
               <Text style={styles.headerTitle}>Kansiot</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -158,14 +163,19 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     backgroundColor: theme.colors.background02,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingTop: theme.spacing.sm,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.stroke,
     position: 'relative',
   },
   headerTitle: {

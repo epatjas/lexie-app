@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { AppState, AppStateStatus, View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { closeDatabase, initDatabase, clearDatabase } from './src/services/Database';
+import SplashScreen from './src/components/SplashScreen';
 import { RootStackParamList } from './src/types/navigation';
 import HomeScreen from './src/screens/HomeScreen';
 import StudySetScreen from './src/screens/StudySetScreen';
@@ -12,12 +13,27 @@ import QuizCompleteScreen from './src/screens/QuizComplete';
 import PreviewScreen from './src/screens/PreviewScreen';
 import ScanPageScreen from './src/screens/ScanPageScreen';
 import FolderScreen from './src/screens/FolderScreen';
+import theme from './src/styles/theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
-    initDatabase().catch(console.error);
+    const initApp = async () => {
+      try {
+        await initDatabase();
+        // Ensure splash screen shows for at least 3 seconds
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error initializing app:', error);
+        setIsLoading(false);
+      }
+    };
+
+    initApp();
 
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'inactive' || nextAppState === 'background') {
@@ -34,6 +50,16 @@ export default function App() {
   if (__DEV__) {
     // @ts-ignore
     global.clearDatabase = clearDatabase;
+    // @ts-ignore
+    global.toggleLoading = () => setIsLoading(prev => !prev);
+  }
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <SplashScreen />
+      </View>
+    );
   }
 
   return (
@@ -56,4 +82,11 @@ export default function App() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+});
 

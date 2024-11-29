@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontFamily: theme.fonts.bold,
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.lg,
   },
   viewToggle: {
     flexDirection: 'row',

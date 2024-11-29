@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import theme from '../styles/theme';
 import { FOLDER_COLOR_OPTIONS } from '../constants/colors';
+import DragHandle from './DragHandle';
 
 interface FolderEditModalProps {
   visible: boolean;
@@ -61,6 +62,10 @@ export default function FolderEditModal({
             exiting={SlideOutDown}
             style={styles.contentContainer}
           >
+            <View style={styles.dragHandleContainer}>
+              <DragHandle />
+            </View>
+
             <View style={styles.header}>
               <Text style={styles.title}>{folderName}</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -129,14 +134,19 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     backgroundColor: theme.colors.background02,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingTop: theme.spacing.sm,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.stroke,
     position: 'relative',
   },
   title: {

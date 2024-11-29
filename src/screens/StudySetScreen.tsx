@@ -7,6 +7,8 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  TextStyle,
+  ViewStyle,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
@@ -16,8 +18,14 @@ import { ArrowLeft, FlipHorizontal, Zap, Play, Folder, Calendar } from 'lucide-r
 import { useFolders } from '../hooks/useFolders';
 import FolderSelectModal from '../components/FolderSelectModal';
 import FolderCreationModal from '../components/FolderCreationModal';
+import Markdown from 'react-native-markdown-display';
 
 type StudySetScreenProps = NativeStackScreenProps<RootStackParamList, 'StudySet'>;
+
+// Define the markdown styles type
+type MarkdownStylesObject = {
+  [key: string]: TextStyle | ViewStyle;
+};
 
 export default function StudySetScreen({ route, navigation }: StudySetScreenProps): React.JSX.Element {
   const [folderSelectVisible, setFolderSelectVisible] = useState(false);
@@ -128,6 +136,18 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
   const currentFolder = folders.find(f => f.id === studySet.folder_id);
 
+  const renderContent = () => {
+    if (!studySet?.text_content) {
+      return <Text style={styles.loadingText}>Loading content...</Text>;
+    }
+
+    return (
+      <Markdown style={markdownStyles}>
+        {studySet.text_content.raw_text}
+      </Markdown>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerContainer}>
@@ -142,19 +162,19 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       <ScrollView style={styles.scrollView}>
         <View style={styles.header}>
           <Text style={styles.title}>
-            {studySet.title}
+            {studySet?.title}
           </Text>
 
           <View style={styles.metaInfo}>
             <View style={styles.metaItem}>
               <Calendar size={20} color={theme.colors.textSecondary} />
-              <Text style={styles.metaLabel}>Date created</Text>
+              <Text style={styles.metaLabel}>Päivämäärä</Text>
               <Text style={styles.metaValue}>{formattedDate}</Text>
             </View>
 
             <View style={styles.metaItem}>
               <Folder size={20} color={theme.colors.textSecondary} />
-              <Text style={styles.metaLabel}>Folder</Text>
+              <Text style={styles.metaLabel}>Kansio</Text>
               {currentFolder ? (
                 <TouchableOpacity
                   style={[
@@ -201,7 +221,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
           <View style={styles.contentSection}>
             <Text style={styles.contentTitle}>
-              {studySet.title}
+              {studySet?.title}
             </Text>
             <TouchableOpacity style={styles.listenButton}>
               <View style={styles.listenIcon}>
@@ -209,9 +229,8 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
               </View>
               <Text style={styles.listenButtonText}>Kuuntele</Text>
             </TouchableOpacity>
-            <Text style={styles.contentText}>
-              {studySet.text_content || 'No content available'}
-            </Text>
+            
+            {renderContent()}
           </View>
         </View>
       </ScrollView>
@@ -247,21 +266,22 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: theme.spacing.md,
+    padding: theme.spacing.xs,
     paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
   },
   backButton: {
-    padding: theme.spacing.sm,
+    padding: theme.spacing.xs,
   },
   scrollView: {
     flex: 1,
   },
   header: {
-    padding: theme.spacing.lg,
-    paddingBottom: 0,
+    padding: theme.spacing.md,
+    
   },
   title: {
-    fontSize: 32,
+    fontSize: theme.fontSizes.xxl,
     fontFamily: theme.fonts.bold,
     color: theme.colors.text,
     marginBottom: theme.spacing.xs,
@@ -303,7 +323,7 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.lg,
   },
   contentTitle: {
-    fontSize: theme.fontSizes.xl,
+    fontSize: theme.fontSizes.lg,
     fontFamily: theme.fonts.bold,
     color: theme.colors.text,
     marginBottom: theme.spacing.md,
@@ -330,10 +350,10 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.xs,
   },
   contentText: {
-    fontSize: theme.fontSizes.lg,
+    fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.regular,
     color: theme.colors.text,
-    lineHeight: 28,
+    lineHeight: 24,
     padding: theme.spacing.sm,
   },
   loadingContainer: {
@@ -403,4 +423,73 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     flex: 1,
   },
+  heading1: {
+    fontSize: theme.fontSizes.xl,
+    fontFamily: theme.fonts.bold,
+    marginVertical: theme.spacing.md,
+  },
+  heading2: {
+    fontSize: theme.fontSizes.lg,
+    fontFamily: theme.fonts.semiBold,
+    marginVertical: theme.spacing.sm,
+  },
+  listItem: {
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.regular,
+    marginLeft: theme.spacing.md,
+    marginVertical: theme.spacing.xs,
+  },
+  quote: {
+    fontSize: theme.fontSizes.md,
+    fontStyle: 'italic',
+    borderLeftWidth: 2,
+    borderLeftColor: theme.colors.primary,
+    paddingLeft: theme.spacing.md,
+    marginVertical: theme.spacing.sm,
+  },
+  definition: {
+    marginVertical: theme.spacing.sm,
+  },
+  term: {
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.bold,
+    color: theme.colors.primary,
+  },
+  definitionText: {
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.regular,
+    marginTop: theme.spacing.xs,
+  },
 });
+
+const markdownStyles: MarkdownStylesObject = {
+  body: {
+    fontSize: theme.fontSizes.md,
+    color: theme.colors.text,
+    lineHeight: 24,
+  } as TextStyle,
+  heading1: {
+    fontSize: theme.fontSizes.xl,
+    fontFamily: theme.fonts.bold,
+    color: theme.colors.text,
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+  } as TextStyle,
+  paragraph: {
+    marginVertical: theme.spacing.sm,
+  } as TextStyle,
+  bullet_list: {
+    marginVertical: theme.spacing.sm,
+  } as ViewStyle,
+  bullet_list_icon: {
+    marginRight: theme.spacing.xs,
+  } as TextStyle,
+  bullet_list_content: {
+    flex: 1,
+  } as ViewStyle,
+  list_item: {
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    marginVertical: theme.spacing.xs,
+  } as ViewStyle,
+};
