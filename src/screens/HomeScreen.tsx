@@ -21,6 +21,8 @@ import { Folder } from 'lucide-react-native';
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 type ViewMode = 'all' | 'folders';
 
+const DEBUG = false;
+
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('all');
   const { folders } = useFolders();
@@ -49,8 +51,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
       return folders.map(folder => {
         const folderStudySets = getStudySetsByFolder(folder.id);
-        console.log(`Folder ${folder.name} has ${folderStudySets.length} study sets`);
-        
         return (
           <FolderCard
             key={folder.id}

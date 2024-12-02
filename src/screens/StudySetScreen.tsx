@@ -142,7 +142,10 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     }
 
     return (
-      <Markdown style={markdownStyles}>
+      <Markdown 
+        style={markdownStyles}
+        mergeStyle={false}
+      >
         {studySet.text_content.raw_text}
       </Markdown>
     );
@@ -220,9 +223,6 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
           </TouchableOpacity>
 
           <View style={styles.contentSection}>
-            <Text style={styles.contentTitle}>
-              {studySet?.title}
-            </Text>
             <TouchableOpacity style={styles.listenButton}>
               <View style={styles.listenIcon}>
                 <Play color={theme.colors.text} size={20} />
@@ -439,14 +439,7 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.md,
     marginVertical: theme.spacing.xs,
   },
-  quote: {
-    fontSize: theme.fontSizes.md,
-    fontStyle: 'italic',
-    borderLeftWidth: 2,
-    borderLeftColor: theme.colors.primary,
-    paddingLeft: theme.spacing.md,
-    marginVertical: theme.spacing.sm,
-  },
+  
   definition: {
     marginVertical: theme.spacing.sm,
   },
@@ -467,29 +460,47 @@ const markdownStyles: MarkdownStylesObject = {
     fontSize: theme.fontSizes.md,
     color: theme.colors.text,
     lineHeight: 24,
+    fontFamily: 'Inter-Regular',
   } as TextStyle,
   heading1: {
-    fontSize: theme.fontSizes.xl,
-    fontFamily: theme.fonts.bold,
+    fontSize: 20,
+    fontFamily: 'Inter-Medium',
+    fontWeight: '500',
     color: theme.colors.text,
+    marginBottom: 8,
     marginTop: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
+  } as TextStyle,
+  heading2: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 8,
+    marginTop: theme.spacing.lg,
   } as TextStyle,
   paragraph: {
-    marginVertical: theme.spacing.sm,
+    marginBottom: 24,
+    fontFamily: 'Inter-Regular',
+    color: theme.colors.text,
   } as TextStyle,
-  bullet_list: {
-    marginVertical: theme.spacing.sm,
+  blockquote: {
+    backgroundColor: '#332167',
+    borderLeftWidth: 0,
+    marginLeft: 0,
+    marginRight: 0,
+    marginBottom: 24,
+    paddingLeft: 12,
+    paddingTop: 16,
+    paddingRight: 0,
+    borderRadius: theme.borderRadius.md,
   } as ViewStyle,
-  bullet_list_icon: {
-    marginRight: theme.spacing.xs,
+  blockquote_text: {
+    color: theme.colors.text,
   } as TextStyle,
-  bullet_list_content: {
-    flex: 1,
-  } as ViewStyle,
-  list_item: {
-    flexDirection: 'row' as const,
-    alignItems: 'flex-start' as const,
-    marginVertical: theme.spacing.xs,
+  blockquote_section: {
+    marginLeft: 0,
+    marginRight: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
   } as ViewStyle,
 };

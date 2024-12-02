@@ -40,9 +40,8 @@ export function useStudySets() {
     try {
       const db = await getDatabase();
       const sets = await db.getAllAsync<StudySet>(
-        'SELECT id, title, text_content, created_at, updated_at, folder_id FROM study_sets ORDER BY created_at DESC'
+        'SELECT id, title, created_at, updated_at, folder_id FROM study_sets ORDER BY created_at DESC'
       );
-      console.log('Loaded study sets:', sets); // Debug log
       setStudySets(sets);
     } catch (error) {
       console.error('Error loading study sets:', error);
