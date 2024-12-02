@@ -88,11 +88,15 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     }
   };
 
+  const handleBackPress = () => {
+    navigation.navigate('Home');
+  };
+
   if (!route.params?.id) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={handleBackPress}>
             <ArrowLeft color={theme.colors.text} size={24} />
           </TouchableOpacity>
           <Text style={styles.headerTitleText}>Error</Text>
@@ -109,7 +113,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={handleBackPress}>
             <ArrowLeft color={theme.colors.text} size={24} />
           </TouchableOpacity>
           <Text style={styles.headerTitleText}>Loading...</Text>
@@ -126,7 +130,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={handleBackPress}>
             <ArrowLeft color={theme.colors.text} size={24} />
           </TouchableOpacity>
           <Text style={styles.headerTitleText}>Error</Text>
@@ -166,7 +170,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     <SafeAreaView style={styles.container}>
       <View style={styles.headerContainer}>
         <TouchableOpacity 
-          onPress={() => navigation.goBack()}
+          onPress={handleBackPress}
           style={styles.backButton}
         >
           <ArrowLeft color={theme.colors.text} size={24} />
