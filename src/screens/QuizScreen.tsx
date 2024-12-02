@@ -153,7 +153,10 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
   }
 
   const handleAnswerSelect = (answer: string) => {
-    setSelectedAnswer(answer);
+    const originalOption = currentQuestion.options.find((opt, idx) => 
+      formatOption(opt, idx) === answer
+    );
+    setSelectedAnswer(originalOption || null);
     setValidationMessage(null);
   };
 
@@ -165,9 +168,7 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
     setValidationMessage(null);
     setIsAnswerChecked(true);
     
-    const selectedLetter = getOptionLetter(selectedAnswer, currentQuestion.options.indexOf(selectedAnswer));
-    
-    if (selectedLetter === currentQuestion.correct) {
+    if (selectedAnswer === currentQuestion.correct) {
       setCorrectAnswers(prev => prev + 1);
       setAttempts(0);
     } else {
@@ -239,42 +240,42 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
         <Text style={styles.question}>{currentQuestion.question}</Text>
 
         <View style={styles.options}>
-          {currentQuestion.options.map((option, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.optionButton,
-                selectedAnswer === formatOption(option, index) && styles.selectedOption,
-                isAnswerChecked && 
-                  selectedAnswer === formatOption(option, index) && 
-                  getOptionLetter(option, index) === currentQuestion.correct && 
-                  styles.correctOption,
-                isAnswerChecked && 
-                  selectedAnswer === formatOption(option, index) && 
-                  getOptionLetter(option, index) !== currentQuestion.correct && 
-                  styles.wrongOption,
-              ]}
-              onPress={() => handleAnswerSelect(formatOption(option, index))}
-              disabled={isAnswerChecked}
-            >
-              <Text style={styles.optionText}>{formatOption(option, index)}</Text>
-              {isAnswerChecked && selectedAnswer === formatOption(option, index) && (
-                <View style={[
-                  styles.indicator, 
-                  { backgroundColor: getOptionLetter(option, index) === currentQuestion.correct
-                    ? theme.colors.correct + '20'
-                    : theme.colors.incorrect + '20'
-                  }
-                ]}>
-                  {getOptionLetter(option, index) === currentQuestion.correct ? (
-                    <Check size={16} color={theme.colors.correct} />
-                  ) : (
-                    <X size={16} color={theme.colors.incorrect} />
-                  )}
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
+          {currentQuestion.options.map((option, index) => {
+            const formattedOption = formatOption(option, index);
+            const isSelected = selectedAnswer === option;
+            const isCorrect = option === currentQuestion.correct;
+
+            return (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.optionButton,
+                  isSelected && styles.selectedOption,
+                  isAnswerChecked && isSelected && isCorrect && styles.correctOption,
+                  isAnswerChecked && isSelected && !isCorrect && styles.wrongOption,
+                ]}
+                onPress={() => handleAnswerSelect(formattedOption)}
+                disabled={isAnswerChecked}
+              >
+                <Text style={styles.optionText}>{formattedOption}</Text>
+                {isAnswerChecked && isSelected && (
+                  <View style={[
+                    styles.indicator, 
+                    { backgroundColor: isCorrect 
+                      ? theme.colors.correct + '20'
+                      : theme.colors.incorrect + '20'
+                    }
+                  ]}>
+                    {isCorrect ? (
+                      <Check size={16} color={theme.colors.correct} />
+                    ) : (
+                      <X size={16} color={theme.colors.incorrect} />
+                    )}
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -285,12 +286,12 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
           <Text style={[
             styles.feedbackText,
             { 
-              color: getOptionLetter(selectedAnswer || '', currentQuestion.options.indexOf(selectedAnswer || '')) === currentQuestion.correct
+              color: selectedAnswer === currentQuestion.correct
                 ? theme.colors.correct 
                 : theme.colors.incorrect 
             }
           ]}>
-            {getOptionLetter(selectedAnswer || '', currentQuestion.options.indexOf(selectedAnswer || '')) === currentQuestion.correct
+            {selectedAnswer === currentQuestion.correct
               ? 'Hienoa, oikein meni!'
               : attempts >= 2
                 ? `Se meni väärin. Oikea vastaus on ${currentQuestion.correct}.`
@@ -304,13 +305,13 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
               style={[
                 styles.actionButton,
                 { 
-                  backgroundColor: getOptionLetter(selectedAnswer || '', currentQuestion.options.indexOf(selectedAnswer || '')) === currentQuestion.correct
+                  backgroundColor: selectedAnswer === currentQuestion.correct
                     ? theme.colors.correct
                     : theme.colors.incorrect
                 }
               ]}
               onPress={
-                getOptionLetter(selectedAnswer || '', currentQuestion.options.indexOf(selectedAnswer || '')) === currentQuestion.correct || attempts >= 2
+                selectedAnswer === currentQuestion.correct || attempts >= 2
                   ? handleNext
                   : () => {
                       setIsAnswerChecked(false);
@@ -323,12 +324,12 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
                 styles.actionButtonText, 
                 { color: theme.colors.background }
               ]}>
-                {getOptionLetter(selectedAnswer || '', currentQuestion.options.indexOf(selectedAnswer || '')) === currentQuestion.correct || attempts >= 2
+                {selectedAnswer === currentQuestion.correct || attempts >= 2
                   ? 'Jatka'
                   : 'Selvä'}
               </Text>
             </TouchableOpacity>
-            {getOptionLetter(selectedAnswer || '', currentQuestion.options.indexOf(selectedAnswer || '')) !== currentQuestion.correct && 
+            {selectedAnswer !== currentQuestion.correct && 
              attempts < 2 && (
               <TouchableOpacity
                 style={styles.skipButton}
