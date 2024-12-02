@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 import { X, Folder, MoreVertical } from 'lucide-react-native';
 import Animated, { 
-  FadeIn,
-  SlideInDown,
-  FadeOut,
-  SlideOutDown,
+  withTiming,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  Easing,
 } from 'react-native-reanimated';
 import theme from '../styles/theme';
 import { Folder as FolderType } from '../types/types';
@@ -43,6 +44,40 @@ export default function FolderSelectModal({
 }: FolderSelectModalProps) {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<FolderType | null>(null);
+
+  const overlayOpacity = useSharedValue(0);
+  const translateY = useSharedValue(1000);
+
+  React.useEffect(() => {
+    if (visible) {
+      overlayOpacity.value = withTiming(1, { duration: 200 });
+      translateY.value = withTiming(0, {
+        duration: 300,
+        easing: Easing.out(Easing.ease),
+      });
+    } else {
+      overlayOpacity.value = withTiming(0, { duration: 200 });
+      translateY.value = withTiming(1000, {
+        duration: 300,
+        easing: Easing.in(Easing.ease),
+      });
+    }
+  }, [visible]);
+
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: overlayOpacity.value,
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  }));
+
+  const modalStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    flex: 1,
+    backgroundColor: theme.colors.background02,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+  }));
 
   const handleMorePress = (folder: FolderType) => {
     setSelectedFolder(folder);
@@ -80,17 +115,9 @@ export default function FolderSelectModal({
       animationType="none"
       onRequestClose={onClose}
     >
-      <Animated.View 
-        entering={FadeIn}
-        exiting={FadeOut}
-        style={StyleSheet.absoluteFill}
-      >
+      <Animated.View style={overlayStyle}>
         <SafeAreaView style={styles.container}>
-          <Animated.View
-            entering={SlideInDown}
-            exiting={SlideOutDown}
-            style={styles.contentContainer}
-          >
+          <Animated.View style={modalStyle}>
             <View style={styles.dragHandleContainer}>
               <DragHandle />
             </View>
@@ -158,14 +185,6 @@ export default function FolderSelectModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  contentContainer: {
-    flex: 1,
-    backgroundColor: theme.colors.background02,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
   },
   dragHandleContainer: {
     alignItems: 'center',

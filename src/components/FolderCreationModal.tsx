@@ -11,10 +11,10 @@ import {
 } from 'react-native';
 import { X, Check } from 'lucide-react-native';
 import Animated, { 
-  FadeIn,
-  SlideInDown,
-  FadeOut,
-  SlideOutDown 
+  withTiming,
+  useAnimatedStyle,
+  useSharedValue,
+  Easing,
 } from 'react-native-reanimated';
 import theme from '../styles/theme';
 import { FOLDER_COLOR_OPTIONS, FOLDER_COLORS } from '../constants/colors';
@@ -24,30 +24,56 @@ interface FolderCreationModalProps {
   visible: boolean;
   onClose: () => void;
   onCreate: (name: string, color: string) => void;
+  onSuccess?: () => void;
 }
 
 export default function FolderCreationModal({
   visible,
   onClose,
   onCreate,
+  onSuccess,
 }: FolderCreationModalProps) {
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState<string>(FOLDER_COLORS.pink);
+  
+  const overlayOpacity = useSharedValue(0);
+  const translateY = useSharedValue(1000);
+
+  React.useEffect(() => {
+    if (visible) {
+      overlayOpacity.value = withTiming(1, { duration: 200 });
+      translateY.value = withTiming(0, {
+        duration: 300,
+        easing: Easing.out(Easing.ease),
+      });
+    } else {
+      overlayOpacity.value = withTiming(0, { duration: 200 });
+      translateY.value = withTiming(1000, {
+        duration: 300,
+        easing: Easing.in(Easing.ease),
+      });
+    }
+  }, [visible]);
+
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: overlayOpacity.value,
+  }));
+
+  const modalStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   const handleCreate = () => {
-    Alert.alert('Debug', `Creating folder: ${name} with color: ${selectedColor}`);
-    
     if (name.trim()) {
       try {
         onCreate(name.trim(), selectedColor);
         setName('');
         setSelectedColor(FOLDER_COLORS.pink);
-        Alert.alert('Success', 'Folder creation handler completed');
+        onSuccess?.();
+        onClose();
       } catch (error) {
-        Alert.alert('Error in handleCreate', error instanceof Error ? error.message : 'Unknown error');
+        Alert.alert('Error', error instanceof Error ? error.message : 'Unknown error');
       }
-    } else {
-      Alert.alert('Debug', 'Name is empty, not creating folder');
     }
   };
 
@@ -58,17 +84,9 @@ export default function FolderCreationModal({
       animationType="none"
       onRequestClose={onClose}
     >
-      <Animated.View 
-        entering={FadeIn}
-        exiting={FadeOut}
-        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
-      >
+      <Animated.View style={[styles.overlay, overlayStyle]}>
         <SafeAreaView style={styles.container}>
-          <Animated.View
-            entering={SlideInDown}
-            exiting={SlideOutDown}
-            style={styles.contentContainer}
-          >
+          <Animated.View style={[styles.contentContainer, modalStyle]}>
             <View style={styles.dragHandleContainer}>
               <DragHandle />
             </View>
@@ -128,10 +146,7 @@ export default function FolderCreationModal({
                 styles.createButton,
                 !name.trim() && styles.createButtonDisabled
               ]}
-              onPress={() => {
-                Alert.alert('Debug', 'Create button pressed');
-                handleCreate();
-              }}
+              onPress={handleCreate}
               disabled={!name.trim()}
             >
               <Text style={[
@@ -151,7 +166,6 @@ export default function FolderCreationModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   contentContainer: {
     flex: 1,
@@ -237,8 +251,8 @@ const styles = StyleSheet.create({
   },
   createButton: {
     backgroundColor: theme.colors.primary,
-    padding: theme.spacing.lg,
-    margin: theme.spacing.lg,
+    padding: theme.spacing.md,
+    margin: theme.spacing.md,
     borderRadius: 64,
     alignItems: 'center',
   },
@@ -253,5 +267,9 @@ const styles = StyleSheet.create({
   },
   createButtonTextDisabled: {
     color: theme.colors.textSecondary,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
 }); 

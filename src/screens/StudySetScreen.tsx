@@ -13,7 +13,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
-import { useStudySet } from '../hooks/useStudySet';
+import { useStudySetDetails } from '../hooks/useStudySetDetails';
 import { ArrowLeft, FlipHorizontal, Zap, Play, Folder, Calendar } from 'lucide-react-native';
 import { useFolders } from '../hooks/useFolders';
 import FolderSelectModal from '../components/FolderSelectModal';
@@ -31,7 +31,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const [folderSelectVisible, setFolderSelectVisible] = useState(false);
   const [folderCreateVisible, setFolderCreateVisible] = useState(false);
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
-  const { studySet, refreshStudySet } = useStudySet(route.params?.id);
+  const { studySet, refreshStudySet, loading } = useStudySetDetails(route.params?.id);
 
   useEffect(() => {
     if (!route.params?.id) {
@@ -76,6 +76,18 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     setFolderCreateVisible(true);
   };
 
+  const handleCreateQuiz = () => {
+    if (route.params?.id) {
+      navigation.navigate('Quiz', { studySetId: route.params.id });
+    }
+  };
+
+  const handleFlashcardsPress = () => {
+    if (route.params?.id) {
+      navigation.navigate('Flashcards', { studySetId: route.params.id });
+    }
+  };
+
   if (!route.params?.id) {
     return (
       <SafeAreaView style={styles.container}>
@@ -93,7 +105,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     );
   }
 
-  if (!studySet) {
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
@@ -110,34 +122,33 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     );
   }
 
+  if (!studySet) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <ArrowLeft color={theme.colors.text} size={24} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitleText}>Error</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Study set not found</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const formattedDate = new Date(studySet.created_at).toLocaleDateString('fi-FI', {
     day: 'numeric',
     month: 'long',
     year: 'numeric'
   });
 
-  const handleCreateQuiz = async () => {
-    try {
-      navigation.navigate('Quiz', { studySetId: route.params.id });
-    } catch (error) {
-      console.error('Error navigating to quiz:', error);
-      Alert.alert('Error', 'Failed to load quiz');
-    }
-  };
-
-  const handleFlashcardsPress = async () => {
-    try {
-      navigation.navigate('Flashcards', { studySetId: route.params.id });
-    } catch (error) {
-      console.error('Error navigating to flashcards:', error);
-      Alert.alert('Error', 'Failed to load flashcards');
-    }
-  };
-
   const currentFolder = folders.find(f => f.id === studySet.folder_id);
 
   const renderContent = () => {
-    if (!studySet?.text_content) {
+    if (!studySet.text_content) {
       return <Text style={styles.loadingText}>Loading content...</Text>;
     }
 
@@ -165,7 +176,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       <ScrollView style={styles.scrollView}>
         <View style={styles.header}>
           <Text style={styles.title}>
-            {studySet?.title}
+            {studySet.title}
           </Text>
 
           <View style={styles.metaInfo}>
@@ -383,7 +394,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.stroke,
   },
   folderText: {
-    fontSize: theme.fontSizes.md,
+    fontSize: theme.fontSizes.sm,
     fontFamily: theme.fonts.medium,
     color: theme.colors.background,
   },

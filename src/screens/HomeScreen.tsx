@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { useFolders } from '../hooks/useFolders';
 import { useStudySets } from '../hooks/useStudySet';
 import FolderCard from '../components/FolderCard';
 import { Folder } from 'lucide-react-native';
+import FolderCreationModal from '../components/FolderCreationModal';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 type ViewMode = 'all' | 'folders';
@@ -25,8 +26,28 @@ const DEBUG = false;
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('all');
-  const { folders } = useFolders();
-  const { studySets } = useStudySets();
+  const { folders, refreshFolders, loading, addFolder } = useFolders();
+  const { studySets, refreshStudySets } = useStudySets();
+  const [modalVisible, setModalVisible] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      refreshFolders();
+      refreshStudySets();
+    });
+
+    return unsubscribe;
+  }, [navigation, refreshFolders, refreshStudySets]);
+
+  const handleCreateFolder = async (name: string, color: string) => {
+    try {
+      await addFolder(name, color);
+      await refreshFolders();
+      setModalVisible(false);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to create folder');
+    }
+  };
 
   const isEmpty = studySets.length === 0;
 
@@ -73,6 +94,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <FolderCreationModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onCreate={handleCreateFolder}
+        onSuccess={refreshFolders}
+      />
       {isEmpty ? (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyContent}>

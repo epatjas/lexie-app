@@ -16,6 +16,22 @@ interface TableColumn {
   pk: number;
 }
 
+// Add this type near the top of the file with other interfaces
+interface SQLTransaction {
+  executeSql: (
+    sqlStatement: string,
+    args?: (string | number | null)[]
+  ) => Promise<{
+    rows: {
+      length: number;
+      _array: any[];
+      item: (idx: number) => any;
+    };
+    insertId?: number;
+    rowsAffected: number;
+  }>;
+}
+
 // Add this function near the top of the file, after the imports
 const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
   try {
@@ -701,6 +717,29 @@ export const createQuizQuestions = async (studySetId: string, flashcards: { fron
     
   } catch (error) {
     console.error('Failed to create quiz questions from flashcards:', error);
+    throw error;
+  }
+};
+
+export const deleteFolder = async (folderId: string): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    
+    // First, remove folder_id from all study sets in this folder
+    await db.runAsync(
+      'UPDATE study_sets SET folder_id = NULL WHERE folder_id = ?',
+      [folderId]
+    );
+    
+    // Then delete the folder
+    await db.runAsync(
+      'DELETE FROM folders WHERE id = ?',
+      [folderId]
+    );
+    
+    console.log('Folder deleted successfully:', folderId);
+  } catch (error) {
+    console.error('Error deleting folder:', error);
     throw error;
   }
 };

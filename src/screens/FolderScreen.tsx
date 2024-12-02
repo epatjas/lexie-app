@@ -23,7 +23,7 @@ export default function FolderScreen({ route, navigation }: FolderScreenProps) {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const { folderId } = route.params;
   const { studySets } = useStudySets();
-  const { folders, updateFolder } = useFolders();
+  const { folders, updateFolder, deleteFolder } = useFolders();
 
   const currentFolder = folders.find(f => f.id === folderId);
   const folderStudySets = studySets.filter(set => set.folder_id === folderId);
@@ -34,7 +34,7 @@ export default function FolderScreen({ route, navigation }: FolderScreenProps) {
 
   const handleDeleteFolder = async () => {
     try {
-      // Add delete folder functionality here
+      await deleteFolder(folderId);
       navigation.goBack();
     } catch (error) {
       console.error('Error deleting folder:', error);

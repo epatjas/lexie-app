@@ -7,13 +7,14 @@ import {
   StyleSheet,
   TextInput,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { X, Check, Trash2 } from 'lucide-react-native';
 import Animated, { 
-  FadeIn,
-  SlideInDown,
-  FadeOut,
-  SlideOutDown 
+  withTiming,
+  useAnimatedStyle,
+  useSharedValue,
+  Easing,
 } from 'react-native-reanimated';
 import theme from '../styles/theme';
 import { FOLDER_COLOR_OPTIONS } from '../constants/colors';
@@ -22,7 +23,7 @@ import DragHandle from './DragHandle';
 interface FolderEditModalProps {
   visible: boolean;
   onClose: () => void;
-  onDelete: () => void;
+  onDelete: () => Promise<void>;
   onSave: (name: string, color: string) => void;
   folderName: string;
   folderColor: string;
@@ -38,10 +39,73 @@ export default function FolderEditModal({
 }: FolderEditModalProps) {
   const [name, setName] = useState(folderName);
   const [selectedColor, setSelectedColor] = useState(folderColor);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const overlayOpacity = useSharedValue(0);
+  const translateY = useSharedValue(1000);
+
+  React.useEffect(() => {
+    if (visible) {
+      overlayOpacity.value = withTiming(1, { duration: 200 });
+      translateY.value = withTiming(0, {
+        duration: 300,
+        easing: Easing.out(Easing.ease),
+      });
+    } else {
+      overlayOpacity.value = withTiming(0, { duration: 200 });
+      translateY.value = withTiming(1000, {
+        duration: 300,
+        easing: Easing.in(Easing.ease),
+      });
+    }
+  }, [visible]);
+
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: overlayOpacity.value,
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  }));
+
+  const modalStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    flex: 1,
+    backgroundColor: theme.colors.background02,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+  }));
 
   const handleColorSelect = (color: string) => {
     setSelectedColor(color);
     onSave(name, color);
+  };
+
+  const handleDelete = async () => {
+    Alert.alert(
+      'Poista kansio',
+      'Haluatko varmasti poistaa tämän kansion? Tätä toimintoa ei voi kumota.',
+      [
+        {
+          text: 'Peruuta',
+          style: 'cancel',
+        },
+        {
+          text: 'Poista',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsDeleting(true);
+              await onDelete();
+              onClose();
+            } catch (error) {
+              Alert.alert('Virhe', 'Kansion poistaminen epäonnistui');
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -51,17 +115,9 @@ export default function FolderEditModal({
       animationType="none"
       onRequestClose={onClose}
     >
-      <Animated.View 
-        entering={FadeIn}
-        exiting={FadeOut}
-        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
-      >
+      <Animated.View style={overlayStyle}>
         <SafeAreaView style={styles.container}>
-          <Animated.View
-            entering={SlideInDown}
-            exiting={SlideOutDown}
-            style={styles.contentContainer}
-          >
+          <Animated.View style={modalStyle}>
             <View style={styles.dragHandleContainer}>
               <DragHandle />
             </View>
@@ -113,11 +169,17 @@ export default function FolderEditModal({
             </View>
 
             <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={onDelete}
+              style={[
+                styles.deleteButton,
+                isDeleting && styles.deleteButtonDisabled
+              ]}
+              onPress={handleDelete}
+              disabled={isDeleting}
             >
               <Trash2 color={theme.colors.text} size={20} />
-              <Text style={styles.deleteButtonText}>Poista</Text>
+              <Text style={styles.deleteButtonText}>
+                {isDeleting ? 'Poistetaan...' : 'Poista'}
+              </Text>
             </TouchableOpacity>
           </Animated.View>
         </SafeAreaView>
@@ -129,14 +191,6 @@ export default function FolderEditModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  contentContainer: {
-    flex: 1,
-    backgroundColor: theme.colors.background02,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
   },
   dragHandleContainer: {
     alignItems: 'center',
@@ -227,5 +281,8 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.medium,
+  },
+  deleteButtonDisabled: {
+    opacity: 0.5,
   },
 }); 
