@@ -177,14 +177,14 @@ export const closeDatabase = async () => {
 /**
  * Retrieves a specific study set by ID.
  * @param id - The unique identifier of the study set
- * @returns Promise<StudySet | null> - The study set if found, null otherwise
+ * @returns Promise<StudySet> - The study set if found, null otherwise
  */
 export const getStudySet = async (id: string): Promise<StudySet> => {
   try {
     const db = await getDatabase();
     console.log('Fetching study set with id:', id);
     
-    const rawStudySet = await db.getFirstAsync<any>(
+    const rawStudySet = await db.getFirstAsync<StudySet & { text_content: string }>(
       'SELECT * FROM study_sets WHERE id = ?',
       [id]
     );
@@ -740,6 +740,25 @@ export const deleteFolder = async (folderId: string): Promise<void> => {
     console.log('Folder deleted successfully:', folderId);
   } catch (error) {
     console.error('Error deleting folder:', error);
+    throw error;
+  }
+};
+
+// Add this function to Database.ts
+export const deleteStudySet = async (id: string): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    
+    // Delete associated quiz questions and flashcards first (cascade delete)
+    await db.runAsync('DELETE FROM quiz_questions WHERE study_set_id = ?', [id]);
+    await db.runAsync('DELETE FROM flashcards WHERE study_set_id = ?', [id]);
+    
+    // Then delete the study set
+    await db.runAsync('DELETE FROM study_sets WHERE id = ?', [id]);
+    
+    console.log('Study set deleted successfully:', id);
+  } catch (error) {
+    console.error('Error deleting study set:', error);
     throw error;
   }
 };

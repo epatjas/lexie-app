@@ -34,6 +34,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     const unsubscribe = navigation.addListener('focus', () => {
       refreshFolders();
       refreshStudySets();
+      const params = navigation.getState().routes.find(r => r.name === 'Home')?.params;
+      if (params && 'refresh' in params && params.refresh) {
+        refreshStudySets();
+        navigation.setParams({ refresh: undefined });
+      }
     });
 
     return unsubscribe;

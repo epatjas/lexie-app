@@ -13,8 +13,8 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
-import { useStudySetDetails } from '../hooks/useStudySetDetails';
-import { ArrowLeft, FlipHorizontal, Zap, Play, Folder, Calendar } from 'lucide-react-native';
+import { useStudySetDetails } from '../hooks/useStudySet';
+import { ArrowLeft, FlipHorizontal, Zap, Play, Folder, Calendar, Trash2 } from 'lucide-react-native';
 import { useFolders } from '../hooks/useFolders';
 import FolderSelectModal from '../components/FolderSelectModal';
 import FolderCreationModal from '../components/FolderCreationModal';
@@ -31,7 +31,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const [folderSelectVisible, setFolderSelectVisible] = useState(false);
   const [folderCreateVisible, setFolderCreateVisible] = useState(false);
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
-  const { studySet, refreshStudySet, loading } = useStudySetDetails(route.params?.id);
+  const { studySet, refreshStudySet, loading, deleteStudySet } = useStudySetDetails(route.params?.id);
 
   useEffect(() => {
     if (!route.params?.id) {
@@ -90,6 +90,33 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
   const handleBackPress = () => {
     navigation.navigate('Home');
+  };
+
+  const handleDeletePress = () => {
+    Alert.alert(
+      "Poista harjoittelusetti",
+      "Haluatko varmasti poistaa tämän harjoittelusetin? Tätä toimintoa ei voi kumota.",
+      [
+        {
+          text: "Peruuta",
+          style: "cancel"
+        },
+        {
+          text: "Poista",
+          onPress: async () => {
+            try {
+              if (!route.params?.id) return;
+              await deleteStudySet(route.params.id);
+              navigation.navigate('Home', { refresh: true } as const);
+            } catch (error) {
+              console.error('Error deleting study set:', error);
+              Alert.alert('Virhe', 'Harjoittelusetin poistaminen epäonnistui');
+            }
+          },
+          style: "destructive"
+        }
+      ]
+    );
   };
 
   if (!route.params?.id) {
@@ -175,6 +202,15 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         >
           <ArrowLeft color={theme.colors.text} size={24} />
         </TouchableOpacity>
+        
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            onPress={handleDeletePress}
+            style={styles.deleteButton}
+          >
+            <Trash2 color={theme.colors.text} size={20} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView}>
@@ -281,7 +317,9 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: theme.spacing.xs,
+    justifyContent: 'space-between',
+    paddingLeft: theme.spacing.xs,
+    paddingRight: theme.spacing.md,
     paddingTop: theme.spacing.lg,
     paddingBottom: theme.spacing.md,
   },
@@ -467,6 +505,13 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.regular,
     marginTop: theme.spacing.xs,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    padding: theme.spacing.xs,
   },
 });
 
