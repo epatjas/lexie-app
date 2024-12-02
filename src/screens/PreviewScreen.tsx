@@ -12,6 +12,7 @@ import {
   Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Modal,
 } from 'react-native';
 import { analyzeImage } from '../services/api';
 import { createStudySet } from '../services/Database';
@@ -102,7 +103,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
     <Image
       source={{ uri: item.uri }}
       style={styles.preview}
-      resizeMode="contain"
+      resizeMode="cover"
     />
   );
 
@@ -157,9 +158,11 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
           <ArrowLeft color={theme.colors.text} size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          Esikatsele {currentIndex + 1}/{photos.length}
+          Esikatsele
         </Text>
-        <View style={{ width: 40 }} />
+        <Text style={styles.imageCounter}>
+          {currentIndex + 1}/{photos.length}
+        </Text>
       </View>
 
       <View style={styles.imageContainer}>
@@ -171,6 +174,8 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
           showsHorizontalScrollIndicator={false}
           onScroll={onScroll}
           scrollEventThrottle={16}
+          snapToInterval={width - 40}
+          decelerationRate="fast"
         />
       </View>
 
@@ -180,13 +185,9 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
           onPress={handleAnalyze}
           disabled={isProcessing}
         >
-          {isProcessing ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.analyzeButtonText}>
-              Valmis
-            </Text>
-          )}
+          <Text style={styles.analyzeButtonText}>
+            Valmis
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -197,6 +198,20 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
           <Text style={styles.scanMoreText}>Skannaa lisää</Text>
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={isProcessing}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={theme.colors.text} />
+          <Text style={styles.loadingText}>Pieni hetki</Text>
+          <Text style={styles.loadingSubText}>
+            Lexie ahkeroi paraikaa{'\n'}materiaalisi parissa.
+          </Text>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -210,7 +225,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: theme.spacing.md,
+    paddingLeft: theme.spacing.sm,
+    paddingRight: theme.spacing.md,
     paddingTop: theme.spacing.lg,
     justifyContent: 'space-between',
   },
@@ -223,17 +239,27 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.medium,
     flex: 1,
     textAlign: 'center',
-    marginRight: 0,
+  },
+  imageCounter: {
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.lg,
+    fontFamily: theme.fonts.medium,
+    minWidth: 40,
+    textAlign: 'right',
   },
   imageContainer: {
     flex: 1,
-    borderRadius: 24,
-    overflow: 'hidden',
+    backgroundColor: theme.colors.background02,
+    paddingVertical: theme.spacing.md,
   },
   preview: {
-    width: width,
+    width: width - 64,
     height: '100%',
     borderRadius: 24,
+    marginLeft: 16,
+    marginRight: 8,
+    backgroundColor: theme.colors.background,
+    overflow: 'hidden',
   },
   bottomContainer: {
     padding: theme.spacing.lg,
@@ -270,5 +296,30 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.regular,
     textAlign: 'center',
     paddingHorizontal: theme.spacing.md,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(18, 18, 18, 0.98)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingText: {
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.lg,
+    fontFamily: theme.fonts.medium,
+    marginTop: theme.spacing.lg,
+    textAlign: 'center',
+  },
+  loadingSubText: {
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.regular,
+    marginTop: theme.spacing.sm,
+    textAlign: 'center',
   },
 });
