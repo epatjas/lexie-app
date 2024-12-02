@@ -8,36 +8,51 @@ import {
   Alert,
   StyleSheet,
   SafeAreaView,
+  FlatList,
+  Dimensions,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
 } from 'react-native';
 import { analyzeImage } from '../services/api';
-import { createStudySet, verifyDatabaseTables } from '../services/Database';
+import { createStudySet } from '../services/Database';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { ArrowLeft } from 'lucide-react-native';
 import theme from '../styles/theme';
+import { StudyMaterials } from '../types/types';
 
 type PreviewScreenNavigationProp = NativeStackScreenProps<RootStackParamList, 'Preview'>;
 
-// Update the interface to match the OpenAI response format
-interface StudyMaterials {
+const { width } = Dimensions.get('window');
+
+interface PhotoItem {
+  uri: string;
+  base64?: string;
+}
+
+interface AnalysisResult {
   title: string;
-  text_content: string;
-  flashcards: {
-    front: string;
-    back: string;
-  }[];
-  quiz: {
-    question: string;
-    options: string[];  // This matches the format in your OpenAI prompt
-    correct: string;
-  }[];
+  text_content: {
+    raw_text: string;
+    sections: Array<{
+      type: 'heading' | 'paragraph' | 'list' | 'quote' | 'definition';
+      level?: number;
+      content?: string;
+      style?: 'bullet' | 'numbered';
+      items?: string[];
+      term?: string;
+      definition?: string;
+    }>;
+  };
+  flashcards: Array<{ front: string; back: string }>;
+  quiz: Array<{ question: string; options: string[]; correct: string }>;
 }
 
 export default function PreviewScreen({ route, navigation }: PreviewScreenNavigationProp) {
-  const { photo } = route.params;
+  const { photos } = route.params;
   const [isProcessing, setIsProcessing] = React.useState(false);
+  const [currentIndex, setCurrentIndex] = React.useState(0);
   
-  // Get formatted date for the header
   const formattedDate = new Date().toLocaleDateString('en-GB', {
     day: '2-digit',
     month: '2-digit',
@@ -49,11 +64,19 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       setIsProcessing(true);
       console.log('Starting image analysis...');
 
-      // Analyze image - this returns already parsed JSON from our server
-      const result = await analyzeImage(photo.base64);
-      console.log('Server response:', result);
+      // Collect all base64 images
+      const base64Images = photos
+        .filter(photo => photo.base64)
+        .map(photo => photo.base64 as string);
+
+      if (base64Images.length === 0) {
+        throw new Error('No valid images to analyze');
+      }
+
+      // Send all images for analysis at once
+      const result = await analyzeImage(base64Images);
       
-      // Create study set with the data
+      // Create study set with the combined results
       const studySet = await createStudySet({
         title: result.title,
         text_content: result.text_content,
@@ -70,14 +93,62 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
         'Error',
         error instanceof Error 
           ? `Failed to process: ${error.message}`
-          : 'Failed to process image. Please try again.'
+          : 'Failed to process images. Please try again.'
       );
     }
   };
 
+  const renderItem = ({ item, index }: { item: PhotoItem; index: number }) => (
+    <Image
+      source={{ uri: item.uri }}
+      style={styles.preview}
+      resizeMode="contain"
+    />
+  );
+
+  const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const index = event.nativeEvent.contentOffset.x / slideSize;
+    setCurrentIndex(Math.round(index));
+  };
+
+  const combineResults = (results: AnalysisResult[]): AnalysisResult | null => {
+    if (!results.length) return null;
+
+    return {
+      title: results[0].title,
+      text_content: {
+        raw_text: results.map(r => r.text_content.raw_text).join('\n\n'),
+        sections: results.flatMap(r => 
+          r.text_content.sections.map(section => ({
+            ...section,
+            // Ensure type is one of the allowed values
+            type: validateSectionType(section.type),
+            // Ensure style is one of the allowed values if present
+            style: section.style ? validateListStyle(section.style) : undefined
+          }))
+        )
+      },
+      flashcards: results.flatMap(r => r.flashcards),
+      quiz: results.flatMap(r => r.quiz)
+    };
+  };
+
+  const validateSectionType = (type: string): 'heading' | 'paragraph' | 'list' | 'quote' | 'definition' => {
+    const validTypes = ['heading', 'paragraph', 'list', 'quote', 'definition'] as const;
+    if (validTypes.includes(type as any)) {
+      return type as 'heading' | 'paragraph' | 'list' | 'quote' | 'definition';
+    }
+    // Default to paragraph if invalid type is received
+    return 'paragraph';
+  };
+
+  const validateListStyle = (style: string): 'bullet' | 'numbered' => {
+    return style === 'numbered' ? 'numbered' : 'bullet';
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
           onPress={() => navigation.goBack()}
@@ -85,20 +156,24 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
         >
           <ArrowLeft color={theme.colors.text} size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Scan - {formattedDate}</Text>
+        <Text style={styles.headerTitle}>
+          Esikatsele {currentIndex + 1}/{photos.length}
+        </Text>
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Image Preview */}
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: photo.uri }}
-          style={styles.preview}
-          resizeMode="contain"
+        <FlatList
+          data={photos}
+          renderItem={renderItem}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
         />
       </View>
 
-      {/* Bottom Buttons - Reordered */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity
           style={styles.analyzeButton}
@@ -109,7 +184,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={styles.analyzeButtonText}>
-              Tällä mennään!
+              Valmis
             </Text>
           )}
         </TouchableOpacity>
@@ -119,13 +194,14 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
           onPress={() => navigation.goBack()}
           disabled={isProcessing}
         >
-          <Text style={styles.scanMoreText}>Ota uusi kuva</Text>
+          <Text style={styles.scanMoreText}>Skannaa lisää</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
+// Update styles to handle the image carousel
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -155,8 +231,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   preview: {
-    flex: 1,
-    width: '100%',
+    width: width,
+    height: '100%',
     borderRadius: 24,
   },
   bottomContainer: {

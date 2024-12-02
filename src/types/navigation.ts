@@ -11,11 +11,11 @@ export type RootStackParamList = {
     totalQuestions: number;
     timeSpent: string;
   };
-  Preview: { 
-    photo: {
+  Preview: {
+    photos: Array<{
       uri: string;
-      base64: string;
-    };
+      base64?: string;
+    }>;
   };
   ScanPage: undefined;
   Folder: {

@@ -11,10 +11,10 @@ type RootStackParamList = {
   Home: undefined;
   ScanPage: undefined;
   Preview: {
-    photo: {
+    photos: {
       uri: string;
       base64?: string;
-    };
+    }[];
   };
 };
 
@@ -27,6 +27,7 @@ export default function ScanPageScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [isCapturing, setIsCapturing] = useState(false);
   const progressAnimation = useRef(new Animated.Value(0)).current;
+  const [capturedPhotos, setCapturedPhotos] = useState<Array<{uri: string; base64?: string}>>([]);
 
   const startCapture = () => {
     setIsCapturing(true);
@@ -49,7 +50,9 @@ export default function ScanPageScreen() {
           base64: true,
         });
         if (photo?.uri) {
-          navigation.navigate('Preview', { photo });
+          const updatedPhotos = [...capturedPhotos, photo];
+          setCapturedPhotos(updatedPhotos);
+          navigation.navigate('Preview', { photos: updatedPhotos });
         }
       } catch (error) {
         console.error('Error taking picture:', error);

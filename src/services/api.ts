@@ -1,136 +1,93 @@
 import axios from 'axios';
-import { StudyMaterials, Flashcard, QuizQuestion, TextContent, TextSection } from '../types/types';
+import { StudyMaterials } from '../types/types';
 
 const API_URL = 'http://192.168.1.103:3000'; 
 
-interface ApiResponse {
-  choices: Array<{
-    message: {
-      content: string;
-    };
-  }>;
-  created: number;
-  id: string;
-  model: string;
-  object: string;
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
+// Add interface for raw section data
+interface RawSection {
+  type: string;
+  level?: number;
+  content?: string;
+  style?: string;
+  items?: string[];
+  term?: string;
+  definition?: string;
 }
 
-interface StudyMaterialsResponse {
-  title: string;
-  text_content: string;
-  flashcards: Flashcard[];
-  quiz: QuizQuestion[];
-}
-
-export const analyzeImage = async (base64Image: string): Promise<StudyMaterials> => {
+export const analyzeImage = async (base64Images: string[]): Promise<StudyMaterials> => {
   try {
-    console.log('Sending image to server...');
-    const response = await axios.post<ApiResponse>(`${API_URL}/analyze`, {
-      image: base64Image
+    console.log('Sending images to server...');
+    const response = await axios.post(`${API_URL}/analyze`, {
+      images: base64Images
     }, {
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: 60000
+      timeout: 120000
     });
     
-    const content = response.data.choices[0].message.content;
-    const jsonString = content.replace(/```json\n|\n```/g, '');
-    const rawMaterials = JSON.parse(jsonString);
+    // Log the raw response for debugging
+    console.log('Raw server response:', response.data);
+
+    // Extract the content from the OpenAI response
+    const rawResponse = response.data;
     
-    // Parse the text content into sections
-    const textLines = rawMaterials.text_content.split('\n');
-    const sections: TextSection[] = [];
-    let currentSection: TextSection | null = null;
-    
-    textLines.forEach((line: string) => {
-      // Skip empty lines
-      if (!line.trim()) return;
-      
-      // Check if it's a heading (followed by content)
-      if (textLines[textLines.indexOf(line) + 1]?.trim() && !line.startsWith('-')) {
-        if (currentSection) {
-          sections.push(currentSection);
-        }
-        currentSection = {
-          type: 'heading',
-          level: 1,
-          content: line.trim()
-        };
-      }
-      // Check if it's a bullet point
-      else if (line.trim().startsWith('-')) {
-        if (!sections.find(s => s.type === 'list' && s.style === 'bullet')) {
-          sections.push({
-            type: 'list',
-            style: 'bullet',
-            items: []
-          });
-        }
-        const listSection = sections.find(s => s.type === 'list' && s.style === 'bullet');
-        if (listSection && listSection.items) {
-          listSection.items.push(line.trim().substring(2));
-        }
-      }
-      // Otherwise, it's paragraph content
-      else if (line.trim()) {
-        if (currentSection) {
-          sections.push(currentSection);
-          currentSection = null;
-        }
-        sections.push({
-          type: 'paragraph',
-          content: line.trim()
-        });
-      }
-    });
-    
-    // Add the last section if exists
-    if (currentSection) {
-      sections.push(currentSection);
+    // Validate the response structure
+    if (!rawResponse || typeof rawResponse !== 'object') {
+      console.error('Invalid response format (not an object):', rawResponse);
+      throw new Error('Invalid response format from server');
     }
-    
-    // Format the text content with markdown
-    const markdownText = textLines.map((line: string) => {
-      if (!line.trim()) return '';
-      if (line.trim().startsWith('-')) return `• ${line.trim().substring(2)}`;
-      if (textLines[textLines.indexOf(line) + 1]?.trim() && !line.startsWith('-')) {
-        return `# ${line.trim()}\n`;
-      }
-      return line.trim();
-    }).join('\n');
-    
-    const formattedTextContent: TextContent = {
-      raw_text: markdownText,
-      sections: sections
-    };
-    
-    // Create properly structured study materials
+
+    if (!rawResponse.title || !rawResponse.text_content) {
+      console.error('Missing required fields in response:', rawResponse);
+      throw new Error('Missing required fields in server response');
+    }
+
+    // Convert the response to our StudyMaterials format
     const studyMaterials: StudyMaterials = {
-      title: rawMaterials.title,
-      text_content: formattedTextContent,
-      flashcards: rawMaterials.flashcards,
-      quiz: rawMaterials.quiz
+      title: rawResponse.title,
+      text_content: {
+        raw_text: typeof rawResponse.text_content === 'string' 
+          ? rawResponse.text_content 
+          : rawResponse.text_content.raw_text || '',
+        sections: Array.isArray(rawResponse.text_content.sections) 
+          ? rawResponse.text_content.sections.map((section: RawSection) => ({
+              ...section,
+              type: validateSectionType(section.type),
+              style: section.style ? validateListStyle(section.style) : undefined
+            }))
+          : []
+      },
+      flashcards: Array.isArray(rawResponse.flashcards) 
+        ? rawResponse.flashcards 
+        : [],
+      quiz: Array.isArray(rawResponse.quiz) 
+        ? rawResponse.quiz 
+        : []
     };
-    
-    console.log('Formatted study materials:', studyMaterials);
+
+    console.log('Parsed study materials:', studyMaterials);
     return studyMaterials;
+    
   } catch (error) {
+    console.error('API Error:', error);
     if (axios.isAxiosError(error)) {
       console.error('Detailed API error:', {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
-        headers: error.response?.headers
       });
-    } else {
-      console.error('Error parsing response:', error);
     }
     throw error;
   }
+};
+
+// Helper functions for type validation
+const validateSectionType = (type: string): 'heading' | 'paragraph' | 'list' | 'quote' | 'definition' => {
+  const validTypes = ['heading', 'paragraph', 'list', 'quote', 'definition'] as const;
+  return validTypes.includes(type as any) ? type as any : 'paragraph';
+};
+
+const validateListStyle = (style: string): 'bullet' | 'numbered' => {
+  return style === 'numbered' ? 'numbered' : 'bullet';
 };

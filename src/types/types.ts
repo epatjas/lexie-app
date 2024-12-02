@@ -51,7 +51,10 @@ export interface StudySet {
 
   export interface StudyMaterials {
     title: string;
-    text_content: TextContent;
+    text_content: {
+      raw_text: string;
+      sections: TextSection[];
+    };
     flashcards: Flashcard[];
     quiz: QuizQuestion[];
   }
