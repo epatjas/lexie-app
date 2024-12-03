@@ -11,11 +11,10 @@ import {
 } from 'react-native';
 import { X, Folder, MoreVertical } from 'lucide-react-native';
 import Animated, { 
-  withTiming,
+  withSpring,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
-  Easing,
+  interpolate,
 } from 'react-native-reanimated';
 import theme from '../styles/theme';
 import { Folder as FolderType } from '../types/types';
@@ -45,39 +44,40 @@ export default function FolderSelectModal({
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<FolderType | null>(null);
 
-  const overlayOpacity = useSharedValue(0);
-  const translateY = useSharedValue(1000);
+  const progress = useSharedValue(0);
 
   React.useEffect(() => {
     if (visible) {
-      overlayOpacity.value = withTiming(1, { duration: 200 });
-      translateY.value = withTiming(0, {
-        duration: 300,
-        easing: Easing.out(Easing.ease),
-      });
+      progress.value = withSpring(1);
     } else {
-      overlayOpacity.value = withTiming(0, { duration: 200 });
-      translateY.value = withTiming(1000, {
-        duration: 300,
-        easing: Easing.in(Easing.ease),
-      });
+      progress.value = withSpring(0);
     }
   }, [visible]);
 
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: overlayOpacity.value,
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  }));
+  const overlayStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(progress.value, [0, 1], [0, 1]),
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      ...StyleSheet.absoluteFillObject,
+    };
+  });
 
-  const modalStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    flex: 1,
-    backgroundColor: theme.colors.background02,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
-  }));
+  const modalStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(
+      progress.value,
+      [0, 1],
+      [1000, 0]
+    );
+
+    return {
+      transform: [{ translateY }],
+      backgroundColor: theme.colors.background02,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      overflow: 'hidden',
+      flex: 1,
+    };
+  });
 
   const handleMorePress = (folder: FolderType) => {
     setSelectedFolder(folder);

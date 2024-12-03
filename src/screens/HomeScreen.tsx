@@ -18,6 +18,7 @@ import { useStudySets } from '../hooks/useStudySet';
 import FolderCard from '../components/FolderCard';
 import { Folder } from 'lucide-react-native';
 import FolderCreationModal from '../components/FolderCreationModal';
+import { testDatabaseConnection } from '../services/Database';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 type ViewMode = 'all' | 'folders';
@@ -29,6 +30,19 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { folders, refreshFolders, loading, addFolder } = useFolders();
   const { studySets, refreshStudySets } = useStudySets();
   const [modalVisible, setModalVisible] = useState(false);
+
+  useEffect(() => {
+    const initDb = async () => {
+      try {
+        await testDatabaseConnection();
+        console.log('Database connection successful');
+      } catch (error) {
+        console.error('Database connection failed:', error);
+      }
+    };
+    
+    initDb();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {

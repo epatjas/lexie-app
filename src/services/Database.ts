@@ -74,8 +74,10 @@ export const initDatabase = async (): Promise<void> => {
     isInitializing = true;
     console.log('Initializing database...');
     
+    // Create database connection if it doesn't exist
     if (!db) {
-      throw new Error('Database connection not established');
+      console.log('Opening new database connection...');
+      db = await SQLite.openDatabaseAsync('studysets.db');
     }
 
     // Create folders table first
@@ -147,11 +149,12 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
       return db;
     }
 
-    console.log('Opening new database connection...');
-    db = await SQLite.openDatabaseAsync('studysets.db');
-    
-    // Initialize tables
+    // Initialize database (this will create connection if needed)
     await initDatabase();
+    
+    if (!db) {
+      throw new Error('Database initialization failed');
+    }
     
     return db;
   } catch (error) {

@@ -11,10 +11,10 @@ import {
 } from 'react-native';
 import { X, Check, Trash2 } from 'lucide-react-native';
 import Animated, { 
-  withTiming,
+  withSpring,
   useAnimatedStyle,
   useSharedValue,
-  Easing,
+  interpolate,
 } from 'react-native-reanimated';
 import theme from '../styles/theme';
 import { FOLDER_COLOR_OPTIONS } from '../constants/colors';
@@ -41,39 +41,40 @@ export default function FolderEditModal({
   const [selectedColor, setSelectedColor] = useState(folderColor);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const overlayOpacity = useSharedValue(0);
-  const translateY = useSharedValue(1000);
+  const progress = useSharedValue(0);
 
   React.useEffect(() => {
     if (visible) {
-      overlayOpacity.value = withTiming(1, { duration: 200 });
-      translateY.value = withTiming(0, {
-        duration: 300,
-        easing: Easing.out(Easing.ease),
-      });
+      progress.value = withSpring(1);
     } else {
-      overlayOpacity.value = withTiming(0, { duration: 200 });
-      translateY.value = withTiming(1000, {
-        duration: 300,
-        easing: Easing.in(Easing.ease),
-      });
+      progress.value = withSpring(0);
     }
   }, [visible]);
 
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: overlayOpacity.value,
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  }));
+  const overlayStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(progress.value, [0, 1], [0, 1]),
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      ...StyleSheet.absoluteFillObject,
+    };
+  });
 
-  const modalStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    flex: 1,
-    backgroundColor: theme.colors.background02,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
-  }));
+  const modalStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(
+      progress.value,
+      [0, 1],
+      [1000, 0]
+    );
+
+    return {
+      transform: [{ translateY }],
+      backgroundColor: theme.colors.background02,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      overflow: 'hidden',
+      flex: 1,
+    };
+  });
 
   const handleColorSelect = (color: string) => {
     setSelectedColor(color);

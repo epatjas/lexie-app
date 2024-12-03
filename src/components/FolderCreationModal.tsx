@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 import { X, Check } from 'lucide-react-native';
 import Animated, { 
-  withTiming,
+  withSpring,
   useAnimatedStyle,
+  withTiming,
   useSharedValue,
-  Easing,
+  interpolate,
 } from 'react-native-reanimated';
 import theme from '../styles/theme';
 import { FOLDER_COLOR_OPTIONS, FOLDER_COLORS } from '../constants/colors';
@@ -36,32 +37,40 @@ export default function FolderCreationModal({
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState<string>(FOLDER_COLORS.pink);
   
-  const overlayOpacity = useSharedValue(0);
-  const translateY = useSharedValue(1000);
+  const progress = useSharedValue(0);
 
   React.useEffect(() => {
     if (visible) {
-      overlayOpacity.value = withTiming(1, { duration: 200 });
-      translateY.value = withTiming(0, {
-        duration: 300,
-        easing: Easing.out(Easing.ease),
-      });
+      progress.value = withSpring(1);
     } else {
-      overlayOpacity.value = withTiming(0, { duration: 200 });
-      translateY.value = withTiming(1000, {
-        duration: 300,
-        easing: Easing.in(Easing.ease),
-      });
+      progress.value = withSpring(0);
     }
   }, [visible]);
 
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: overlayOpacity.value,
-  }));
+  const overlayStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(progress.value, [0, 1], [0, 1]),
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      ...StyleSheet.absoluteFillObject,
+    };
+  });
 
-  const modalStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const modalStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(
+      progress.value,
+      [0, 1],
+      [1000, 0]
+    );
+
+    return {
+      transform: [{ translateY }],
+      backgroundColor: theme.colors.background02,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      overflow: 'hidden',
+      flex: 1,
+    };
+  });
 
   const handleCreate = () => {
     if (name.trim()) {
@@ -84,9 +93,9 @@ export default function FolderCreationModal({
       animationType="none"
       onRequestClose={onClose}
     >
-      <Animated.View style={[styles.overlay, overlayStyle]}>
+      <Animated.View style={overlayStyle}>
         <SafeAreaView style={styles.container}>
-          <Animated.View style={[styles.contentContainer, modalStyle]}>
+          <Animated.View style={modalStyle}>
             <View style={styles.dragHandleContainer}>
               <DragHandle />
             </View>
@@ -166,13 +175,6 @@ export default function FolderCreationModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  contentContainer: {
-    flex: 1,
-    backgroundColor: theme.colors.background02,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
   },
   dragHandleContainer: {
     alignItems: 'center',
@@ -267,9 +269,5 @@ const styles = StyleSheet.create({
   },
   createButtonTextDisabled: {
     color: theme.colors.textSecondary,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
   },
 }); 

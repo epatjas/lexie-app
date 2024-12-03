@@ -1,44 +1,41 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet, Animated, Easing, Dimensions } from 'react-native';
+import React from 'react';
+import { View, StyleSheet, Dimensions } from 'react-native';
+import Animated, { 
+  useAnimatedStyle, 
+  useSharedValue, 
+  withRepeat, 
+  withTiming,
+  Easing 
+} from 'react-native-reanimated';
 import theme from '../styles/theme';
 
 const { width } = Dimensions.get('window');
 const circleRadius = width * 0.3;
 
 export default function SplashScreen() {
-  const spinValue = new Animated.Value(0);
+  const rotation = useSharedValue(0);
 
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(spinValue, {
-        toValue: 1,
+  React.useEffect(() => {
+    rotation.value = withRepeat(
+      withTiming(360, {
         duration: 4000,
         easing: Easing.linear,
-        useNativeDriver: true,
-      })
+      }),
+      -1, // Infinite repetition
+      false // Don't reverse the animation
     );
-    
-    animation.start();
-
-    return () => animation.stop();
   }, []);
 
-  const spin = spinValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${rotation.value}deg` }],
+    };
   });
 
   return (
     <View style={styles.container}>
       <View style={styles.circleContainer}>
-        <Animated.View 
-          style={[
-            styles.textCircle,
-            {
-              transform: [{ rotate: spin }],
-            },
-          ]}
-        >
+        <Animated.View style={[styles.textCircle, animatedStyle]}>
           {Array(12).fill('LEXIE').map((text, index) => (
             <Animated.Text
               key={index}
