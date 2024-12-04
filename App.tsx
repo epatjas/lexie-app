@@ -14,10 +14,10 @@ import PreviewScreen from './src/screens/PreviewScreen';
 import ScanPageScreen from './src/screens/ScanPageScreen';
 import FolderScreen from './src/screens/FolderScreen';
 import theme from './src/styles/theme';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// Ignore specific warning
 LogBox.ignoreLogs([
   "It looks like you might be using shared value's .value inside reanimated inline style"
 ]);
@@ -29,7 +29,6 @@ export default function App() {
     const initApp = async () => {
       try {
         await initDatabase();
-        // Ensure splash screen shows for at least 3 seconds
         await new Promise(resolve => setTimeout(resolve, 3000));
         setIsLoading(false);
       } catch (error) {
@@ -68,23 +67,25 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator 
-        initialRouteName="Home"
-        screenOptions={{ 
-          headerShown: false 
-        }}
-      >
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="StudySet" component={StudySetScreen} />
-        <Stack.Screen name="Flashcards" component={FlashcardsScreen} />
-        <Stack.Screen name="Quiz" component={QuizScreen} />
-        <Stack.Screen name="QuizComplete" component={QuizCompleteScreen} />
-        <Stack.Screen name="Preview" component={PreviewScreen} />
-        <Stack.Screen name="ScanPage" component={ScanPageScreen} />
-        <Stack.Screen name="Folder" component={FolderScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName="Home"
+          screenOptions={{
+            headerShown: false
+          }}
+        >
+          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="StudySet" component={StudySetScreen} />
+          <Stack.Screen name="Flashcards" component={FlashcardsScreen} />
+          <Stack.Screen name="Quiz" component={QuizScreen} />
+          <Stack.Screen name="QuizComplete" component={QuizCompleteScreen} />
+          <Stack.Screen name="Preview" component={PreviewScreen} />
+          <Stack.Screen name="ScanPage" component={ScanPageScreen} />
+          <Stack.Screen name="Folder" component={FolderScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
 }
 

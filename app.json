@@ -1,34 +1,21 @@
 {
   "expo": {
-    "name": "lexie-app",
+    "name": "Lexie",
     "slug": "lexie-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "backgroundColor": "#1C1C23",
-      "resizeMode": "contain"
-    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.epatjas.lexieapp"
+      "bundleIdentifier": "com.epatjas.lexieapp",
+      "buildNumber": "1"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "package": "com.epatjas.lexieapp"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "88553ff6-ef91-4843-9837-4385cbe0089a"
-      }
+      "package": "com.epatjas.lexieapp",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       [
@@ -38,12 +25,18 @@
         }
       ],
       [
-        "expo-sqlite",
+        "expo-image-picker",
         {
-          "enableFTS": true
+          "photosPermission": "The app needs access to your photos to create study sets."
         }
       ],
-      "expo-font"
-    ]
+      "expo-font",
+      "expo-sqlite"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "88553ff6-ef91-4843-9837-4385cbe0089a"
+      }
+    }
   }
 }

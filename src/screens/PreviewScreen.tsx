@@ -206,9 +206,13 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       >
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={theme.colors.text} />
-          <Text style={styles.loadingText}>Pieni hetki</Text>
+          <Text style={styles.loadingText}>Pieni hetki...</Text>
           <Text style={styles.loadingSubText}>
-            Lexie ahkeroi paraikaa{'\n'}materiaalisi parissa.
+            Lexie ahkeroi juuri tekstiäsi helposti opiskeltavaan muotoon. Ei mene kauaa!{'\n'}
+            Saat kohta käyttöösi:{'\n'}
+            ✨ Selkeän tekstiversion{'\n'}
+            ✨ Kätevät muistikortit{'\n'}
+            ✨ Hyödylliset harjoituskysymykset
           </Text>
         </View>
       </Modal>

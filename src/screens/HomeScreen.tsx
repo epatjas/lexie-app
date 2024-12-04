@@ -7,6 +7,7 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  Modal,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
@@ -19,6 +20,14 @@ import FolderCard from '../components/FolderCard';
 import { Folder } from 'lucide-react-native';
 import FolderCreationModal from '../components/FolderCreationModal';
 import { testDatabaseConnection } from '../services/Database';
+import CreateStudySetBottomSheet from '../components/CreateStudySetBottomSheet';
+import Animated, { 
+  withSpring,
+  useAnimatedStyle,
+  useSharedValue,
+  interpolate,
+  withTiming,
+} from 'react-native-reanimated';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 type ViewMode = 'all' | 'folders';
@@ -30,6 +39,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { folders, refreshFolders, loading, addFolder } = useFolders();
   const { studySets, refreshStudySets } = useStudySets();
   const [modalVisible, setModalVisible] = useState(false);
+  const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
+  const progress = useSharedValue(0);
 
   useEffect(() => {
     const initDb = async () => {
@@ -111,6 +122,54 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     ));
   };
 
+  const handleCreatePress = () => {
+    console.log('Create button pressed');
+    setIsBottomSheetVisible(true);
+  };
+
+  const handleCloseBottomSheet = () => {
+    setIsBottomSheetVisible(false);
+  };
+
+  React.useEffect(() => {
+    if (isBottomSheetVisible) {
+      progress.value = withTiming(1, {
+        duration: 300,
+      });
+    } else {
+      progress.value = withTiming(0, {
+        duration: 300,
+      });
+    }
+  }, [isBottomSheetVisible]);
+
+  const overlayStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(progress.value, [0, 1], [0, 1]),
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      ...StyleSheet.absoluteFillObject,
+    };
+  });
+
+  const modalStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(
+      progress.value,
+      [0, 1],
+      [1000, 0]
+    );
+    
+    return {
+      transform: [{ translateY }],
+      backgroundColor: theme.colors.background02,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+    };
+  });
+
   return (
     <SafeAreaView style={styles.container}>
       <FolderCreationModal
@@ -130,7 +189,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             </Text>
             <TouchableOpacity
               style={[styles.createButton, styles.createButtonEmpty]}
-              onPress={() => navigation.navigate('ScanPage')}
+              onPress={() => {
+                console.log('Empty state create button pressed');
+                handleCreatePress();
+              }}
             >
               <Text style={styles.createButtonText}>Luo uusi harjoittelusetti</Text>
             </TouchableOpacity>
@@ -183,12 +245,30 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
           <TouchableOpacity
             style={styles.createButton}
-            onPress={() => navigation.navigate('ScanPage')}
+            onPress={() => {
+              console.log('Main create button pressed');
+              handleCreatePress();
+            }}
           >
             <Text style={styles.createButtonText}>Luo uusi harjoittelusetti</Text>
           </TouchableOpacity>
         </>
       )}
+      
+      <Modal
+        visible={isBottomSheetVisible}
+        transparent
+        animationType="none"
+        onRequestClose={handleCloseBottomSheet}
+      >
+        <Animated.View style={overlayStyle}>
+          <SafeAreaView style={styles.modalContainer}>
+            <Animated.View style={modalStyle}>
+              <CreateStudySetBottomSheet onClose={handleCloseBottomSheet} />
+            </Animated.View>
+          </SafeAreaView>
+        </Animated.View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -293,5 +373,9 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
     marginBottom: 0,
     marginHorizontal: 0,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
 });
