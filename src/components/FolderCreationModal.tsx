@@ -41,9 +41,9 @@ export default function FolderCreationModal({
 
   React.useEffect(() => {
     if (visible) {
-      progress.value = withSpring(1);
+      progress.value = withTiming(1, { duration: 300 });
     } else {
-      progress.value = withSpring(0);
+      progress.value = withTiming(0, { duration: 300 });
     }
   }, [visible]);
 

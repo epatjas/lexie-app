@@ -15,6 +15,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   interpolate,
+  withTiming,
 } from 'react-native-reanimated';
 import theme from '../styles/theme';
 import { Folder as FolderType } from '../types/types';
@@ -48,9 +49,9 @@ export default function FolderSelectModal({
 
   React.useEffect(() => {
     if (visible) {
-      progress.value = withSpring(1);
+      progress.value = withTiming(1, { duration: 300 });
     } else {
-      progress.value = withSpring(0);
+      progress.value = withTiming(0, { duration: 300 });
     }
   }, [visible]);
 

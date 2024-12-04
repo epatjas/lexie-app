@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { X, Check, Trash2 } from 'lucide-react-native';
 import Animated, { 
-  withSpring,
+  withTiming,
   useAnimatedStyle,
   useSharedValue,
   interpolate,
@@ -45,9 +45,9 @@ export default function FolderEditModal({
 
   React.useEffect(() => {
     if (visible) {
-      progress.value = withSpring(1);
+      progress.value = withTiming(1, { duration: 300 });
     } else {
-      progress.value = withSpring(0);
+      progress.value = withTiming(0, { duration: 300 });
     }
   }, [visible]);
 
