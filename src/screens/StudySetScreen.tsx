@@ -183,6 +183,8 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       return <Text style={styles.loadingText}>Loading content...</Text>;
     }
 
+    console.log('Raw text content:', studySet.text_content.raw_text);
+
     return (
       <Markdown 
         style={markdownStyles}
@@ -532,6 +534,14 @@ const markdownStyles: MarkdownStylesObject = {
   } as TextStyle,
   heading2: {
     fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 8,
+    marginTop: theme.spacing.lg,
+  } as TextStyle,
+  heading3: {
+    fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     fontWeight: '600',
     color: theme.colors.text,
