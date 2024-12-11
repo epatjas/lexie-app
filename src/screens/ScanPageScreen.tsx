@@ -29,6 +29,15 @@ export default function ScanPageScreen() {
   const progressAnimation = useRef(new Animated.Value(0)).current;
   const [capturedPhotos, setCapturedPhotos] = useState<Array<{uri: string; base64?: string}>>([]);
 
+  // Add useEffect to request permission when component mounts
+  React.useEffect(() => {
+    (async () => {
+      if (!permission?.granted) {
+        await requestPermission();
+      }
+    })();
+  }, []);
+
   const startCapture = () => {
     setIsCapturing(true);
     Animated.timing(progressAnimation, {
@@ -60,22 +69,14 @@ export default function ScanPageScreen() {
     }
   };
 
-  if (!permission) {
+  
+  if (!permission?.granted) {
     return (
-      <View style={styles.container}>
-        <Text>Requesting camera permission...</Text>
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.container}>
-        <Text>We need your permission to show the camera</Text>
-        <TouchableOpacity onPress={requestPermission}>
-          <Text>Grant permission</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          {/* You can optionally show a loading indicator here */}
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -221,5 +222,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

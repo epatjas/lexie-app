@@ -18,9 +18,17 @@ import { analyzeImage } from '../services/api';
 import { createStudySet } from '../services/Database';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Search, Brain, Sparkles } from 'lucide-react-native';
 import theme from '../styles/theme';
 import { StudyMaterials } from '../types/types';
+import Animated, { 
+  useAnimatedStyle, 
+  withRepeat, 
+  withTiming,
+  withSequence,
+  useSharedValue,
+  withDelay
+} from 'react-native-reanimated';
 
 type PreviewScreenNavigationProp = NativeStackScreenProps<RootStackParamList, 'Preview'>;
 
@@ -49,16 +57,46 @@ interface AnalysisResult {
   quiz: Array<{ question: string; options: string[]; correct: string }>;
 }
 
+interface ProcessingStage {
+  icon: React.ReactNode;
+  message: string;
+  subMessage: string;
+}
+
+const AnimatedIcon = Animated.createAnimatedComponent(View);
+
 export default function PreviewScreen({ route, navigation }: PreviewScreenNavigationProp) {
   const { photos } = route.params;
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [currentIndex, setCurrentIndex] = React.useState(0);
+  const [processingStage, setProcessingStage] = React.useState(0);
+  const progressWidth = useSharedValue(0);
+  const rotation = useSharedValue(0);
+  const scale = useSharedValue(1);
   
   const formattedDate = new Date().toLocaleDateString('en-GB', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
   });
+
+  const stages: ProcessingStage[] = [
+    {
+      icon: <Search size={24} color={theme.colors.text} />,
+      message: "Pieni hetki",
+      subMessage: "Lexie opiskelee juuri kuviasi"
+    },
+    {
+      icon: <Brain size={24} color={theme.colors.text} />,
+      message: "Kohta on valmista",
+      subMessage: "Tehdään sopivia harjoitustehtäviä"
+    },
+    {
+      icon: <Sparkles size={24} color={theme.colors.text} />,
+      message: "Vielä viimeinen silaus..",
+      subMessage: "Tarkistetaan että kaikki on kunnossa."
+    }
+  ];
 
   const handleAnalyze = async () => {
     try {
@@ -148,6 +186,52 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
     return style === 'numbered' ? 'numbered' : 'bullet';
   };
 
+  // Add animation effects
+  React.useEffect(() => {
+    if (isProcessing) {
+      // Pulse animation instead of rotation
+      scale.value = withRepeat(
+        withSequence(
+          withTiming(1.2, { duration: 1000 }),
+          withTiming(1, { duration: 1000 })
+        ),
+        -1
+      );
+      
+      // Progress through stages more slowly
+      const stageInterval = setInterval(() => {
+        setProcessingStage(current => 
+          current < stages.length - 1 ? current + 1 : current
+        );
+      }, 4500); // Increased from 3000 to 4500
+
+      // Slower progress bar animation
+      progressWidth.value = withTiming(100, { 
+        duration: 13500 // Increased from 9000 to 13500 (4500 * 3 stages)
+      });
+
+      return () => {
+        clearInterval(stageInterval);
+        scale.value = 1;
+        progressWidth.value = 0;
+        setProcessingStage(0);
+      };
+    }
+  }, [isProcessing]);
+
+  const iconAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+      opacity: withTiming(1, { duration: 500 }) // Smooth fade in
+    };
+  });
+
+  const progressAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      width: `${progressWidth.value}%`
+    };
+  });
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -205,12 +289,25 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
         animationType="fade"
       >
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={theme.colors.text} />
-          <Text style={styles.loadingText}>Pieni hetki...</Text>
-          <Text style={styles.loadingSubText}>
-            Lexie ahkeroi juuri kuviasi {'\n'}helposti opiskeltavaan muotoon.{'\n'} Ei mene kauaa!{'\n'}
-          
-          </Text>
+          <View style={styles.loadingContent}>
+            <AnimatedIcon style={[styles.iconContainer, iconAnimatedStyle]}>
+              {stages[processingStage].icon}
+            </AnimatedIcon>
+
+            <View style={styles.progressBarContainer}>
+              <Animated.View 
+                style={[styles.progressBar, progressAnimatedStyle]} 
+              />
+            </View>
+            
+            <Text style={styles.loadingText}>
+              {stages[processingStage].message}
+            </Text>
+            
+            <Text style={styles.loadingSubText}>
+              {stages[processingStage].subMessage}
+            </Text>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -310,19 +407,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1000,
   },
+  loadingContent: {
+    alignItems: 'center',
+    padding: theme.spacing.xl,
+    width: '100%',
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: theme.colors.background02,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xl,
+  },
   loadingText: {
     color: theme.colors.text,
     fontSize: theme.fontSizes.lg,
     fontFamily: theme.fonts.medium,
-    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
     textAlign: 'center',
   },
   loadingSubText: {
     color: theme.colors.text,
     fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.regular,
-    lineHeight: theme.fontSizes.md * 1.5,
-    marginTop: theme.spacing.sm,
     textAlign: 'center',
+    opacity: 0.8,
+  },
+  progressBarContainer: {
+    width: '80%',
+    height: 4,
+    backgroundColor: theme.colors.background02,
+    borderRadius: 2,
+    marginBottom: theme.spacing.xl,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: theme.colors.primary,
+    borderRadius: 2,
   },
 });
