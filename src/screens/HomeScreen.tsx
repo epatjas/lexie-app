@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
@@ -34,10 +35,16 @@ type ViewMode = 'all' | 'folders';
 
 const DEBUG = false;
 
+const LoadingIndicator = () => (
+  <View style={styles.loadingContainer}>
+    <ActivityIndicator size="large" color={theme.colors.primary} />
+  </View>
+);
+
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('all');
   const { folders, refreshFolders, loading, addFolder } = useFolders();
-  const { studySets, refreshStudySets } = useStudySets();
+  const { studySets, refreshStudySets, loading: studySetsLoading } = useStudySets();
   const [modalVisible, setModalVisible] = useState(false);
   const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
   const progress = useSharedValue(0);
@@ -57,10 +64,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      console.log('Screen focused, refreshing data...');
       refreshFolders();
       refreshStudySets();
       const params = navigation.getState().routes.find(r => r.name === 'Home')?.params;
       if (params && 'refresh' in params && params.refresh) {
+        console.log('Refresh parameter found, updating study sets...');
         refreshStudySets();
         navigation.setParams({ refresh: undefined });
       }
@@ -82,7 +91,19 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const isEmpty = studySets.length === 0;
 
   const getStudySetsByFolder = (folderId: string) => {
-    return studySets.filter((set: StudySet) => set.folder_id === folderId);
+    console.log('Study Sets Structure:', studySets.map(set => ({
+      id: set.id,
+      title: set.title,
+      folder_id: set.folder_id
+    })));
+    
+    return studySets.filter((set: StudySet) => {
+      if (typeof set.folder_id !== typeof folderId) {
+        console.warn(`Type mismatch: set.folder_id (${typeof set.folder_id}) vs folderId (${typeof folderId})`);
+        console.warn(`Values: set.folder_id = ${set.folder_id}, folderId = ${folderId}`);
+      }
+      return set.folder_id === folderId;
+    });
   };
 
   const renderContent = () => {
@@ -100,17 +121,13 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         );
       }
 
-      return folders.map(folder => {
-        const folderStudySets = getStudySetsByFolder(folder.id);
-        return (
-          <FolderCard
-            key={folder.id}
-            folder={folder}
-            studySetCount={folderStudySets.length}
-            onPress={() => navigation.navigate('Folder', { folderId: folder.id })}
-          />
-        );
-      });
+      return folders.map(folder => (
+        <FolderCard
+          key={folder.id}
+          folder={folder}
+          onPress={() => navigation.navigate('Folder', { folderId: folder.id })}
+        />
+      ));
     }
 
     return studySets.map((studySet: StudySet) => (
@@ -178,7 +195,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         onCreate={handleCreateFolder}
         onSuccess={refreshFolders}
       />
-      {isEmpty ? (
+      
+      {studySetsLoading ? (
+        <LoadingIndicator />
+      ) : isEmpty ? (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyContent}>
             <Text style={styles.greeting}>
@@ -377,5 +397,10 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

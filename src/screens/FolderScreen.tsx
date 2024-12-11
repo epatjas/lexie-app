@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
-import { ArrowLeft, MoreVertical } from 'lucide-react-native';
+import { ArrowLeft, MoreVertical, BookOpen } from 'lucide-react-native';
 import theme from '../styles/theme';
 import { useStudySets } from '../hooks/useStudySet';
 import { useFolders } from '../hooks/useFolders';
@@ -22,11 +22,31 @@ type FolderScreenProps = NativeStackScreenProps<RootStackParamList, 'Folder'>;
 export default function FolderScreen({ route, navigation }: FolderScreenProps) {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const { folderId } = route.params;
-  const { studySets } = useStudySets();
+  const { studySets, refreshStudySets } = useStudySets();
   const { folders, updateFolder, deleteFolder } = useFolders();
 
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('FolderScreen focused - refreshing data');
+      refreshStudySets();
+    });
+
+    return unsubscribe;
+  }, [navigation, refreshStudySets]);
+
+  console.log('Current folder ID:', folderId);
+  console.log('All study sets:', studySets);
+  console.log('Filtered study sets:', studySets.filter(set => set.folder_id === folderId));
+  
   const currentFolder = folders.find(f => f.id === folderId);
-  const folderStudySets = studySets.filter(set => set.folder_id === folderId);
+  const folderStudySets = studySets.filter(set => {
+    console.log('Comparing:', {
+      setFolderId: set.folder_id,
+      folderId: folderId,
+      matches: set.folder_id === folderId
+    });
+    return set.folder_id === folderId;
+  });
 
   if (!currentFolder) {
     return null;
@@ -52,6 +72,29 @@ export default function FolderScreen({ route, navigation }: FolderScreenProps) {
     }
   };
 
+  const renderContent = () => {
+    if (folderStudySets.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <View style={styles.emptyIconContainer}>
+            <BookOpen color={theme.colors.textSecondary} size={32} />
+          </View>
+          <Text style={styles.emptyText}>
+            Tässä kansiossa ei ole vielä harjoittelusettejä
+          </Text>
+        </View>
+      );
+    }
+
+    return folderStudySets.map(studySet => (
+      <StudySetItem
+        key={studySet.id}
+        studySet={studySet}
+        onPress={() => navigation.navigate('StudySet', { id: studySet.id })}
+      />
+    ));
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -71,13 +114,7 @@ export default function FolderScreen({ route, navigation }: FolderScreenProps) {
       </View>
 
       <ScrollView style={styles.content}>
-        {folderStudySets.map(studySet => (
-          <StudySetItem
-            key={studySet.id}
-            studySet={studySet}
-            onPress={() => navigation.navigate('StudySet', { id: studySet.id })}
-          />
-        ))}
+        {renderContent()}
       </ScrollView>
 
       <FolderEditModal
@@ -120,5 +157,26 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: theme.spacing.lg,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+  },
+  emptyIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: theme.colors.background02,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  emptyText: {
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
 }); 

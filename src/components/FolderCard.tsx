@@ -3,15 +3,13 @@ import { TouchableOpacity, Text, View, StyleSheet } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
 import theme from '../styles/theme';
 import { Folder } from '../types/types';
-import { FOLDER_COLORS } from '../constants/colors';
 
 interface FolderCardProps {
-  folder: Folder;
-  studySetCount: number;
+  folder: Folder & { study_set_count: number };
   onPress: () => void;
 }
 
-export default function FolderCard({ folder, studySetCount, onPress }: FolderCardProps) {
+export default function FolderCard({ folder, onPress }: FolderCardProps) {
   return (
     <TouchableOpacity
       style={[
@@ -22,7 +20,9 @@ export default function FolderCard({ folder, studySetCount, onPress }: FolderCar
     >
       <View style={styles.content}>
         <Text style={styles.title}>{folder.name}</Text>
-        <Text style={styles.count}>{studySetCount} STUDY SETS</Text>
+        <Text style={styles.count}>
+          {folder.study_set_count} {folder.study_set_count === 1 ? 'STUDY SET' : 'STUDY SETS'}
+        </Text>
       </View>
       <View style={styles.iconContainer}>
         <View style={styles.iconBackground}>

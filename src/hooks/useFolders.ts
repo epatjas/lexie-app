@@ -1,16 +1,28 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Folder } from '../types/types';
-import { getFolders, createFolder, updateStudySetFolder, updateFolder as updateFolderInDb, deleteFolder as deleteFolderInDb } from '../services/Database';
+import { getFolders, createFolder, updateStudySetFolder, updateFolder as updateFolderInDb, deleteFolder as deleteFolderInDb, getDatabase } from '../services/Database';
+
+// Define a new type that includes study_set_count
+type FolderWithCount = Folder & { study_set_count: number };
 
 export function useFolders() {
-  const [folders, setFolders] = useState<Folder[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [folders, setFolders] = useState<FolderWithCount[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const refreshFolders = useCallback(async () => {
     try {
       setLoading(true);
-      const fetchedFolders = await getFolders();
-      setFolders(fetchedFolders);
+      const db = await getDatabase();
+      
+      const foldersWithCounts = await db.getAllAsync<FolderWithCount>(`
+        SELECT 
+          f.*,
+          (SELECT COUNT(*) FROM study_sets s WHERE s.folder_id = f.id) as study_set_count
+        FROM folders f
+        ORDER BY f.created_at DESC
+      `);
+      
+      setFolders(foldersWithCounts);
     } catch (error) {
       console.error('Error refreshing folders:', error);
     } finally {

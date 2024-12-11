@@ -386,8 +386,9 @@ export const getAllStudySets = async (): Promise<StudySet[]> => {
   try {
     const db = await getDatabase();
     const studySets = await db.getAllAsync<StudySet>(
-      'SELECT id, title, text_content, created_at, updated_at FROM study_sets ORDER BY created_at DESC'
+      'SELECT id, title, text_content, folder_id, created_at, updated_at FROM study_sets ORDER BY created_at DESC'
     );
+    console.log('Database - getAllStudySets:', studySets);
     return studySets;
   } catch (error) {
     console.error('Failed to get study sets:', error);
@@ -616,7 +617,7 @@ export const getFolders = async (): Promise<Folder[]> => {
 export const updateStudySetFolder = async (studySetId: string, folderId: string | null): Promise<void> => {
   try {
     const db = await getDatabase();
-    console.log(`Assigning study set ${studySetId} to folder ${folderId}`); // Debug log
+    console.log(`Assigning study set ${studySetId} to folder ${folderId}`);
     
     await db.runAsync(
       'UPDATE study_sets SET folder_id = ? WHERE id = ?',
@@ -628,7 +629,7 @@ export const updateStudySetFolder = async (studySetId: string, folderId: string 
       'SELECT * FROM study_sets WHERE id = ?',
       [studySetId]
     );
-    console.log('Updated study set:', updatedSet); // Debug log
+    console.log('Updated study set:', updatedSet);
   } catch (error) {
     console.error('Failed to update study set folder:', error);
     throw error;
