@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, SafeAreaView } from 'react-native';
 import { Camera, Image as ImageIcon } from 'lucide-react-native';
 import theme from '../styles/theme';
 import * as ImagePicker from 'expo-image-picker';
@@ -48,44 +48,78 @@ export default function CreateStudySetBottomSheet({ onClose }: Props) {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.handle} />
-      <Text style={styles.title}>Luo uusi harjoittelusetti</Text>
-      
-      <TouchableOpacity style={styles.option} onPress={handleScanPress}>
-        <View style={[styles.iconContainer, { backgroundColor: '#D9EAFD' }]}>
-          <Camera size={24} color={theme.colors.background} />
-        </View>
-        <View style={styles.textContainer}>
-          <Text style={styles.optionTitle}>Skannaa</Text>
-          <Text style={styles.optionDescription}>
-            Skannaa kirjasta tai muistiinpanoista
-          </Text>
-        </View>
-      </TouchableOpacity>
+    <Modal
+      visible={true}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={styles.overlay}>
+        <TouchableOpacity 
+          style={styles.overlay} 
+          activeOpacity={1} 
+          onPress={onClose}
+        >
+          <View 
+            style={styles.outerContainer}
+            onStartShouldSetResponder={() => true}
+            onTouchEnd={e => e.stopPropagation()}
+          >
+            <View style={styles.container}>
+              <View style={styles.handle} />
+              <TouchableOpacity style={styles.option} onPress={handleScanPress}>
+                <View style={[styles.iconContainer, { backgroundColor: '#D9EAFD' }]}>
+                  <Camera size={24} color={theme.colors.background} />
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={styles.optionTitle}>Skannaa</Text>
+                  <Text style={styles.optionDescription}>
+                    Skannaa kirjasta tai muistiinpanoista
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
-      <TouchableOpacity style={styles.option} onPress={handleImagePicker}>
-        <View style={[styles.iconContainer, { backgroundColor: '#FFEBA1' }]}>
-          <ImageIcon size={24} color={theme.colors.background} />
-        </View>
-        <View style={styles.textContainer}>
-          <Text style={styles.optionTitle}>Lataa kuva</Text>
-          <Text style={styles.optionDescription}>
-            Valitse kuva laitteeltasi
-          </Text>
-        </View>
-      </TouchableOpacity>
-    </View>
+              <TouchableOpacity style={styles.option} onPress={handleImagePicker}>
+                <View style={[styles.iconContainer, { backgroundColor: '#FFEBA1' }]}>
+                  <ImageIcon size={24} color={theme.colors.background} />
+                </View>
+                <View style={styles.textContainer}>
+                  <Text style={styles.optionTitle}>Lataa kuva</Text>
+                  <Text style={styles.optionDescription}>
+                    Valitse kuva laitteeltasi
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  outerContainer: {
+    overflow: 'hidden',
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    backgroundColor: theme.colors.background,
+  },
   container: {
     backgroundColor: theme.colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     padding: theme.spacing.lg,
     paddingTop: theme.spacing.md,
+    borderTopWidth: 1.4,
+    borderLeftWidth: 1.4,
+    borderRightWidth: 1.4,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   handle: {
     width: 32,

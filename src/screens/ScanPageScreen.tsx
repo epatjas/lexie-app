@@ -85,7 +85,7 @@ export default function ScanPageScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <ArrowLeft size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Scan a page</Text>
+        <Text style={styles.headerTitle}>Skannaa</Text>
         <View style={{ width: 24 }} />
       </View>
 

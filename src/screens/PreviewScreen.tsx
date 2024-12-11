@@ -243,8 +243,9 @@ const styles = StyleSheet.create({
   },
   imageCounter: {
     color: theme.colors.text,
-    fontSize: theme.fontSizes.lg,
-    fontFamily: theme.fonts.medium,
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.regular,
+    letterSpacing: 0.1,
     minWidth: 40,
     textAlign: 'right',
   },
@@ -275,7 +276,7 @@ const styles = StyleSheet.create({
     height: 56,
   },
   analyzeButtonText: {
-    color: theme.colors.text,
+    color: theme.colors.background,
     fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.regular,
     textAlign: 'center',
@@ -320,6 +321,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.regular,
+    lineHeight: theme.fontSizes.md * 1.5,
     marginTop: theme.spacing.sm,
     textAlign: 'center',
   },

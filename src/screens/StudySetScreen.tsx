@@ -541,7 +541,7 @@ const markdownStyles: MarkdownStylesObject = {
     marginTop: theme.spacing.lg,
   } as TextStyle,
   heading3: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: 'Inter-SemiBold',
     fontWeight: '600',
     color: theme.colors.text,

@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   createButtonText: {
-    color: theme.colors.text,
+    color: theme.colors.background,
     fontSize: theme.fontSizes.lg,
     fontFamily: theme.fonts.medium,
   },

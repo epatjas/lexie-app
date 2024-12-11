@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: {
-    color: theme.colors.text,
+    color: theme.colors.background,
     fontSize: theme.fontSizes.lg,
     fontFamily: theme.fonts.medium,
   },

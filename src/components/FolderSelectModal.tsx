@@ -33,6 +33,21 @@ interface FolderSelectModalProps {
   onUpdateFolder: (folderId: string, name: string, color: string) => void;
 }
 
+const EmptyState = () => (
+  <View style={styles.emptyStateContainer}>
+    <View style={styles.emptyStateIconContainer}>
+      <Folder 
+        size={24} 
+        color={theme.colors.textSecondary}
+        style={styles.emptyStateIcon}
+      />
+    </View>
+    <Text style={styles.emptyStateText}>
+      Sinulla ei ole vielä yhtään kansiota
+    </Text>
+  </View>
+);
+
 export default function FolderSelectModal({
   visible,
   onClose,
@@ -48,6 +63,7 @@ export default function FolderSelectModal({
   const progress = useSharedValue(0);
 
   React.useEffect(() => {
+    console.log('Modal visibility changed:', visible);
     if (visible) {
       progress.value = withTiming(1, { duration: 300 });
     } else {
@@ -67,14 +83,14 @@ export default function FolderSelectModal({
     const translateY = interpolate(
       progress.value,
       [0, 1],
-      [1000, 0]
+      [1, 0]
     );
 
     return {
       transform: [{ translateY }],
       backgroundColor: theme.colors.background02,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
+      borderTopLeftRadius: 40,
+      borderTopRightRadius: 40,
       overflow: 'hidden',
       flex: 1,
     };
@@ -131,32 +147,37 @@ export default function FolderSelectModal({
             </View>
 
             <ScrollView style={styles.content}>
-              <Text style={styles.subTitle}>Valitse tai luo uusi kansio</Text>
-
-              {folders.map(folder => (
-                <TouchableOpacity
-                  key={folder.id}
-                  style={styles.folderItem}
-                  onPress={() => onSelect(folder.id)}
-                >
-                  <View style={styles.folderItemContent}>
-                    <View 
-                      style={[
-                        styles.folderTag,
-                        { backgroundColor: folder.color }
-                      ]}
+              {folders.length === 0 ? (
+                <EmptyState />
+              ) : (
+                <>
+                  <Text style={styles.subTitle}>Valitse tai luo uusi kansio</Text>
+                  {folders.map(folder => (
+                    <TouchableOpacity
+                      key={folder.id}
+                      style={styles.folderItem}
+                      onPress={() => onSelect(folder.id)}
                     >
-                      <Text style={styles.folderName}>{folder.name}</Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity 
-                    style={styles.moreButton}
-                    onPress={() => handleMorePress(folder)}
-                  >
-                    <MoreVertical color={theme.colors.textSecondary} size={20} />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              ))}
+                      <View style={styles.folderItemContent}>
+                        <View 
+                          style={[
+                            styles.folderTag,
+                            { backgroundColor: folder.color }
+                          ]}
+                        >
+                          <Text style={styles.folderName}>{folder.name}</Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity 
+                        style={styles.moreButton}
+                        onPress={() => handleMorePress(folder)}
+                      >
+                        <MoreVertical color={theme.colors.textSecondary} size={20} />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
             </ScrollView>
 
             <TouchableOpacity
@@ -256,9 +277,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   createButtonText: {
-    color: theme.colors.text,
+    color: theme.colors.background,
     fontSize: theme.fontSizes.lg,
     fontFamily: theme.fonts.medium,
+    textAlign: 'center',
+  },
+  emptyStateContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 400,
+    marginTop: 40,
+  },
+  emptyStateIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: theme.colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  emptyStateIcon: {
+    opacity: 0.8,
+  },
+  emptyStateText: {
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
 }); 

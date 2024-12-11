@@ -69,8 +69,8 @@ export default function FolderEditModal({
     return {
       transform: [{ translateY }],
       backgroundColor: theme.colors.background02,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
+      borderTopLeftRadius: 40,
+      borderTopRightRadius: 40,
       overflow: 'hidden',
       flex: 1,
     };

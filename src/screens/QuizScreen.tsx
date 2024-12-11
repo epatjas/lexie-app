@@ -85,6 +85,7 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
   const [questions, setQuestions] = useState<QuizQuestion[]>(quiz || []);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [selectedAnswerText, setSelectedAnswerText] = useState<string | null>(null);
   const [isAnswerChecked, setIsAnswerChecked] = useState(false);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [wrongAnswers, setWrongAnswers] = useState(0);
@@ -153,10 +154,9 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
   }
 
   const handleAnswerSelect = (answer: string) => {
-    const originalOption = currentQuestion.options.find((opt, idx) => 
-      formatOption(opt, idx) === answer
-    );
-    setSelectedAnswer(originalOption || null);
+    const answerLetter = answer.charAt(0);
+    setSelectedAnswer(answerLetter);
+    setSelectedAnswerText(answer);
     setValidationMessage(null);
   };
 
@@ -165,6 +165,13 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
       setValidationMessage('Valitse vastaus ennen tarkistusta');
       return;
     }
+    
+    console.log('Selected Answer:', selectedAnswer);
+    console.log('Correct Answer:', currentQuestion.correct);
+    console.log('Are they equal?:', selectedAnswer === currentQuestion.correct);
+    console.log('Selected Answer Type:', typeof selectedAnswer);
+    console.log('Correct Answer Type:', typeof currentQuestion.correct);
+    
     setValidationMessage(null);
     setIsAnswerChecked(true);
     
@@ -242,8 +249,8 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
         <View style={styles.options}>
           {currentQuestion.options.map((option, index) => {
             const formattedOption = formatOption(option, index);
-            const isSelected = selectedAnswer === option;
-            const isCorrect = option === currentQuestion.correct;
+            const isSelected = selectedAnswerText === formattedOption;
+            const isCorrect = getOptionLetter(option, index) === currentQuestion.correct;
 
             return (
               <TouchableOpacity
@@ -341,12 +348,20 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
           </>
         ) : (
           <TouchableOpacity
-            style={styles.actionButton}
+            style={[
+              styles.actionButton,
+              { backgroundColor: isAnswerChecked 
+                ? (selectedAnswer === currentQuestion.correct
+                  ? theme.colors.correct
+                  : theme.colors.incorrect)
+                : '#5F79FF'
+              }
+            ]}
             onPress={handleCheck}
           >
             <Text style={[
               styles.actionButtonText,
-              { color: theme.colors.text }  // Use text color for primary button
+              { color: theme.colors.background }  
             ]}>
               Check
             </Text>
@@ -429,7 +444,7 @@ const styles = StyleSheet.create({
       alignItems: 'center',
     },
     selectedOption: {
-      borderColor: theme.colors.primary,
+      borderColor: '#5F79FF',
       borderWidth: 1,
     },
     correctOption: {

@@ -65,8 +65,8 @@ export default function FolderCreationModal({
     return {
       transform: [{ translateY }],
       backgroundColor: theme.colors.background02,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
+      borderTopLeftRadius: 40,
+      borderTopRightRadius: 40,
       overflow: 'hidden',
       flex: 1,
     };
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background02,
   },
   createButtonText: {
-    color: theme.colors.text,
+    color: theme.colors.background,
     fontSize: theme.fontSizes.lg,
     fontFamily: theme.fonts.medium,
     textAlign: 'center',

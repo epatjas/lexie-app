@@ -4,11 +4,16 @@
     "slug": "lexie-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.epatjas.lexieapp",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "icon": "./assets/icon.png",
+      "icons": {
+        "app": "./assets/icon.png"
+      }
     },
     "android": {
       "package": "com.epatjas.lexieapp",
