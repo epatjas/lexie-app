@@ -70,6 +70,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [processingStage, setProcessingStage] = React.useState(0);
+  const [processingStartTime, setProcessingStartTime] = React.useState(0);
   const progressWidth = useSharedValue(0);
   const rotation = useSharedValue(0);
   const scale = useSharedValue(1);
@@ -80,27 +81,34 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
     year: 'numeric'
   });
 
+  const MIN_PROCESSING_TIME = 30000; // 30 seconds
+  const TARGET_PROCESSING_TIME = 45000; // 45 seconds
+  const MAX_PROCESSING_TIME = 60000; // 60 seconds (in case processing takes longer)
+  const STAGES_COUNT = 3;
+  const TIME_PER_STAGE = TARGET_PROCESSING_TIME / STAGES_COUNT; // 15 seconds per stage
+
   const stages: ProcessingStage[] = [
     {
       icon: <Search size={24} color={theme.colors.text} />,
       message: "Pieni hetki",
-      subMessage: "Lexie opiskelee juuri kuviasi"
+      subMessage: "Lexie tutkii kuviasi..."
     },
     {
       icon: <Brain size={24} color={theme.colors.text} />,
-      message: "Kohta on valmista",
-      subMessage: "Tehdään sopivia harjoitustehtäviä"
+      message: "Analysoidaan sisältöä",
+      subMessage: "Luodaan harjoitustehtäviä..."
     },
     {
       icon: <Sparkles size={24} color={theme.colors.text} />,
-      message: "Vielä viimeinen silaus..",
-      subMessage: "Tarkistetaan että kaikki on kunnossa."
+      message: "Melkein valmista",
+      subMessage: "Viimeistellään oppimateriaalia..."
     }
   ];
 
   const handleAnalyze = async () => {
     try {
       setIsProcessing(true);
+      setProcessingStartTime(Date.now());
       console.log('Starting image analysis...');
 
       // Collect all base64 images
@@ -128,11 +136,18 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
     } catch (error) {
       setIsProcessing(false);
       console.error('Full error details:', error);
+      
       Alert.alert(
-        'Error',
+        'Virhe',
         error instanceof Error 
-          ? `Failed to process: ${error.message}`
-          : 'Failed to process images. Please try again.'
+          ? error.message  // Use our friendly error messages
+          : 'Kuvien käsittelyssä tapahtui virhe. Yritä uudelleen.',
+        [
+          { 
+            text: 'OK',
+            onPress: () => navigation.goBack() // Optionally go back to try again
+          }
+        ]
       );
     }
   };
@@ -189,7 +204,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
   // Add animation effects
   React.useEffect(() => {
     if (isProcessing) {
-      // Pulse animation instead of rotation
+      // Pulse animation
       scale.value = withRepeat(
         withSequence(
           withTiming(1.2, { duration: 1000 }),
@@ -198,16 +213,16 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
         -1
       );
       
-      // Progress through stages more slowly
+      // Stage transitions every 15 seconds
       const stageInterval = setInterval(() => {
         setProcessingStage(current => 
           current < stages.length - 1 ? current + 1 : current
         );
-      }, 4500); // Increased from 3000 to 4500
+      }, TIME_PER_STAGE);
 
-      // Slower progress bar animation
+      // Progress bar animation set to target time
       progressWidth.value = withTiming(100, { 
-        duration: 13500 // Increased from 9000 to 13500 (4500 * 3 stages)
+        duration: TARGET_PROCESSING_TIME,
       });
 
       return () => {
