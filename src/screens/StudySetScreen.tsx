@@ -30,6 +30,7 @@ type MarkdownStylesObject = {
 export default function StudySetScreen({ route, navigation }: StudySetScreenProps): React.JSX.Element {
   const [folderSelectVisible, setFolderSelectVisible] = useState(false);
   const [folderCreateVisible, setFolderCreateVisible] = useState(false);
+  const [showToast, setShowToast] = useState(false);
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
   const { studySet, refreshStudySet, loading, deleteStudySet } = useStudySetDetails(route.params?.id);
 
@@ -115,6 +116,16 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
           },
           style: "destructive"
         }
+      ]
+    );
+  };
+
+  const handleListenPress = () => {
+    Alert.alert(
+      "Tulossa pian",  // Title
+      "Kuuntelu-ominaisuus on tulossa pian", // Message
+      [
+        { text: "OK" }
       ]
     );
   };
@@ -276,7 +287,10 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
           </TouchableOpacity>
 
           <View style={styles.contentSection}>
-            <TouchableOpacity style={styles.listenButton}>
+            <TouchableOpacity 
+              style={styles.listenButton}
+              onPress={handleListenPress}
+            >
               <View style={styles.listenIcon}>
                 <Play color={theme.colors.text} size={20} />
               </View>
@@ -306,6 +320,12 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
           onClose={() => setFolderCreateVisible(false)}
           onCreate={handleCreateFolder}
         />
+      )}
+
+      {showToast && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>Tulossa pian</Text>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -514,6 +534,21 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: theme.spacing.xs,
+  },
+  toast: {
+    position: 'absolute',
+    top: '10%',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    zIndex: 1000,
+  },
+  toastText: {
+    color: 'white',
+    fontSize: 14,
+    fontFamily: theme.fonts.medium,
   },
 });
 

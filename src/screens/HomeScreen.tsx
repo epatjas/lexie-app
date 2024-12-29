@@ -18,7 +18,7 @@ import StudySetItem from '../components/StudySetItem';
 import { useFolders } from '../hooks/useFolders';
 import { useStudySets } from '../hooks/useStudySet';
 import FolderCard from '../components/FolderCard';
-import { Folder } from 'lucide-react-native';
+import { Folder, Play } from 'lucide-react-native';
 import FolderCreationModal from '../components/FolderCreationModal';
 import { testDatabaseConnection } from '../services/Database';
 import CreateStudySetBottomSheet from '../components/CreateStudySetBottomSheet';
@@ -51,6 +51,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
   const progress = useSharedValue(0);
   const [userName, setUserName] = useState('');
+  const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     const initDb = async () => {
@@ -205,9 +206,19 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     };
   });
 
+  const handleListenPress = () => {
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ParticleBackground />
+      {showToast && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>Tulossa pian</Text>
+        </View>
+      )}
       
       <FolderCreationModal
         visible={modalVisible}
@@ -222,10 +233,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         <View style={styles.emptyContainer}>
           <View style={styles.textContainer}>
             <Text style={styles.greeting}>
-              Hi 👋🏻 {userName}!
+              Hei 👋🏻 {userName}!
             </Text>
             <Text style={styles.emptyMessage}>
-              What would you like to{'\n'}learn today?
+              Mitä haluaisit oppia{'\n'}tänään?
             </Text>
           </View>
           <TouchableOpacity
@@ -237,10 +248,16 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         </View>
       ) : (
         <>
-          <ScrollView style={styles.scrollView}>
-            <Text style={styles.greeting}>
-              Hi 👋 {userName}!{'\n'}
-              Welcome back.
+          <ScrollView style={[
+            styles.scrollView,
+            !isEmpty && styles.scrollViewWithContent
+          ]}>
+            <Text style={[
+              styles.greeting,
+              !isEmpty && styles.greetingWithContent
+            ]}>
+              Hei 👋 {userName}!{'\n'}
+              Tervetuloa takaisin
             </Text>
 
             <View style={styles.viewToggle}>
@@ -279,6 +296,18 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               {renderContent()}
             </View>
           </ScrollView>
+
+          <View style={styles.contentSection}>
+            <TouchableOpacity 
+              style={styles.listenButton}
+              onPress={handleListenPress}
+            >
+              <View style={styles.listenIcon}>
+                <Play color={theme.colors.text} size={20} />
+              </View>
+              <Text style={styles.listenButtonText}>Kuuntele</Text>
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
             style={styles.createButton}
@@ -319,12 +348,20 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: theme.spacing.lg,
   },
+  scrollViewWithContent: {
+    paddingTop: 48,
+  },
   greeting: {
     fontSize: 24,
     fontFamily: theme.fonts.medium,
     color: theme.colors.text,
     marginBottom: 8,
     textAlign: 'center',
+  },
+  greetingWithContent: {
+    textAlign: 'left',
+    fontSize: 28,
+    marginBottom: theme.spacing.lg,
   },
   viewToggle: {
     flexDirection: 'row',
@@ -426,5 +463,48 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  contentSection: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  listenButton: {
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: 100,
+    backgroundColor: theme.colors.background02,
+    borderWidth: 1,
+    borderColor: theme.colors.stroke,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  listenIcon: {
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listenButtonText: {
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.text,
+  },
+  toast: {
+    position: 'absolute',
+    top: '10%',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    zIndex: 1000,
+  },
+  toastText: {
+    color: 'white',
+    fontSize: 14,
+    fontFamily: theme.fonts.medium,
   },
 });

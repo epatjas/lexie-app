@@ -2,7 +2,7 @@ import axios from 'axios';
 import { StudyMaterials } from '../types/types';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
-const API_URL = 'http://192.168.1.103:3000'; 
+const API_URL = 'https://lexie-server.onrender.com'; 
 
 // Add interface for raw section data
 interface RawSection {
