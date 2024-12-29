@@ -29,6 +29,8 @@ import Animated, {
   interpolate,
   withTiming,
 } from 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import ParticleBackground from '../components/ParticleBackground';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 type ViewMode = 'all' | 'folders';
@@ -48,6 +50,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [modalVisible, setModalVisible] = useState(false);
   const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
   const progress = useSharedValue(0);
+  const [userName, setUserName] = useState('');
 
   useEffect(() => {
     const initDb = async () => {
@@ -77,6 +80,21 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
     return unsubscribe;
   }, [navigation, refreshFolders, refreshStudySets]);
+
+  useEffect(() => {
+    const getUserName = async () => {
+      try {
+        const name = await AsyncStorage.getItem('@user_name');
+        if (name) {
+          setUserName(name);
+        }
+      } catch (error) {
+        console.error('Error getting user name:', error);
+      }
+    };
+
+    getUserName();
+  }, []);
 
   const handleCreateFolder = async (name: string, color: string) => {
     try {
@@ -189,6 +207,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ParticleBackground />
+      
       <FolderCreationModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
@@ -200,30 +220,27 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         <LoadingIndicator />
       ) : isEmpty ? (
         <View style={styles.emptyContainer}>
-          <View style={styles.emptyContent}>
+          <View style={styles.textContainer}>
             <Text style={styles.greeting}>
-              Hei 👋🏻 Ilona!
+              Hi 👋🏻 {userName}!
             </Text>
             <Text style={styles.emptyMessage}>
-              Mitä haluaisit oppia tänään?
+              What would you like to{'\n'}learn today?
             </Text>
-            <TouchableOpacity
-              style={[styles.createButton, styles.createButtonEmpty]}
-              onPress={() => {
-                console.log('Empty state create button pressed');
-                handleCreatePress();
-              }}
-            >
-              <Text style={styles.createButtonText}>Luo uusi harjoittelusetti</Text>
-            </TouchableOpacity>
           </View>
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={handleCreatePress}
+          >
+            <Text style={styles.createButtonText}>Create your first study set</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <>
           <ScrollView style={styles.scrollView}>
             <Text style={styles.greeting}>
-              Hei 👋🏻 Ilona!{'\n'}
-              Tervetuloa takaisin.
+              Hi 👋 {userName}!{'\n'}
+              Welcome back.
             </Text>
 
             <View style={styles.viewToggle}>
@@ -303,10 +320,11 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
   },
   greeting: {
-    fontSize: 28,
-    fontFamily: theme.fonts.bold,
+    fontSize: 24,
+    fontFamily: theme.fonts.medium,
     color: theme.colors.text,
-    marginBottom: theme.spacing.lg,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   viewToggle: {
     flexDirection: 'row',
@@ -337,16 +355,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   createButton: {
-    margin: theme.spacing.lg,
-    padding: theme.spacing.md,
-    borderRadius: 64,
+    position: 'absolute',
+    bottom: '8%',
+    left: '10%',
+    right: '10%',
+    backgroundColor: theme.colors.text,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 100,
     alignItems: 'center',
-    backgroundColor: theme.colors.primary,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   createButtonText: {
     color: theme.colors.background,
-    fontSize: theme.fontSizes.lg,
-    fontFamily: theme.fonts.medium,
+    fontSize: 16,
+    fontWeight: '500',
   },
   emptyState: {
     flex: 1,
@@ -373,26 +403,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: theme.spacing.xl,
+    paddingHorizontal: 32,
   },
-  emptyContent: {
+  textContainer: {
     alignItems: 'center',
-    width: '100%',
-    paddingHorizontal: theme.spacing.lg,
+    marginBottom: 'auto',
+    marginTop: 'auto',
+    paddingBottom: '20%',
   },
   emptyMessage: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: theme.fonts.medium,
     color: theme.colors.text,
     textAlign: 'center',
-    marginTop: theme.spacing.xs,
-    marginBottom: theme.spacing.md,
-  },
-  createButtonEmpty: {
-    width: '80%',
-    marginTop: theme.spacing.md,
-    marginBottom: 0,
-    marginHorizontal: 0,
+    lineHeight: 28,
   },
   modalContainer: {
     flex: 1,

@@ -2,6 +2,8 @@ import { QuizQuestion } from './types';
 
 export type RootStackParamList = {
   Home: { refresh?: boolean } | undefined;
+  Welcome: undefined;
+  NameInput: undefined;
   StudySet: { id: string };
   Flashcards: { studySetId: string };
   Quiz: { studySetId: string; quiz?: QuizQuestion[] };

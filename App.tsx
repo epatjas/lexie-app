@@ -15,6 +15,9 @@ import ScanPageScreen from './src/screens/ScanPageScreen';
 import FolderScreen from './src/screens/FolderScreen';
 import theme from './src/styles/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import WelcomeScreen from './src/screens/WelcomeScreen';
+import { checkFirstTimeUser } from './src/utils/storage';
+import NameInputScreen from './src/screens/NameInputScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -24,15 +27,17 @@ LogBox.ignoreLogs([
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isFirstTime, setIsFirstTime] = useState(false);
 
   useEffect(() => {
     const initApp = async () => {
       try {
         await initDatabase();
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        setIsLoading(false);
+        const isFirst = await checkFirstTimeUser();
+        setIsFirstTime(isFirst);
       } catch (error) {
         console.error('Error initializing app:', error);
+      } finally {
         setIsLoading(false);
       }
     };
@@ -60,9 +65,9 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <SplashScreen />
-      </View>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <WelcomeScreen isLoading={true} />
+      </GestureHandlerRootView>
     );
   }
 
@@ -70,11 +75,22 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer>
         <Stack.Navigator
-          initialRouteName="Home"
+          initialRouteName={isFirstTime ? "Welcome" : "Home"}
           screenOptions={{
-            headerShown: false
+            headerShown: false,
+            gestureEnabled: false
           }}
         >
+          <Stack.Screen 
+            name="Welcome" 
+            component={WelcomeScreen}
+            options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen 
+            name="NameInput" 
+            component={NameInputScreen}
+            options={{ gestureEnabled: false }}
+          />
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="StudySet" component={StudySetScreen} />
           <Stack.Screen name="Flashcards" component={FlashcardsScreen} />
