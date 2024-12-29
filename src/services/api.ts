@@ -16,29 +16,25 @@ interface RawSection {
 }
 
 // Add this function before sending to server
-const optimizeImage = async (base64Image: string) => {
+const compressImage = async (base64Image: string): Promise<string> => {
   try {
-    // First convert base64 to asset uri
     const asset = { uri: `data:image/jpeg;base64,${base64Image}` };
     
     const result = await manipulateAsync(
       asset.uri,
       [{ resize: { width: 1500 } }],
       { 
-        compress: 0.8, 
+        compress: 0.5,
         format: SaveFormat.JPEG,
         base64: true
       }
     );
 
-    return result.base64;
-  } catch (err: any) {
-    console.error('[Client] Image optimization failed:', err);
-    console.error('[Client] Error details:', {
-      errorMessage: err.message,
-      errorName: err.name,
-      errorStack: err.stack
-    });
+    // Extract just the base64 string without the data URL prefix
+    const base64Data = result.base64?.split('base64,')[1] || base64Image;
+    return base64Data;
+  } catch (err) {
+    console.error('[Client] Image compression failed:', err);
     return base64Image;
   }
 };
@@ -63,7 +59,7 @@ export const analyzeImage = async (base64Images: string[]): Promise<StudyMateria
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: 120000, // 2 minutes
+      timeout: 180000, 
     });
     
     const endTime = performance.now();
@@ -115,27 +111,27 @@ export const analyzeImage = async (base64Images: string[]): Promise<StudyMateria
   } catch (error) {
     console.error('[Client] API Error:', error);
     
-    // Handle different error cases with user-friendly messages
+    // Handle different error cases with more specific Finnish messages
     if (axios.isAxiosError(error)) {
       if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-        throw new Error('Kuvien analysointi kesti liian kauan. Kokeile uudelleen.');
+        throw new Error('Kuvien analysointi kesti liian kauan. Yritä uudelleen pienemmällä kuvamäärällä tai pienennä kuvien kokoa.');
       }
       
       if (error.code === 'ECONNREFUSED') {
-        throw new Error('Yhteyttä palvelimeen ei saatu. Tarkista internet-yhteys ja yritä uudelleen.');
+        throw new Error('Palvelimeen ei saada yhteyttä. Tarkista internet-yhteytesi ja yritä hetken kuluttua uudelleen.');
       }
 
       if (error.response?.status === 500) {
-        throw new Error('Kuvien analysoinnissa tapahtui virhe. Yritä uudelleen tai kokeile eri kuvia.');
+        throw new Error('Kuvien analysoinnissa tapahtui virhe. Varmista, että kuvat ovat selkeitä ja yritä uudelleen.');
       }
 
       if (error.response?.status === 413) {
-        throw new Error('Kuvat ovat liian suuria. Yritä ottaa kuvat uudelleen lähempää.');
+        throw new Error('Kuvat ovat liian suuria. Yritä ottaa kuvat lähempää tai rajata ne pienemmiksi.');
       }
     }
 
     // Generic error message as fallback
-    throw new Error('Jotain meni pieleen. Yritä uudelleen.');
+    throw new Error('Jokin meni pieleen. Tarkista kuvien laatu ja yritä uudelleen.');
   }
 };
 

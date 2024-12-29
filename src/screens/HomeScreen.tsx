@@ -18,7 +18,7 @@ import StudySetItem from '../components/StudySetItem';
 import { useFolders } from '../hooks/useFolders';
 import { useStudySets } from '../hooks/useStudySet';
 import FolderCard from '../components/FolderCard';
-import { Folder, Play } from 'lucide-react-native';
+import { Folder } from 'lucide-react-native';
 import FolderCreationModal from '../components/FolderCreationModal';
 import { testDatabaseConnection } from '../services/Database';
 import CreateStudySetBottomSheet from '../components/CreateStudySetBottomSheet';
@@ -206,11 +206,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     };
   });
 
-  const handleListenPress = () => {
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ParticleBackground />
@@ -296,18 +291,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               {renderContent()}
             </View>
           </ScrollView>
-
-          <View style={styles.contentSection}>
-            <TouchableOpacity 
-              style={styles.listenButton}
-              onPress={handleListenPress}
-            >
-              <View style={styles.listenIcon}>
-                <Play color={theme.colors.text} size={20} />
-              </View>
-              <Text style={styles.listenButtonText}>Kuuntele</Text>
-            </TouchableOpacity>
-          </View>
 
           <TouchableOpacity
             style={styles.createButton}
@@ -463,34 +446,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  contentSection: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: theme.spacing.lg,
-  },
-  listenButton: {
-    paddingVertical: theme.spacing.xs,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: 100,
-    backgroundColor: theme.colors.background02,
-    borderWidth: 1,
-    borderColor: theme.colors.stroke,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
-  listenIcon: {
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listenButtonText: {
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.medium,
-    color: theme.colors.text,
   },
   toast: {
     position: 'absolute',

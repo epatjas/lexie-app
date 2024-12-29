@@ -81,11 +81,11 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
     year: 'numeric'
   });
 
-  const MIN_PROCESSING_TIME = 30000; // 30 seconds
-  const TARGET_PROCESSING_TIME = 45000; // 45 seconds
-  const MAX_PROCESSING_TIME = 60000; // 60 seconds (in case processing takes longer)
+  const MIN_PROCESSING_TIME = 8000; // 8 seconds
+  const TARGET_PROCESSING_TIME = 15000; // 15 seconds
+  const MAX_PROCESSING_TIME = 20000; // 20 seconds
   const STAGES_COUNT = 3;
-  const TIME_PER_STAGE = TARGET_PROCESSING_TIME / STAGES_COUNT; // 15 seconds per stage
+  const TIME_PER_STAGE = TARGET_PROCESSING_TIME / STAGES_COUNT; // 5 seconds per stage
 
   const stages: ProcessingStage[] = [
     {
