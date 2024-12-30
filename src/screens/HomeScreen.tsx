@@ -52,6 +52,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const progress = useSharedValue(0);
   const [userName, setUserName] = useState('');
   const [showToast, setShowToast] = useState(false);
+  const [existingPhotos, setExistingPhotos] = useState<Array<{
+    uri: string;
+    base64?: string;
+  }> | undefined>(undefined);
 
   useEffect(() => {
     const initDb = async () => {
@@ -71,11 +75,28 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       console.log('Screen focused, refreshing data...');
       refreshFolders();
       refreshStudySets();
-      const params = navigation.getState().routes.find(r => r.name === 'Home')?.params;
-      if (params && 'refresh' in params && params.refresh) {
-        console.log('Refresh parameter found, updating study sets...');
-        refreshStudySets();
-        navigation.setParams({ refresh: undefined });
+      
+      const route = navigation.getState().routes.find(r => r.name === 'Home');
+      const params = route?.params;
+      
+      if (params) {
+        if ('refresh' in params && params.refresh) {
+          console.log('Refresh parameter found, updating study sets...');
+          refreshStudySets();
+        }
+
+        if ('openBottomSheet' in params && params.openBottomSheet) {
+          setIsBottomSheetVisible(true);
+          if ('existingPhotos' in params) {
+            setExistingPhotos(params.existingPhotos);
+          }
+        }
+
+        navigation.setParams({
+          refresh: undefined,
+          openBottomSheet: undefined,
+          existingPhotos: undefined
+        });
       }
     });
 
@@ -165,6 +186,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   const handleCloseBottomSheet = () => {
     setIsBottomSheetVisible(false);
+    setExistingPhotos(undefined);
   };
 
   React.useEffect(() => {
@@ -313,7 +335,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         <Animated.View style={overlayStyle}>
           <SafeAreaView style={styles.modalContainer}>
             <Animated.View style={modalStyle}>
-              <CreateStudySetBottomSheet onClose={handleCloseBottomSheet} />
+              <CreateStudySetBottomSheet 
+                onClose={handleCloseBottomSheet} 
+                existingPhotos={existingPhotos}
+              />
             </Animated.View>
           </SafeAreaView>
         </Animated.View>

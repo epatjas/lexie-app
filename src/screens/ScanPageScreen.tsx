@@ -1,33 +1,21 @@
 import React, { useState, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Animated } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ArrowLeft, X, Image as ImageIcon, Camera } from 'lucide-react-native';
+import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
 
-// Define the navigation stack parameter list
-type RootStackParamList = {
-  Home: undefined;
-  ScanPage: undefined;
-  Preview: {
-    photos: {
-      uri: string;
-      base64?: string;
-    }[];
-  };
-};
+// Define the screen props type
+type ScanPageScreenProps = NativeStackScreenProps<RootStackParamList, 'ScanPage'>;
 
-// Type the navigation
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
-export default function ScanPageScreen() {
+export default function ScanPageScreen({ route, navigation }: ScanPageScreenProps) {
   const cameraRef = useRef<any>(null);
   const [permission, requestPermission] = useCameraPermissions();
-  const navigation = useNavigation<NavigationProp>();
   const [isCapturing, setIsCapturing] = useState(false);
   const progressAnimation = useRef(new Animated.Value(0)).current;
   const [capturedPhotos, setCapturedPhotos] = useState<Array<{uri: string; base64?: string}>>([]);
+  const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
 
   // Add useEffect to request permission when component mounts
   React.useEffect(() => {
@@ -37,6 +25,13 @@ export default function ScanPageScreen() {
       }
     })();
   }, []);
+
+  // Add useEffect to handle the openBottomSheet parameter
+  React.useEffect(() => {
+    if (route.params?.openBottomSheet) {
+      setIsBottomSheetVisible(true);
+    }
+  }, [route.params?.openBottomSheet]);
 
   const startCapture = () => {
     setIsCapturing(true);
@@ -59,7 +54,8 @@ export default function ScanPageScreen() {
           base64: true,
         });
         if (photo?.uri) {
-          const updatedPhotos = [...capturedPhotos, photo];
+          const existingPhotos = route.params?.existingPhotos || [];
+          const updatedPhotos = [...existingPhotos, photo];
           setCapturedPhotos(updatedPhotos);
           navigation.navigate('Preview', { photos: updatedPhotos });
         }

@@ -1,7 +1,14 @@
 import { QuizQuestion } from './types';
 
 export type RootStackParamList = {
-  Home: { refresh?: boolean } | undefined;
+  Home: { 
+    refresh?: boolean;
+    openBottomSheet?: boolean;
+    existingPhotos?: Array<{
+      uri: string;
+      base64?: string;
+    }>;
+  } | undefined;
   Welcome: undefined;
   NameInput: undefined;
   StudySet: { id: string };
@@ -19,7 +26,13 @@ export type RootStackParamList = {
       base64?: string;
     }>;
   };
-  ScanPage: undefined;
+  ScanPage: {
+    openBottomSheet?: boolean;
+    existingPhotos?: Array<{
+      uri: string;
+      base64?: string;
+    }>;
+  };
   Folder: {
     folderId: string;
   };

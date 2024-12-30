@@ -11,9 +11,13 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface Props {
   onClose: () => void;
+  existingPhotos?: Array<{
+    uri: string;
+    base64?: string;
+  }>;
 }
 
-export default function CreateStudySetBottomSheet({ onClose }: Props) {
+export default function CreateStudySetBottomSheet({ onClose, existingPhotos }: Props) {
   const navigation = useNavigation<NavigationProp>();
 
   const handleImagePicker = async () => {
@@ -38,13 +42,18 @@ export default function CreateStudySetBottomSheet({ onClose }: Props) {
       }));
       
       onClose();
-      navigation.navigate('Preview', { photos });
+      navigation.navigate('Preview', { 
+        photos: [...(existingPhotos || []), ...photos]
+      });
     }
   };
 
   const handleScanPress = () => {
     onClose();
-    navigation.navigate('ScanPage');
+    navigation.navigate('ScanPage', { 
+      openBottomSheet: false,
+      existingPhotos: existingPhotos 
+    });
   };
 
   return (

@@ -18,7 +18,7 @@ import { analyzeImage } from '../services/api';
 import { createStudySet } from '../services/Database';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
-import { ArrowLeft, Search, Brain, Sparkles } from 'lucide-react-native';
+import { ArrowLeft, Search, Brain, Sparkles, Trash2 } from 'lucide-react-native';
 import theme from '../styles/theme';
 import { StudyMaterials } from '../types/types';
 import Animated, { 
@@ -152,12 +152,43 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
     }
   };
 
+  const handleDeleteImage = (index: number) => {
+    // Create a copy of photos array without the deleted image
+    const updatedPhotos = [...photos];
+    updatedPhotos.splice(index, 1);
+    
+    // If no photos left, go back to previous screen
+    if (updatedPhotos.length === 0) {
+      navigation.goBack();
+      return;
+    }
+    
+    // Update route params with new photos array
+    navigation.setParams({ photos: updatedPhotos });
+    
+    // Adjust currentIndex if necessary
+    if (currentIndex >= updatedPhotos.length) {
+      setCurrentIndex(updatedPhotos.length - 1);
+    }
+  };
+
   const renderItem = ({ item, index }: { item: PhotoItem; index: number }) => (
-    <Image
-      source={{ uri: item.uri }}
-      style={styles.preview}
-      resizeMode="cover"
-    />
+    <View style={[
+      styles.previewContainer,
+      photos.length === 1 && styles.singlePreviewContainer
+    ]}>
+      <Image
+        source={{ uri: item.uri }}
+        style={styles.preview}
+        resizeMode="contain"
+      />
+      <TouchableOpacity 
+        style={styles.deleteButton}
+        onPress={() => handleDeleteImage(index)}
+      >
+        <Trash2 color={theme.colors.text} size={16} />
+      </TouchableOpacity>
+    </View>
   );
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -291,10 +322,16 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
 
         <TouchableOpacity
           style={styles.scanMoreButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            // Navigate back to Home with existing photos and bottom sheet open
+            navigation.navigate('Home', {
+              openBottomSheet: true,
+              existingPhotos: photos
+            });
+          }}
           disabled={isProcessing}
         >
-          <Text style={styles.scanMoreText}>Skannaa lisää</Text>
+          <Text style={styles.scanMoreText}>Lisää kuvia</Text>
         </TouchableOpacity>
       </View>
 
@@ -355,9 +392,9 @@ const styles = StyleSheet.create({
   },
   imageCounter: {
     color: theme.colors.text,
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.regular,
-    letterSpacing: 0.1,
+    fontSize: theme.fontSizes.sm,
+    fontWeight: '600',
+    letterSpacing: 0.9,
     minWidth: 40,
     textAlign: 'right',
   },
@@ -366,21 +403,43 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background02,
     paddingVertical: theme.spacing.md,
   },
-  preview: {
+  previewContainer: {
+    position: 'relative',
     width: width - 64,
     height: '100%',
-    borderRadius: 24,
     marginLeft: 16,
     marginRight: 8,
+  },
+  singlePreviewContainer: {
+    width: width - 32, // Full width minus padding
+    marginRight: 16, // Match left margin for symmetry
+  },
+  preview: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
     backgroundColor: theme.colors.background,
     overflow: 'hidden',
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: theme.spacing.sm,
+    right: theme.spacing.sm,
+    backgroundColor: 'rgba(18, 18, 18, 0.5)',
+    padding: theme.spacing.sm,
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   bottomContainer: {
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
   },
   analyzeButton: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.text,
     borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
