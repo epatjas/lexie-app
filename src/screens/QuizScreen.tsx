@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,15 @@ const fetchQuizQuestions = async (studySetId: string): Promise<QuizQuestion[]> =
     console.error('Error fetching quiz questions:', error);
     return [];
   }
+};
+
+const shuffleArray = <T,>(array: T[]): T[] => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 };
 
 const ProgressCircle = ({ current, total }: { current: number; total: number }) => {
@@ -65,21 +74,6 @@ const ProgressCircle = ({ current, total }: { current: number; total: number }) 
   );
 };
 
-const formatOption = (option: string, index: number): string => {
-  const letters = ['A', 'B', 'C', 'D'];
-  if (/^[A-D][\.\)]/.test(option)) {
-    return option;
-  }
-  return `${letters[index]}) ${option}`;
-};
-
-const getOptionLetter = (option: string, index: number): string => {
-  if (/^[A-D][\.\)]/.test(option)) {
-    return option[0];
-  }
-  return ['A', 'B', 'C', 'D'][index];
-};
-
 export default function QuizScreen({ route, navigation }: QuizScreenProps) {
   const { quiz, studySetId } = route.params;
   const [questions, setQuestions] = useState<QuizQuestion[]>(quiz || []);
@@ -92,6 +86,7 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
   const [startTime, setStartTime] = useState<Date>(new Date());
+  const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   
   const currentQuestion = questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
@@ -145,6 +140,12 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
     setStartTime(new Date());
   }, []);
 
+  useEffect(() => {
+    if (currentQuestion) {
+      setShuffledOptions(shuffleArray(currentQuestion.options));
+    }
+  }, [currentQuestion]);
+
   if (!currentQuestion) {
     return (
       <SafeAreaView style={styles.container}>
@@ -154,8 +155,7 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
   }
 
   const handleAnswerSelect = (answer: string) => {
-    const answerLetter = answer.charAt(0);
-    setSelectedAnswer(answerLetter);
+    setSelectedAnswer(answer);
     setSelectedAnswerText(answer);
     setValidationMessage(null);
   };
@@ -169,8 +169,6 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
     console.log('Selected Answer:', selectedAnswer);
     console.log('Correct Answer:', currentQuestion.correct);
     console.log('Are they equal?:', selectedAnswer === currentQuestion.correct);
-    console.log('Selected Answer Type:', typeof selectedAnswer);
-    console.log('Correct Answer Type:', typeof currentQuestion.correct);
     
     setValidationMessage(null);
     setIsAnswerChecked(true);
@@ -247,10 +245,9 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
         <Text style={styles.question}>{currentQuestion.question}</Text>
 
         <View style={styles.options}>
-          {currentQuestion.options.map((option, index) => {
-            const formattedOption = formatOption(option, index);
-            const isSelected = selectedAnswerText === formattedOption;
-            const isCorrect = getOptionLetter(option, index) === currentQuestion.correct;
+          {shuffledOptions.map((option, index) => {
+            const isSelected = selectedAnswer === option;
+            const isCorrect = option === currentQuestion.correct;
 
             return (
               <TouchableOpacity
@@ -261,25 +258,35 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
                   isAnswerChecked && isSelected && isCorrect && styles.correctOption,
                   isAnswerChecked && isSelected && !isCorrect && styles.wrongOption,
                 ]}
-                onPress={() => handleAnswerSelect(formattedOption)}
+                onPress={() => handleAnswerSelect(option)}
                 disabled={isAnswerChecked}
               >
-                <Text style={styles.optionText}>{formattedOption}</Text>
-                {isAnswerChecked && isSelected && (
+                <View style={styles.optionContent}>
+                  <Text style={[
+                    styles.optionText,
+                    isSelected && styles.selectedOptionText
+                  ]}>
+                    {option}
+                  </Text>
                   <View style={[
-                    styles.indicator, 
-                    { backgroundColor: isCorrect 
-                      ? theme.colors.correct + '20'
-                      : theme.colors.incorrect + '20'
+                    styles.indicator,
+                    !isAnswerChecked && styles.hiddenIndicator,
+                    { backgroundColor: isAnswerChecked && isSelected 
+                      ? (isCorrect 
+                        ? theme.colors.correct + '20'
+                        : theme.colors.incorrect + '20')
+                      : 'transparent'
                     }
                   ]}>
-                    {isCorrect ? (
-                      <Check size={16} color={theme.colors.correct} />
-                    ) : (
-                      <X size={16} color={theme.colors.incorrect} />
+                    {isAnswerChecked && isSelected && (
+                      isCorrect ? (
+                        <Check size={16} color={theme.colors.correct} />
+                      ) : (
+                        <X size={16} color={theme.colors.incorrect} />
+                      )
                     )}
                   </View>
-                )}
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -439,25 +446,39 @@ const styles = StyleSheet.create({
       backgroundColor: theme.colors.background02,
       borderWidth: 1,
       borderColor: theme.colors.stroke,
+    },
+    optionContent: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-    },
-    selectedOption: {
-      borderColor: '#5F79FF',
-      borderWidth: 1,
-    },
-    correctOption: {
-      borderColor: theme.colors.correct,
-      borderWidth: 2,
-    },
-    wrongOption: {
-      borderColor: theme.colors.incorrect,
-      borderWidth: 1,
+      gap: theme.spacing.sm,
     },
     optionText: {
       color: theme.colors.text,
       fontSize: theme.fontSizes.md,
+      flex: 1,
+    },
+    selectedOption: {
+      borderColor: '#5F79FF',
+    },
+    correctOption: {
+      borderColor: theme.colors.correct,
+    },
+    wrongOption: {
+      borderColor: theme.colors.incorrect,
+    },
+    selectedOptionText: {
+      color: theme.colors.text,
+    },
+    indicator: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    hiddenIndicator: {
+      opacity: 0,
     },
     wrongIndicator: {
       width: 24,
@@ -480,7 +501,8 @@ const styles = StyleSheet.create({
     },
     actionButtonText: {
       fontSize: theme.fontSizes.md,
-      fontFamily: theme.fonts.medium,
+      fontWeight: 'medium',
+      color: theme.colors.text,
     },
     feedbackText: {
       color: theme.colors.incorrect,
@@ -525,13 +547,6 @@ const styles = StyleSheet.create({
       textAlign: 'center',
       fontFamily: theme.fonts.medium,
       marginBottom: theme.spacing.sm,
-    },
-    indicator: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
     },
     debugText: {
       color: theme.colors.textSecondary,

@@ -37,11 +37,9 @@ export interface StudySet {
   export interface TextSection {
     type: 'heading' | 'paragraph' | 'list' | 'quote' | 'definition';
     level?: number;  // for headings
-    content?: string;
-    style?: 'bullet' | 'numbered';  // for lists
     items?: string[];  // for lists
-    term?: string;  // for definitions
-    definition?: string;  // for definitions
+    raw_text: string;
+    sections: TextSection[];
   }
 
   export interface TextContent {
@@ -77,4 +75,12 @@ export interface StudySet {
     color: string;
     created_at: string;
     updated_at: string;
+  }
+
+  export interface TranscriptionResponse {
+    title: string;
+    text_content: {
+      raw_text: string;
+      sections: TextSection[];
+    };
   }

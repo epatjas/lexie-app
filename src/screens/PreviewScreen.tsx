@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,11 @@ import {
   NativeSyntheticEvent,
   Modal,
 } from 'react-native';
-import { analyzeImage } from '../services/api';
+import { analyzeImages, getProcessingStatus } from '../services/api';
 import { createStudySet } from '../services/Database';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
-import { ArrowLeft, Search, Brain, Sparkles, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, Search, Brain, Sparkles, Trash2, FileText, ListChecks } from 'lucide-react-native';
 import theme from '../styles/theme';
 import { StudyMaterials } from '../types/types';
 import Animated, { 
@@ -29,6 +29,8 @@ import Animated, {
   useSharedValue,
   withDelay
 } from 'react-native-reanimated';
+import ParticleBackground from '../components/ParticleBackground';
+import axios from 'axios';
 
 type PreviewScreenNavigationProp = NativeStackScreenProps<RootStackParamList, 'Preview'>;
 
@@ -65,6 +67,12 @@ interface ProcessingStage {
 
 const AnimatedIcon = Animated.createAnimatedComponent(View);
 
+// Add the helper function
+const calculateBase64Size = (base64String: string): number => {
+  const base64 = base64String.split('base64,').pop() || base64String;
+  return Math.ceil(base64.length * 0.75);
+};
+
 export default function PreviewScreen({ route, navigation }: PreviewScreenNavigationProp) {
   const { photos } = route.params;
   const [isProcessing, setIsProcessing] = React.useState(false);
@@ -74,80 +82,131 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
   const progressWidth = useSharedValue(0);
   const rotation = useSharedValue(0);
   const scale = useSharedValue(1);
-  
+  const [currentStage, setCurrentStage] = useState(0);
+  const [processingId, setProcessingId] = useState('');
+
   const formattedDate = new Date().toLocaleDateString('en-GB', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
   });
 
-  const MIN_PROCESSING_TIME = 8000; // 8 seconds
-  const TARGET_PROCESSING_TIME = 15000; // 15 seconds
-  const MAX_PROCESSING_TIME = 20000; // 20 seconds
-  const STAGES_COUNT = 3;
-  const TIME_PER_STAGE = TARGET_PROCESSING_TIME / STAGES_COUNT; // 5 seconds per stage
+  const MIN_PROCESSING_TIME = 5000;  // 5 seconds minimum
+  const MAX_PROCESSING_TIME = 60000; // 60 seconds maximum
+  const STAGES_COUNT = 5;
+  const TIME_PER_STAGE = MAX_PROCESSING_TIME / STAGES_COUNT; // 12 seconds per stage
 
   const stages: ProcessingStage[] = [
     {
-      icon: <Search size={24} color={theme.colors.text} />,
-      message: "Pieni hetki",
-      subMessage: "Lexie tutkii kuviasi..."
+      icon: <Search size={20} color={theme.colors.text} />,
+      message: "Skannataan tekstiä",
+      subMessage: "Tunnistetaan tekstiä kuvista..."
     },
     {
-      icon: <Brain size={24} color={theme.colors.text} />,
-      message: "Analysoidaan sisältöä",
-      subMessage: "Luodaan harjoitustehtäviä..."
+      icon: <FileText size={20} color={theme.colors.text} />,
+      message: "Käsitellään tekstiä",
+      subMessage: "Yhdistetään tekstit kokonaisuudeksi..."
     },
     {
-      icon: <Sparkles size={24} color={theme.colors.text} />,
-      message: "Melkein valmista",
-      subMessage: "Viimeistellään harjoitussettiä..."
+      icon: <Brain size={20} color={theme.colors.text} />,
+      message: "Luodaan kysymyksiä",
+      subMessage: "Analysoidaan sisältöä..."
+    },
+    {
+      icon: <ListChecks size={20} color={theme.colors.text} />,
+      message: "Viimeistellään",
+      subMessage: "Tarkistetaan vastausvaihtoehdot..."
+    },
+    {
+      icon: <Sparkles size={20} color={theme.colors.text} />,
+      message: "Tallennetaan",
+      subMessage: "Harjoitussetti on kohta valmis..."
     }
   ];
 
   const handleAnalyze = async () => {
+    const startTime = Date.now();
     try {
       setIsProcessing(true);
       setProcessingStartTime(Date.now());
-      console.log('Starting image analysis...');
+      console.log('[Timing] Starting analysis process...');
 
-      // Collect all base64 images
-      const base64Images = photos
-        .filter(photo => photo.base64)
-        .map(photo => photo.base64 as string);
+      // Image formatting timing
+      const formatStartTime = Date.now();
+      const formattedImages = photos.map(photo => ({
+        uri: photo.uri,
+        base64: photo.base64
+      }));
+      console.log('[Timing] Image formatting completed in:', Date.now() - formatStartTime, 'ms');
 
-      if (base64Images.length === 0) {
-        throw new Error('No valid images to analyze');
-      }
+      // Server analysis timing
+      console.log('[Timing] Sending images to server...');
+      const analysisStartTime = Date.now();
+      const result = await analyzeImages(formattedImages);
+      const analysisEndTime = Date.now();
+      console.log('[Timing] Analysis breakdown:', {
+        serverProcessingTime: analysisEndTime - analysisStartTime,
+        resultSize: JSON.stringify(result).length
+      });
 
-      // Send all images for analysis at once
-      const result = await analyzeImage(base64Images);
-      
-      // Create study set with the combined results
+      // Database timing
+      console.log('[Timing] Creating study set in database...');
+      const dbStartTime = Date.now();
       const studySet = await createStudySet({
         title: result.title,
         text_content: result.text_content,
         flashcards: result.flashcards,
         quiz: result.quiz
       });
+      const dbEndTime = Date.now();
+      
+      // Final timing summary
+      console.log('[Timing] Process completed. Full breakdown:', {
+        totalTime: dbEndTime - startTime,
+        imageFormatting: formatStartTime - startTime,
+        serverProcessing: analysisEndTime - analysisStartTime,
+        databaseOperation: dbEndTime - dbStartTime,
+        resultSize: JSON.stringify(studySet).length
+      });
 
       setIsProcessing(false);
       navigation.navigate('StudySet', { id: studySet.id });
     } catch (error) {
       setIsProcessing(false);
-      console.error('Full error details:', error);
+      console.error('Error details:', error);
       
+      let errorMessage = 'Kuvien käsittelyssä tapahtui virhe. Yritä uudelleen.';
+      
+      if (axios.isAxiosError(error)) {
+        switch (error.response?.status) {
+          case 400:
+            errorMessage = 'Kuvien lähetys epäonnistui. Varmista, että kuvat ovat selkeitä ja yritä uudelleen.';
+            break;
+          case 413:
+            errorMessage = 'Kuvat ovat liian suuria. Yritä ottaa kuvat uudelleen.';
+            break;
+          case 429:
+            errorMessage = 'Liian monta yritystä. Odota hetki ja yritä uudelleen.';
+            break;
+          case 500:
+          case 502:
+          case 503:
+            errorMessage = 'Palvelin on hetkellisesti poissa käytöstä. Yritä myöhemmin uudelleen.';
+            break;
+          default:
+            if (!navigator.onLine) {
+              errorMessage = 'Tarkista internet-yhteytesi ja yritä uudelleen.';
+            }
+        }
+      }
+
       Alert.alert(
         'Virhe',
-        error instanceof Error 
-          ? error.message  // Use our friendly error messages
-          : 'Kuvien käsittelyssä tapahtui virhe. Yritä uudelleen.',
-        [
-          { 
-            text: 'OK',
-            onPress: () => navigation.goBack() // Optionally go back to try again
-          }
-        ]
+        errorMessage,
+        [{ 
+          text: 'OK',
+          onPress: () => navigation.goBack()
+        }]
       );
     }
   };
@@ -244,7 +303,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
         -1
       );
       
-      // Stage transitions every 15 seconds
+      // Stage transitions every 12 seconds
       const stageInterval = setInterval(() => {
         setProcessingStage(current => 
           current < stages.length - 1 ? current + 1 : current
@@ -253,7 +312,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
 
       // Progress bar animation set to target time
       progressWidth.value = withTiming(100, { 
-        duration: TARGET_PROCESSING_TIME,
+        duration: MAX_PROCESSING_TIME,
       });
 
       return () => {
@@ -277,6 +336,43 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       width: `${progressWidth.value}%`
     };
   });
+
+  // Add processing status tracking
+  useEffect(() => {
+    const checkProgress = async () => {
+      try {
+        if (!processingId) return;
+        
+        const status = await getProcessingStatus(processingId);
+        
+        switch (status.stage) {
+          case 'transcribing':
+            setCurrentStage(0);
+            break;
+          case 'combining':
+            setCurrentStage(1);
+            break;
+          case 'generating':
+            setCurrentStage(2);
+            break;
+          case 'validating':
+            setCurrentStage(3);
+            break;
+          case 'saving':
+            setCurrentStage(4);
+            break;
+          case 'complete':
+            // Handle completion
+            break;
+        }
+      } catch (error) {
+        console.error('Error checking progress:', error);
+      }
+    };
+
+    const interval = setInterval(checkProgress, 2000);
+    return () => clearInterval(interval);
+  }, [processingId]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -340,26 +436,22 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
         transparent={true}
         animationType="fade"
       >
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingContent}>
-            <AnimatedIcon style={[styles.iconContainer, iconAnimatedStyle]}>
-              {stages[processingStage].icon}
-            </AnimatedIcon>
-
-            <View style={styles.progressBarContainer}>
-              <Animated.View 
-                style={[styles.progressBar, progressAnimatedStyle]} 
-              />
-            </View>
-            
-            <Text style={styles.loadingText}>
-              {stages[processingStage].message}
-            </Text>
-            
-            <Text style={styles.loadingSubText}>
-              {stages[processingStage].subMessage}
-            </Text>
+        <View style={styles.processingModal}>
+          <ParticleBackground />
+          <AnimatedIcon style={iconAnimatedStyle}>
+            {stages[processingStage].icon}
+          </AnimatedIcon>
+          <View style={styles.progressBarContainer}>
+            <Animated.View 
+              style={[styles.progressBar, progressAnimatedStyle]} 
+            />
           </View>
+          <Text style={styles.processingTitle}>
+            {stages[processingStage].message}
+          </Text>
+          <Text style={styles.processingSubtitle}>
+            {stages[processingStage].subMessage}
+          </Text>
         </View>
       </Modal>
     </SafeAreaView>
@@ -470,56 +562,38 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: theme.spacing.md,
   },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(18, 18, 18, 0.98)',
+  processingModal: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000,
-  },
-  loadingContent: {
-    alignItems: 'center',
-    padding: theme.spacing.xl,
-    width: '100%',
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: theme.colors.background02,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: theme.spacing.xl,
-  },
-  loadingText: {
-    color: theme.colors.text,
-    fontSize: theme.fontSizes.lg,
-    fontFamily: theme.fonts.medium,
-    marginBottom: theme.spacing.sm,
-    textAlign: 'center',
-  },
-  loadingSubText: {
-    color: theme.colors.text,
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.regular,
-    textAlign: 'center',
-    opacity: 0.8,
+    padding: theme.spacing.lg,
   },
   progressBarContainer: {
     width: '80%',
     height: 4,
     backgroundColor: theme.colors.background02,
     borderRadius: 2,
-    marginBottom: theme.spacing.xl,
+    marginVertical: theme.spacing.xl,
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
     backgroundColor: theme.colors.primary,
     borderRadius: 2,
+  },
+  processingTitle: {
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.lg,
+    fontFamily: theme.fonts.medium,
+    marginBottom: theme.spacing.sm,
+    textAlign: 'center',
+  },
+  processingSubtitle: {
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.regular,
+    textAlign: 'center',
+    opacity: 0.8,
   },
 });

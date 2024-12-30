@@ -274,7 +274,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               styles.greeting,
               !isEmpty && styles.greetingWithContent
             ]}>
-              Hei 👋 {userName}!{'\n'}
+              Hei 👋🏻 {userName}!{'\n'}
               Tervetuloa takaisin
             </Text>
 

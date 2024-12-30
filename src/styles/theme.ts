@@ -1,6 +1,6 @@
 export const theme = {
   colors: {
-    primary: 'hsl(145, 80%, 56%)',      
+    primary: 'hsl(245, 52%, 48%)',      
     background: 'hsl(240, 10%, 8%)',    
     background01: 'hsl(240, 10%, 8%)',  
     background02: 'hsl(240, 13%, 10%)', 
@@ -30,6 +30,7 @@ export const theme = {
     medium: 'Inter_500Medium',
     semiBold: 'Inter_600SemiBold',
     bold: 'Inter_700Bold',
+    mono: 'Courier',
   },
   
   fontSizes: {

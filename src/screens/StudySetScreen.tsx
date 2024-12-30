@@ -130,6 +130,17 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     );
   };
 
+  const checkAnswer = (selectedAnswer: string, correctAnswer: string) => {
+    // Simple exact match since we removed letter prefixes
+    const isCorrect = selectedAnswer === correctAnswer;
+    
+    console.log('Selected Answer:', selectedAnswer);
+    console.log('Correct Answer:', correctAnswer);
+    console.log('Are they equal?:', isCorrect);
+    
+    return isCorrect;
+  };
+
   if (!route.params?.id) {
     return (
       <SafeAreaView style={styles.container}>
@@ -194,12 +205,9 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       return <Text style={styles.loadingText}>Loading content...</Text>;
     }
 
-    console.log('Raw text content:', studySet.text_content.raw_text);
-
     return (
       <Markdown 
         style={markdownStyles}
-        mergeStyle={false}
       >
         {studySet.text_content.raw_text}
       </Markdown>
@@ -552,60 +560,71 @@ const styles = StyleSheet.create({
   },
 });
 
-const markdownStyles: MarkdownStylesObject = {
-  body: {
-    fontSize: theme.fontSizes.md,
-    color: theme.colors.text,
-    lineHeight: 24,
-    fontFamily: 'Inter-Regular',
-  } as TextStyle,
+const markdownStyles: Record<string, TextStyle | ViewStyle> = {
   heading1: {
     fontSize: 20,
-    fontFamily: 'Inter-Medium',
-    fontWeight: '500',
     color: theme.colors.text,
-    marginBottom: 8,
-    marginTop: theme.spacing.lg,
-  } as TextStyle,
+    lineHeight: 26,
+  },
   heading2: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
-    fontWeight: '600',
+    fontWeight: '500',
     color: theme.colors.text,
-    marginBottom: 8,
-    marginTop: theme.spacing.lg,
-  } as TextStyle,
+    lineHeight: 22,
+    letterSpacing: -0.2,
+  },
   heading3: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
-    fontWeight: '600',
+    fontWeight: '500',
     color: theme.colors.text,
-    marginBottom: 8,
-    marginTop: theme.spacing.lg,
-  } as TextStyle,
+    marginTop: 12,
+    lineHeight: 22,
+  },
   paragraph: {
-    marginBottom: 24,
-    fontFamily: 'Inter-Regular',
+    fontSize: 16,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.text,
-  } as TextStyle,
+    marginBottom: 24,
+    lineHeight: 27,
+  },
+  strong: {
+    fontFamily: theme.fonts.bold,
+    color: theme.colors.text,
+  },
   blockquote: {
-    backgroundColor: '#332167',
-    borderLeftWidth: 0,
-    marginLeft: 0,
-    marginRight: 0,
-    marginBottom: 24,
-    paddingLeft: 12,
-    paddingTop: 16,
-    paddingRight: 0,
+    backgroundColor: theme.colors.background01,
+    marginVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
-  } as ViewStyle,
-  blockquote_text: {
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.primary,
+  },
+  bullet_list: {
+    paddingTop: theme.spacing.md,
+  },
+
+  ordered_list: {
+    paddingTop: theme.spacing.md,
+  },
+  list_item: {
+    flexDirection: 'row',
+    marginBottom: theme.spacing.xs,
+  },
+  bullet_list_icon: {
+    marginRight: theme.spacing.xs,
     color: theme.colors.text,
-  } as TextStyle,
-  blockquote_section: {
-    marginLeft: 0,
-    marginRight: 0,
-    paddingLeft: 0,
-    paddingRight: 0,
-  } as ViewStyle,
+  },
+  ordered_list_icon: {
+    marginRight: theme.spacing.xs,
+    color: theme.colors.text,
+    fontWeight: '500',
+  },
+  body: {
+    fontSize: 16,
+    color: theme.colors.text,
+    fontFamily: theme.fonts.regular,
+    lineHeight: 24,
+  }
 };
+
