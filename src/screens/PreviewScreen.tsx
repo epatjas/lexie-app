@@ -101,7 +101,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
     {
       icon: <Sparkles size={24} color={theme.colors.text} />,
       message: "Melkein valmista",
-      subMessage: "Viimeistellään oppimateriaalia..."
+      subMessage: "Viimeistellään harjoitussettiä..."
     }
   ];
 

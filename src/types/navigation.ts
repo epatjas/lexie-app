@@ -1,7 +1,7 @@
 import { QuizQuestion } from './types';
 
 export type RootStackParamList = {
-  Home: { 
+  Home: {
     refresh?: boolean;
     openBottomSheet?: boolean;
     existingPhotos?: Array<{

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Animated, Alert } from 'react-native';
 import ParticleBackground from '../components/ParticleBackground';
 import theme from '../styles/theme';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { saveUserName } from '../utils/storage';
 
 interface NameInputScreenProps {
   navigation: any;
@@ -42,7 +42,6 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
 
   const handleContinue = async () => {
     if (!name.trim()) {
-      // Show alert if name is empty
       Alert.alert(
         "Name required",
         "Please write your name to continue",
@@ -52,7 +51,7 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
     }
 
     try {
-      await AsyncStorage.setItem('@user_name', name.trim());
+      await saveUserName(name.trim());
       navigation.replace('Home');
     } catch (error) {
       console.error('Error saving name:', error);

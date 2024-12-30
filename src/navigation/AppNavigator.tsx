@@ -4,6 +4,7 @@ import { RootStackParamList } from '../types/navigation';
 
 // Import all screens
 import HomeScreen from '../screens/HomeScreen';
+import WelcomeScreen from '../screens/WelcomeScreen';
 import StudySetScreen from '../screens/StudySetScreen';
 import FlashcardsScreen from '../screens/FlashcardsScreen';
 import QuizScreen from '../screens/QuizScreen';
@@ -22,6 +23,7 @@ export default function AppNavigator() {
         headerShown: false,
       }}
     >
+      <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="StudySet" component={StudySetScreen} />
       <Stack.Screen name="Flashcards" component={FlashcardsScreen} />

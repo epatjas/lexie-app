@@ -31,6 +31,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ParticleBackground from '../components/ParticleBackground';
+import { getUserName } from '../utils/storage';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 type ViewMode = 'all' | 'folders';
@@ -104,9 +105,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   }, [navigation, refreshFolders, refreshStudySets]);
 
   useEffect(() => {
-    const getUserName = async () => {
+    const loadUserName = async () => {
       try {
-        const name = await AsyncStorage.getItem('@user_name');
+        const name = await getUserName();
         if (name) {
           setUserName(name);
         }
@@ -115,7 +116,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       }
     };
 
-    getUserName();
+    loadUserName();
   }, []);
 
   const handleCreateFolder = async (name: string, color: string) => {
