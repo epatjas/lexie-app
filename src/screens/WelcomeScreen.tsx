@@ -19,9 +19,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
               style={styles.icon}
               resizeMode="contain"
             />
-            <Text style={styles.welcomeText}>Welcome to Lexie</Text>
+            <Text style={styles.welcomeText}>LexieLearn</Text>
             <Text style={styles.descriptionText}>
-              Transform any text into your personal, interactive study companion.
+              Parempi tapa harjoitella. Ota kuva, Lexie hoitaa loput.
             </Text>
           </View>
         </View>
@@ -31,7 +31,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
             style={styles.button}
             onPress={() => navigation.navigate('NameInput')}
           >
-            <Text style={styles.buttonText}>Get started</Text>
+            <Text style={styles.buttonText}>Aloita</Text>
           </TouchableOpacity>
         </View>
       </View>

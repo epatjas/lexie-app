@@ -18,7 +18,7 @@ import StudySetItem from '../components/StudySetItem';
 import { useFolders } from '../hooks/useFolders';
 import { useStudySets } from '../hooks/useStudySet';
 import FolderCard from '../components/FolderCard';
-import { Folder as FolderIcon } from 'lucide-react-native';
+import { Folder as FolderIcon, Hexagon } from 'lucide-react-native';
 import CreateStudySetBottomSheet from '../components/CreateStudySetBottomSheet';
 import Animated, { 
   useAnimatedStyle,
@@ -28,7 +28,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import ParticleBackground from '../components/ParticleBackground';
 import { getActiveProfile } from '../utils/storage';
-import { resetStorage } from '../utils/storage';
+import SettingsScreen from './SettingsScreen';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 type ViewMode = 'all' | 'folders';
@@ -50,6 +50,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     uri: string;
     base64?: string;
   }> | undefined>(undefined);
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
 
   const { folders, refreshFolders } = useFolders();
   const { studySets, refreshStudySets, loading: studySetsLoading } = useStudySets();
@@ -306,6 +307,13 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       <ParticleBackground />
       <View style={styles.header}>
         <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => setIsSettingsVisible(true)}
+        >
+          <Hexagon color={theme.colors.text} size={20} />
+          <View style={styles.settingsButtonDot} />
+        </TouchableOpacity>
+        <TouchableOpacity
           style={styles.profileButton}
           onPress={() => navigation.navigate('ProfileSelection')}
         >
@@ -338,16 +346,17 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         </Animated.View>
       </Modal>
 
-      {__DEV__ && (
-        <TouchableOpacity 
-          style={styles.devButton} 
-          onPress={async () => {
-            await resetStorage();
-            navigation.replace('Welcome');
+      {isSettingsVisible && (
+        <SettingsScreen 
+          onClose={() => setIsSettingsVisible(false)}
+          onProfileDeleted={() => {
+            setIsSettingsVisible(false);
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'ProfileSelection' }],
+            });
           }}
-        >
-          <Text style={styles.devButtonText}>Reset App</Text>
-        </TouchableOpacity>
+        />
       )}
     </SafeAreaView>
   );
@@ -495,23 +504,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: theme.fonts.medium,
   },
-  devButton: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    padding: 8,
-    backgroundColor: theme.colors.background02,
-    borderRadius: 8,
-  },
-  devButtonText: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-  },
   header: {
     position: 'absolute',
     top: 64,
     right: theme.spacing.lg,
     zIndex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.background02,
+    borderWidth: 1,
+    borderColor: theme.colors.stroke,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  settingsButtonDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.colors.text,
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -2 }, { translateY: -2 }],
   },
   profileButton: {
     width: 40,

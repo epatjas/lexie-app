@@ -38,4 +38,5 @@ export type RootStackParamList = {
     folderId: string;
   };
   ProfileSelection: undefined;
+  Settings: undefined;
 };

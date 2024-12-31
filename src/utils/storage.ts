@@ -136,4 +136,26 @@ export const getActiveProfile = async (): Promise<Profile | null> => {
     console.error('Error getting active profile:', error);
     return null;
   }
+};
+
+export const deleteProfile = async (profileId: string) => {
+  try {
+    // Get current profiles
+    const profiles = await getUserProfiles();
+    
+    // Filter out the profile to delete
+    const updatedProfiles = profiles.filter(p => p.id !== profileId);
+    
+    // Save updated profiles list
+    await AsyncStorage.setItem('profiles', JSON.stringify(updatedProfiles));
+    
+    // Clear active profile if it was the deleted one
+    const activeProfile = await getActiveProfile();
+    if (activeProfile?.id === profileId) {
+      await AsyncStorage.removeItem('activeProfile');
+    }
+  } catch (error) {
+    console.error('Error deleting profile:', error);
+    throw error;
+  }
 }; 
