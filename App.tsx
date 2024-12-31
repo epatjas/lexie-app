@@ -19,6 +19,7 @@ import { checkFirstTimeUser, getUserProfiles } from './src/utils/storage';
 import NameInputScreen from './src/screens/NameInputScreen';
 import ProfileImageScreen from './src/screens/ProfileImageScreen';
 import ProfileSelectionScreen from './src/screens/ProfileSelectionScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 

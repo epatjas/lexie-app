@@ -16,7 +16,7 @@ export const theme = {
     greenDark: 'hsl(92, 21%, 66%)',    
     lavender: 'hsl(237, 70%, 81%)',    
     lavenderDark: 'hsl(237, 68%, 76%)', 
-    error: 'hsl(368, 63%, 51%)',
+    error: 'hsl(348, 82%, 64%)',
     correct: '#72CDA8',                
     incorrect: '#EE5775',              
     buttonTextDark: '#1A1A1A',
