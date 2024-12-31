@@ -7,11 +7,13 @@ export interface StudySet {
     flashcards?: Flashcard[];
     quiz?: QuizQuestion[];
     folder_id?: string | null;
+    profile_id: string;
   }
   
   export interface CreateStudySetInput {
     title: string;
     text_content: TextContent;
+    profile_id: string;
     flashcards?: {
       front: string;
       back: string;
@@ -83,4 +85,10 @@ export interface StudySet {
       raw_text: string;
       sections: TextSection[];
     };
+  }
+
+  export interface Profile {
+    id: string;
+    name: string;
+    avatarId: string;
   }

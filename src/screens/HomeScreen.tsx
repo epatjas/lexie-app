@@ -4,37 +4,35 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   SafeAreaView,
-  Alert,
-  Modal,
   ActivityIndicator,
+  Image,
+  FlatList,
+  Modal,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
-import { StudySet } from '../types/types';
+import { StudySet, Folder, Profile } from '../types/types';
 import StudySetItem from '../components/StudySetItem';
 import { useFolders } from '../hooks/useFolders';
 import { useStudySets } from '../hooks/useStudySet';
 import FolderCard from '../components/FolderCard';
-import { Folder } from 'lucide-react-native';
-import FolderCreationModal from '../components/FolderCreationModal';
-import { testDatabaseConnection } from '../services/Database';
+import { Folder as FolderIcon } from 'lucide-react-native';
 import CreateStudySetBottomSheet from '../components/CreateStudySetBottomSheet';
 import Animated, { 
-  withSpring,
   useAnimatedStyle,
   useSharedValue,
   interpolate,
   withTiming,
 } from 'react-native-reanimated';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import ParticleBackground from '../components/ParticleBackground';
-import { getUserName } from '../utils/storage';
+import { getActiveProfile } from '../utils/storage';
+import { resetStorage } from '../utils/storage';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 type ViewMode = 'all' | 'folders';
+type ListItem = StudySet | (Folder & { study_set_count?: number });
 
 const DEBUG = false;
 
@@ -46,22 +44,26 @@ const LoadingIndicator = () => (
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('all');
-  const { folders, refreshFolders, loading, addFolder } = useFolders();
-  const { studySets, refreshStudySets, loading: studySetsLoading } = useStudySets();
-  const [modalVisible, setModalVisible] = useState(false);
   const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
-  const progress = useSharedValue(0);
-  const [userName, setUserName] = useState('');
-  const [showToast, setShowToast] = useState(false);
+  const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   const [existingPhotos, setExistingPhotos] = useState<Array<{
     uri: string;
     base64?: string;
   }> | undefined>(undefined);
 
+  const { folders, refreshFolders } = useFolders();
+  const { studySets, refreshStudySets, loading: studySetsLoading } = useStudySets();
+  const progress = useSharedValue(0);
+
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 1], [0, 1]),
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    ...StyleSheet.absoluteFillObject,
+  }));
+
   useEffect(() => {
     const initDb = async () => {
       try {
-        await testDatabaseConnection();
         console.log('Database connection successful');
       } catch (error) {
         console.error('Database connection failed:', error);
@@ -105,79 +107,142 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   }, [navigation, refreshFolders, refreshStudySets]);
 
   useEffect(() => {
-    const loadUserName = async () => {
+    const loadActiveProfile = async () => {
       try {
-        const name = await getUserName();
-        if (name) {
-          setUserName(name);
-        }
+        const profile = await getActiveProfile();
+        setActiveProfile(profile);
       } catch (error) {
-        console.error('Error getting user name:', error);
+        console.error('Error loading active profile:', error);
       }
     };
 
-    loadUserName();
+    loadActiveProfile();
   }, []);
 
-  const handleCreateFolder = async (name: string, color: string) => {
-    try {
-      await addFolder(name, color);
-      await refreshFolders();
-      setModalVisible(false);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to create folder');
-    }
-  };
-
-  const isEmpty = studySets.length === 0;
-
-  const getStudySetsByFolder = (folderId: string) => {
-    console.log('Study Sets Structure:', studySets.map(set => ({
-      id: set.id,
-      title: set.title,
-      folder_id: set.folder_id
-    })));
-    
-    return studySets.filter((set: StudySet) => {
-      if (typeof set.folder_id !== typeof folderId) {
-        console.warn(`Type mismatch: set.folder_id (${typeof set.folder_id}) vs folderId (${typeof folderId})`);
-        console.warn(`Values: set.folder_id = ${set.folder_id}, folderId = ${folderId}`);
-      }
-      return set.folder_id === folderId;
-    });
-  };
+  useEffect(() => {
+    console.log('Study sets loading state:', studySetsLoading);
+    console.log('Study sets:', studySets);
+  }, [studySetsLoading, studySets]);
 
   const renderContent = () => {
-    if (viewMode === 'folders') {
-      if (folders.length === 0) {
-        return (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconContainer}>
-              <Folder color={theme.colors.textSecondary} size={32} />
-            </View>
-            <Text style={styles.emptyText}>
-              Sinulla ei ole vielä yhtään kansiota
-            </Text>
-          </View>
-        );
-      }
-
-      return folders.map(folder => (
-        <FolderCard
-          key={folder.id}
-          folder={folder}
-          onPress={() => navigation.navigate('Folder', { folderId: folder.id })}
-        />
-      ));
+    if (studySetsLoading) {
+      return <LoadingIndicator />;
     }
 
-    return studySets.map((studySet: StudySet) => (
-      <StudySetItem
-        key={studySet.id}
-        studySet={studySet}
-        onPress={() => navigation.navigate('StudySet', { id: studySet.id })}
-      />
-    ));
+    if (studySets.length === 0 && folders.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={styles.textContainer}>
+            <Text style={styles.greeting}>
+              Hei 👋🏻 {activeProfile?.name}!
+            </Text>
+            <Text style={styles.emptyMessage}>
+              Mitä haluaisit harjoitella{'\n'}tänään?
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={handleCreatePress}
+          >
+            <Text style={styles.createButtonText}>
+              Luo uusi harjoitussetti
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Use FlatList for both views
+    return (
+      <>
+        <FlatList<ListItem>
+          data={viewMode === 'all' ? studySets : folders}
+          ListHeaderComponent={() => (
+            <>
+              <Text style={[styles.greeting, styles.greetingWithContent]}>
+                Hei 👋🏻 {activeProfile?.name || ''}!{'\n'}
+                Tervetuloa takaisin
+              </Text>
+
+              <View style={styles.viewToggle}>
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    viewMode === 'all' && styles.toggleButtonActive
+                  ]}
+                  onPress={() => setViewMode('all')}
+                >
+                  <Text style={[
+                    styles.toggleButtonText,
+                    viewMode === 'all' && styles.toggleButtonTextActive
+                  ]}>
+                    Kaikki setit
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.toggleButton,
+                    viewMode === 'folders' && styles.toggleButtonActive
+                  ]}
+                  onPress={() => setViewMode('folders')}
+                >
+                  <Text style={[
+                    styles.toggleButtonText,
+                    viewMode === 'folders' && styles.toggleButtonTextActive
+                  ]}>
+                    Kansiot
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+          renderItem={({ item }) => {
+            if (viewMode === 'all') {
+              return (
+                <StudySetItem
+                  studySet={item as StudySet}
+                  onPress={() => navigation.navigate('StudySet', { id: item.id })}
+                />
+              );
+            } else {
+              return (
+                <FolderCard
+                  folder={item as Folder}
+                  onPress={() => navigation.navigate('Folder', { folderId: item.id })}
+                />
+              );
+            }
+          }}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyState}>
+              {viewMode === 'folders' && (
+                <View style={styles.emptyIconContainer}>
+                  <FolderIcon color={theme.colors.textSecondary} size={32} />
+                </View>
+              )}
+              <Text style={styles.emptyText}>
+                {viewMode === 'all' 
+                  ? 'Sinulla ei ole vielä yhtään harjoittelusettiä'
+                  : 'Sinulla ei ole vielä yhtään kansiota'
+                }
+              </Text>
+            </View>
+          )}
+        />
+
+        <TouchableOpacity
+          style={styles.createButton}
+          onPress={handleCreatePress}
+        >
+          <Text style={styles.createButtonText}>
+            Luo uusi harjoittelusetti
+          </Text>
+        </TouchableOpacity>
+      </>
+    );
   };
 
   const handleCreatePress = () => {
@@ -202,14 +267,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     }
   }, [isBottomSheetVisible]);
 
-  const overlayStyle = useAnimatedStyle(() => {
-    return {
-      opacity: interpolate(progress.value, [0, 1], [0, 1]),
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      ...StyleSheet.absoluteFillObject,
-    };
-  });
-
   const modalStyle = useAnimatedStyle(() => {
     const translateY = interpolate(
       progress.value,
@@ -229,104 +286,40 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     };
   });
 
+  const getProfileImage = (avatarId: string | undefined): any => {
+    const images: Record<string, any> = {
+      '1': require('../../assets/Account creation/profile 1.png'),
+      '2': require('../../assets/Account creation/profile 2.png'),
+      '3': require('../../assets/Account creation/profile 3.png'),
+      '4': require('../../assets/Account creation/profile 4.png'),
+      '5': require('../../assets/Account creation/profile 5.png'),
+      '6': require('../../assets/Account creation/profile 6.png'),
+      '7': require('../../assets/Account creation/profile 7.png'),
+      '8': require('../../assets/Account creation/profile 8.png'),
+      '9': require('../../assets/Account creation/profile 9.png'),
+    };
+    return images[avatarId || '1'];
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ParticleBackground />
-      {showToast && (
-        <View style={styles.toast}>
-          <Text style={styles.toastText}>Tulossa pian</Text>
-        </View>
-      )}
-      
-      <FolderCreationModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        onCreate={handleCreateFolder}
-        onSuccess={refreshFolders}
-      />
-      
-      {studySetsLoading ? (
-        <LoadingIndicator />
-      ) : isEmpty ? (
-        <View style={styles.emptyContainer}>
-          <View style={styles.textContainer}>
-            <Text style={styles.greeting}>
-              Hei 👋🏻 {userName}!
-            </Text>
-            <Text style={styles.emptyMessage}>
-              Mitä haluaisit oppia{'\n'}tänään?
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.createButton}
-            onPress={handleCreatePress}
-          >
-            <Text style={styles.createButtonText}>Create your first study set</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <>
-          <ScrollView style={[
-            styles.scrollView,
-            !isEmpty && styles.scrollViewWithContent
-          ]}>
-            <Text style={[
-              styles.greeting,
-              !isEmpty && styles.greetingWithContent
-            ]}>
-              Hei 👋🏻 {userName}!{'\n'}
-              Tervetuloa takaisin
-            </Text>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.profileButton}
+          onPress={() => navigation.navigate('ProfileSelection')}
+        >
+          <Image
+            source={getProfileImage(activeProfile?.avatarId)}
+            style={styles.profileImage}
+          />
+        </TouchableOpacity>
+      </View>
 
-            <View style={styles.viewToggle}>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  viewMode === 'all' && styles.toggleButtonActive,
-                ]}
-                onPress={() => setViewMode('all')}
-              >
-                <Text style={[
-                  styles.toggleButtonText,
-                  viewMode === 'all' && styles.toggleButtonTextActive,
-                ]}>
-                  Kaikki setit
-                </Text>
-              </TouchableOpacity>
+      <View style={styles.contentWrapper}>
+        {renderContent()}
+      </View>
 
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  viewMode === 'folders' && styles.toggleButtonActive,
-                ]}
-                onPress={() => setViewMode('folders')}
-              >
-                <Text style={[
-                  styles.toggleButtonText,
-                  viewMode === 'folders' && styles.toggleButtonTextActive,
-                ]}>
-                  Kansiot
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.content}>
-              {renderContent()}
-            </View>
-          </ScrollView>
-
-          <TouchableOpacity
-            style={styles.createButton}
-            onPress={() => {
-              console.log('Main create button pressed');
-              handleCreatePress();
-            }}
-          >
-            <Text style={styles.createButtonText}>Luo uusi harjoittelusetti</Text>
-          </TouchableOpacity>
-        </>
-      )}
-      
       <Modal
         visible={isBottomSheetVisible}
         transparent
@@ -344,6 +337,18 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           </SafeAreaView>
         </Animated.View>
       </Modal>
+
+      {__DEV__ && (
+        <TouchableOpacity 
+          style={styles.devButton} 
+          onPress={async () => {
+            await resetStorage();
+            navigation.replace('Welcome');
+          }}
+        >
+          <Text style={styles.devButtonText}>Reset App</Text>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
@@ -352,6 +357,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  contentWrapper: {
+    flex: 1,
+    paddingHorizontal: theme.spacing.lg,
+    marginTop: 80,
   },
   scrollView: {
     flex: 1,
@@ -364,8 +374,8 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: theme.fonts.medium,
     color: theme.colors.text,
-    marginBottom: 8,
     textAlign: 'center',
+    marginBottom: theme.spacing.md,
   },
   greetingWithContent: {
     textAlign: 'left',
@@ -397,14 +407,11 @@ const styles = StyleSheet.create({
   toggleButtonTextActive: {
     color: theme.colors.background,
   },
-  content: {
-    flex: 1,
-  },
   createButton: {
     position: 'absolute',
     bottom: '8%',
-    left: '10%',
-    right: '10%',
+    left: theme.spacing.lg,
+    right: theme.spacing.lg,
     backgroundColor: theme.colors.text,
     paddingVertical: 16,
     paddingHorizontal: 32,
@@ -422,7 +429,7 @@ const styles = StyleSheet.create({
   createButtonText: {
     color: theme.colors.background,
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: theme.fonts.medium,
   },
   emptyState: {
     flex: 1,
@@ -449,13 +456,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: '30%',
   },
   textContainer: {
     alignItems: 'center',
     marginBottom: 'auto',
     marginTop: 'auto',
-    paddingBottom: '20%',
   },
   emptyMessage: {
     fontSize: 20,
@@ -487,5 +494,39 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontFamily: theme.fonts.medium,
+  },
+  devButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    padding: 8,
+    backgroundColor: theme.colors.background02,
+    borderRadius: 8,
+  },
+  devButtonText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+  },
+  header: {
+    position: 'absolute',
+    top: 64,
+    right: theme.spacing.lg,
+    zIndex: 1,
+  },
+  profileButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.background02,
+  },
+  profileImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+  },
+  listContainer: {
+    flexGrow: 1,
+    paddingBottom: 100,
   },
 });

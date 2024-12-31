@@ -3,7 +3,6 @@ import { AppState, AppStateStatus, View, StyleSheet, LogBox } from 'react-native
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { closeDatabase, initDatabase, clearDatabase } from './src/services/Database';
-import SplashScreen from './src/components/SplashScreen';
 import { RootStackParamList } from './src/types/navigation';
 import HomeScreen from './src/screens/HomeScreen';
 import StudySetScreen from './src/screens/StudySetScreen';
@@ -16,8 +15,10 @@ import FolderScreen from './src/screens/FolderScreen';
 import theme from './src/styles/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import WelcomeScreen from './src/screens/WelcomeScreen';
-import { checkFirstTimeUser } from './src/utils/storage';
+import { checkFirstTimeUser, getUserProfiles } from './src/utils/storage';
 import NameInputScreen from './src/screens/NameInputScreen';
+import ProfileImageScreen from './src/screens/ProfileImageScreen';
+import ProfileSelectionScreen from './src/screens/ProfileSelectionScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -26,19 +27,16 @@ LogBox.ignoreLogs([
 ]);
 
 export default function App() {
-  const [isLoading, setIsLoading] = useState(true);
   const [isFirstTime, setIsFirstTime] = useState(false);
 
   useEffect(() => {
     const initApp = async () => {
       try {
         await initDatabase();
-        const isFirst = await checkFirstTimeUser();
-        setIsFirstTime(isFirst);
+        const profiles = await getUserProfiles();
+        setIsFirstTime(!profiles.length);
       } catch (error) {
         console.error('Error initializing app:', error);
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -56,26 +54,11 @@ export default function App() {
     };
   }, []);
 
-  if (__DEV__) {
-    // @ts-ignore
-    global.clearDatabase = clearDatabase;
-    // @ts-ignore
-    global.toggleLoading = () => setIsLoading(prev => !prev);
-  }
-
-  if (isLoading) {
-    return (
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <WelcomeScreen isLoading={true} />
-      </GestureHandlerRootView>
-    );
-  }
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer>
         <Stack.Navigator
-          initialRouteName={isFirstTime ? "Welcome" : "Home"}
+          initialRouteName={isFirstTime ? "Welcome" : "ProfileSelection"}
           screenOptions={{
             headerShown: false,
             gestureEnabled: false
@@ -89,6 +72,16 @@ export default function App() {
           <Stack.Screen 
             name="NameInput" 
             component={NameInputScreen}
+            options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen 
+            name="ProfileImage"
+            component={ProfileImageScreen}
+            options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen 
+            name="ProfileSelection"
+            component={ProfileSelectionScreen}
             options={{ gestureEnabled: false }}
           />
           <Stack.Screen name="Home" component={HomeScreen} />

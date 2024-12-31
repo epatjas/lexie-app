@@ -2,29 +2,30 @@ import { useState, useCallback, useEffect } from 'react';
 import { StudySet } from '../types/types';
 import { getAllStudySets, getStudySet, deleteStudySet } from '../services/Database';
 import { getDatabase } from '../services/Database';
+import { useActiveProfile } from './useActiveProfile';
 
 // For managing list of all study sets
 export function useStudySets() {
   const [studySets, setStudySets] = useState<StudySet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeProfile] = useActiveProfile();
 
   const refreshStudySets = useCallback(async () => {
     try {
       setLoading(true);
-      const db = await getDatabase();
-      const sets = await db.getAllAsync<StudySet>(`
-        SELECT id, title, text_content, folder_id, created_at, updated_at 
-        FROM study_sets 
-        ORDER BY created_at DESC
-      `);
-      console.log('Fetched study sets:', sets);
+      if (!activeProfile?.id) {
+        console.log('No active profile, skipping study sets fetch');
+        setStudySets([]);
+        return;
+      }
+      const sets = await getAllStudySets(activeProfile.id);
       setStudySets(sets);
     } catch (error) {
-      console.error('Failed to refresh study sets:', error);
+      console.error('Error fetching study sets:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeProfile?.id]);
 
   useEffect(() => {
     refreshStudySets();

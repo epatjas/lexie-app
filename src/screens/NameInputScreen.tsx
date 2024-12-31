@@ -3,10 +3,10 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingVi
 import ParticleBackground from '../components/ParticleBackground';
 import theme from '../styles/theme';
 import { saveUserName } from '../utils/storage';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types/navigation';
 
-interface NameInputScreenProps {
-  navigation: any;
-}
+type NameInputScreenProps = NativeStackScreenProps<RootStackParamList, 'NameInput'>;
 
 const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
   const [name, setName] = useState('');
@@ -40,6 +40,14 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
     return () => blinkAnimation.stop();
   }, [isFocused]);
 
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      setName('');
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
   const handleContinue = async () => {
     if (!name.trim()) {
       Alert.alert(
@@ -52,7 +60,7 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
 
     try {
       await saveUserName(name.trim());
-      navigation.replace('Home');
+      navigation.navigate('ProfileImage');
     } catch (error) {
       console.error('Error saving name:', error);
     }
@@ -66,8 +74,8 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
         style={styles.content}
       >
         <View style={styles.textContainer}>
-          <Text style={styles.title}>Well hello there</Text>
-          <Text style={styles.title}>How can we call you?</Text>
+          <Text style={styles.title}>Hei siellä.</Text>
+          <Text style={styles.title}>Millä nimellä voisin kutsua sinua?</Text>
         </View>
 
         <View style={styles.inputContainer}>
@@ -75,7 +83,7 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
             <TextInput
               ref={textInputRef}
               style={styles.input}
-              placeholder="Write your name here"
+              placeholder="Kirjoita nimesi tähän"
               placeholderTextColor="rgba(255, 255, 255, 0.3)"
               value={name}
               onChangeText={setName}
@@ -101,7 +109,7 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
           style={styles.button}
           onPress={handleContinue}
         >
-          <Text style={styles.buttonText}>Continue</Text>
+          <Text style={styles.buttonText}>Jatka</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
     </View>
@@ -125,7 +133,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     color: theme.colors.text,
-    fontWeight: '500',
+    fontWeight: '400',
     textAlign: 'center',
     lineHeight: 28,
   },

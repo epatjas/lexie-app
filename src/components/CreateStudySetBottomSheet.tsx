@@ -6,6 +6,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
+import { getActiveProfile } from '../utils/storage';
+import { createStudySet } from '../services/Database';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 

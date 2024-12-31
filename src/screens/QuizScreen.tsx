@@ -355,22 +355,17 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
           </>
         ) : (
           <TouchableOpacity
-            style={[
-              styles.actionButton,
-              { backgroundColor: isAnswerChecked 
-                ? (selectedAnswer === currentQuestion.correct
-                  ? theme.colors.correct
-                  : theme.colors.incorrect)
-                : '#5F79FF'
-              }
-            ]}
+            style={styles.actionButton}
             onPress={handleCheck}
+            disabled={isAnswerChecked}
           >
             <Text style={[
               styles.actionButtonText,
               { color: theme.colors.background }  
             ]}>
-              Check
+              {selectedAnswer === currentQuestion.correct || attempts >= 2
+                ? 'Jatka'
+                : 'Tarkista'}
             </Text>
           </TouchableOpacity>
         )}

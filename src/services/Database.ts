@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 let db: SQLite.SQLiteDatabase | null = null;
 let isInitializing = false;
+let initializationPromise: Promise<void> | null = null;
 
 // Add this interface near the top of the file
 interface TableColumn {
@@ -59,6 +60,8 @@ const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
   }
 };
 
+const DB_VERSION = 2; // Increment this when schema changes
+
 /**
  * Initializes the database schema.
  * Creates necessary tables if they don't exist.
@@ -66,22 +69,73 @@ const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
  */
 export const initDatabase = async (): Promise<void> => {
   if (isInitializing) {
+    if (initializationPromise) {
+      return initializationPromise;
+    }
     console.log('Database initialization already in progress...');
     return;
   }
 
   try {
     isInitializing = true;
-    console.log('Initializing database...');
-    
-    // Create database connection if it doesn't exist
-    if (!db) {
-      console.log('Opening new database connection...');
-      db = await SQLite.openDatabaseAsync('studysets.db');
-    }
+    initializationPromise = (async () => {
+      console.log('Initializing database...');
+      
+      // Close existing connection if any
+      if (db) {
+        await db.closeAsync();
+        db = null;
+      }
 
-    // Create folders table first
-    await db.execAsync(`
+      // Get new database connection (this will also initialize tables)
+      await getDatabase();
+
+      console.log('Database initialization completed successfully');
+    })();
+
+    await initializationPromise;
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+    db = null;
+    throw error;
+  } finally {
+    isInitializing = false;
+    initializationPromise = null;
+  }
+};
+
+export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
+  if (db) return db;
+  
+  // If initialization is in progress, wait for it to complete
+  if (initializationPromise) {
+    await initializationPromise;
+    if (db) return db;
+  }
+
+  // If no initialization is in progress, start a new one
+  if (!isInitializing) {
+    db = await SQLite.openDatabaseAsync('studysets.db');
+    await initTables(db);
+    return db;
+  }
+
+  throw new Error('Database initialization failed');
+};
+
+// Separate table initialization into its own function
+const initTables = async (database: SQLite.SQLiteDatabase) => {
+  console.log('Starting table initialization...');
+  try {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS db_version (
+        version INTEGER PRIMARY KEY NOT NULL
+      );
+      INSERT OR REPLACE INTO db_version (version) VALUES (${DB_VERSION});
+    `);
+    console.log('Created db_version table');
+
+    await database.execAsync(`
       CREATE TABLE IF NOT EXISTS folders (
         id TEXT PRIMARY KEY NOT NULL,
         name TEXT NOT NULL,
@@ -90,10 +144,9 @@ export const initDatabase = async (): Promise<void> => {
         updated_at INTEGER NOT NULL
       );
     `);
-    console.log('Folders table created/verified');
+    console.log('Created folders table');
 
-    // Create study_sets table with folder_id reference
-    await db.execAsync(`
+    await database.execAsync(`
       CREATE TABLE IF NOT EXISTS study_sets (
         id TEXT PRIMARY KEY NOT NULL,
         title TEXT NOT NULL,
@@ -101,13 +154,13 @@ export const initDatabase = async (): Promise<void> => {
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
         folder_id TEXT,
+        profile_id TEXT NOT NULL DEFAULT '',
         FOREIGN KEY (folder_id) REFERENCES folders(id)
       );
     `);
-    console.log('Study sets table created/verified');
+    console.log('Created study_sets table');
 
-    // Create other tables...
-    await db.execAsync(`
+    await database.execAsync(`
       CREATE TABLE IF NOT EXISTS flashcards (
         id TEXT PRIMARY KEY NOT NULL,
         study_set_id TEXT NOT NULL,
@@ -116,9 +169,9 @@ export const initDatabase = async (): Promise<void> => {
         FOREIGN KEY (study_set_id) REFERENCES study_sets (id) ON DELETE CASCADE
       );
     `);
-    console.log('Flashcards table created/verified');
+    console.log('Created flashcards table');
 
-    await db.execAsync(`
+    await database.execAsync(`
       CREATE TABLE IF NOT EXISTS quiz_questions (
         id TEXT PRIMARY KEY NOT NULL,
         study_set_id TEXT NOT NULL,
@@ -128,37 +181,11 @@ export const initDatabase = async (): Promise<void> => {
         FOREIGN KEY (study_set_id) REFERENCES study_sets (id) ON DELETE CASCADE
       );
     `);
-    console.log('Quiz questions table created/verified');
+    console.log('Created quiz_questions table');
 
-    // Verify and update schema if needed
-    await verifyAndUpdateSchema(db);
-
-    console.log('Database initialization completed successfully');
+    console.log('All tables initialized successfully');
   } catch (error) {
-    console.error('Failed to initialize database:', error);
-    throw error;
-  } finally {
-    isInitializing = false;
-  }
-};
-
-export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
-  try {
-    // If we already have a connection, return it
-    if (db !== null) {
-      return db;
-    }
-
-    // Initialize database (this will create connection if needed)
-    await initDatabase();
-    
-    if (!db) {
-      throw new Error('Database initialization failed');
-    }
-    
-    return db;
-  } catch (error) {
-    console.error('Failed to get database:', error);
+    console.error('Error during table initialization:', error);
     throw error;
   }
 };
@@ -218,27 +245,27 @@ export const getStudySet = async (id: string): Promise<StudySet> => {
 export const createStudySet = async (input: CreateStudySetInput): Promise<StudySet> => {
   try {
     const db = await getDatabase();
-    console.log('Creating study set with input:', JSON.stringify(input, null, 2));
+    console.log('=== Starting Study Set Creation ===');
+    console.log('Input:', JSON.stringify(input, null, 2));
 
     const now = Date.now();
     const id = uuidv4();
+    console.log('Generated ID:', id);
 
-    // Ensure text_content has the required structure
-    const textContent = {
-      raw_text: input.text_content?.raw_text || '',
-      sections: input.text_content?.sections || []
-    };
+    // Log the exact SQL and parameters being used
+    const sql = `INSERT INTO study_sets (id, title, text_content, created_at, updated_at, profile_id) 
+                 VALUES (?, ?, ?, ?, ?, ?)`;
+    const params = [id, input.title, JSON.stringify(input.text_content), now, now, input.profile_id];
+    
+    console.log('Executing SQL:', sql);
+    console.log('With parameters:', params);
 
-    // Serialize text_content to JSON string for storage
-    const serializedTextContent = JSON.stringify(textContent);
+    await db.runAsync(sql, params);
+    console.log('Study set inserted successfully');
 
-    // Create the study set
-    await db.runAsync(
-      `INSERT INTO study_sets (id, title, text_content, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [id, input.title, serializedTextContent, now, now]
-    );
-    console.log('Study set created with ID:', id);
+    // Verify the insertion
+    const inserted = await db.getFirstAsync('SELECT * FROM study_sets WHERE id = ?', [id]);
+    console.log('Verification query result:', inserted);
 
     // Create flashcards if they exist
     if (input.flashcards && input.flashcards.length > 0) {
@@ -258,7 +285,7 @@ export const createStudySet = async (input: CreateStudySetInput): Promise<StudyS
 
     return createdSet;
   } catch (error) {
-    console.error('Failed to create study set:', error);
+    console.error('Detailed error in createStudySet:', error);
     throw error;
   }
 };
@@ -382,16 +409,18 @@ export const verifyDatabaseTables = async (): Promise<void> => {
   }
 };
 
-export const getAllStudySets = async (): Promise<StudySet[]> => {
+export const getAllStudySets = async (profileId: string): Promise<StudySet[]> => {
   try {
+    console.log('Executing getAllStudySets query for profile:', profileId);
     const db = await getDatabase();
-    const studySets = await db.getAllAsync<StudySet>(
-      'SELECT id, title, text_content, folder_id, created_at, updated_at FROM study_sets ORDER BY created_at DESC'
+    const results = await db.getAllAsync<StudySet>(
+      'SELECT * FROM study_sets WHERE profile_id = ? ORDER BY created_at DESC',
+      [profileId]
     );
-    console.log('Database - getAllStudySets:', studySets);
-    return studySets;
+    console.log('Query results:', results);
+    return results;
   } catch (error) {
-    console.error('Failed to get study sets:', error);
+    console.error('Database error in getAllStudySets:', error);
     throw error;
   }
 };
@@ -764,6 +793,46 @@ export const deleteStudySet = async (id: string): Promise<void> => {
   } catch (error) {
     console.error('Error deleting study set:', error);
     throw error;
+  }
+};
+
+export const debugDatabase = async () => {
+  try {
+    const db = await getDatabase();
+    console.log('Checking database contents...');
+    
+    const studySets = await db.getAllAsync('SELECT * FROM study_sets');
+    console.log('Study sets in DB:', studySets);
+    
+    const folders = await db.getAllAsync('SELECT * FROM folders');
+    console.log('Folders in DB:', folders);
+    
+  } catch (error) {
+    console.error('Error debugging database:', error);
+  }
+};
+
+export const debugDatabaseState = async () => {
+  try {
+    const db = await getDatabase();
+    console.log('=== Database Debug Info ===');
+    
+    // Check tables
+    const tables = await db.getAllAsync(
+      "SELECT name FROM sqlite_master WHERE type='table'"
+    );
+    console.log('Tables:', tables);
+    
+    // Check study sets
+    const studySets = await db.getAllAsync('SELECT * FROM study_sets');
+    console.log('Study Sets:', studySets);
+    
+    // Check database connection
+    const testQuery = await db.getFirstAsync('SELECT 1');
+    console.log('Database connection test:', testQuery);
+    
+  } catch (error) {
+    console.error('Database debug error:', error);
   }
 };
 

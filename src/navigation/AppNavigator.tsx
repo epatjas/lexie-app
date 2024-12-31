@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
+import { checkFirstTimeUser } from '../utils/storage';
 
 // Import all screens
 import HomeScreen from '../screens/HomeScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
+import NameInputScreen from '../screens/NameInputScreen';
 import StudySetScreen from '../screens/StudySetScreen';
 import FlashcardsScreen from '../screens/FlashcardsScreen';
 import QuizScreen from '../screens/QuizScreen';
@@ -12,18 +14,33 @@ import QuizCompleteScreen from '../screens/QuizComplete';
 import PreviewScreen from '../screens/PreviewScreen';
 import ScanPageScreen from '../screens/ScanPageScreen';
 import FolderScreen from '../screens/FolderScreen';
+import ProfileImageScreen from '../screens/ProfileImageScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
+  const [initialRoute, setInitialRoute] = useState<keyof RootStackParamList | null>(null);
+
+  useEffect(() => {
+    const checkInitialRoute = async () => {
+      const isFirstTime = await checkFirstTimeUser();
+      setInitialRoute(isFirstTime ? 'Welcome' : 'Home');
+    };
+    checkInitialRoute();
+  }, []);
+
+  if (!initialRoute) return null;
+
   return (
     <Stack.Navigator
-      initialRouteName="Home"
+      initialRouteName={initialRoute}
       screenOptions={{
         headerShown: false,
       }}
     >
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      <Stack.Screen name="NameInput" component={NameInputScreen} />
+      <Stack.Screen name="ProfileImage" component={ProfileImageScreen} />
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="StudySet" component={StudySetScreen} />
       <Stack.Screen name="Flashcards" component={FlashcardsScreen} />

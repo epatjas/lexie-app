@@ -31,6 +31,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import ParticleBackground from '../components/ParticleBackground';
 import axios from 'axios';
+import { getActiveProfile } from '../utils/storage';
 
 type PreviewScreenNavigationProp = NativeStackScreenProps<RootStackParamList, 'Preview'>;
 
@@ -131,6 +132,12 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       setProcessingStartTime(Date.now());
       console.log('[Timing] Starting analysis process...');
 
+      // Get active profile first
+      const activeProfile = await getActiveProfile();
+      if (!activeProfile) {
+        throw new Error('No active profile found');
+      }
+
       // Image formatting timing
       const formatStartTime = Date.now();
       const formattedImages = photos.map(photo => ({
@@ -156,7 +163,8 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
         title: result.title,
         text_content: result.text_content,
         flashcards: result.flashcards,
-        quiz: result.quiz
+        quiz: result.quiz,
+        profile_id: activeProfile.id
       });
       const dbEndTime = Date.now();
       

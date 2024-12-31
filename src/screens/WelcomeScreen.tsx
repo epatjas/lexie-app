@@ -1,38 +1,41 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView } from 'react-native';
 import ParticleBackground from '../components/ParticleBackground';
 import theme from '../styles/theme';
-import { Weight } from 'lucide-react-native';
 
 interface WelcomeScreenProps {
   navigation?: any;
-  isLoading?: boolean;
 }
 
-const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation, isLoading }) => {
+const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <ParticleBackground />
-      <View style={styles.content}>
-        <Image 
-          source={require('../../assets/Lexie icon.png')}
-          style={styles.icon}
-          resizeMode="contain"
-        />
-        <Text style={styles.welcomeText}>Welcome to Lexie</Text>
-        <Text style={styles.descriptionText}>
-          Transform any text into your personal, interactive study companion.
-        </Text>
-        {!isLoading && (
+      <View style={styles.contentWrapper}>
+        <View style={styles.mainContent}>
+          <View style={styles.topContent}>
+            <Image 
+              source={require('../../assets/Lexie icon.png')}
+              style={styles.icon}
+              resizeMode="contain"
+            />
+            <Text style={styles.welcomeText}>Welcome to Lexie</Text>
+            <Text style={styles.descriptionText}>
+              Transform any text into your personal, interactive study companion.
+            </Text>
+          </View>
+        </View>
+        
+        <View style={styles.buttonWrapper}>
           <TouchableOpacity 
             style={styles.button}
             onPress={() => navigation.navigate('NameInput')}
           >
             <Text style={styles.buttonText}>Get started</Text>
           </TouchableOpacity>
-        )}
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -41,11 +44,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  content: {
+  contentWrapper: {
+    flex: 1,
+    zIndex: 1,
+  },
+  mainContent: {
+    flex: 1,
+    paddingHorizontal: 32,
+    zIndex: 1,
+  },
+  topContent: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingTop: 60,
+  },
+  buttonWrapper: {
     paddingHorizontal: 32,
+    paddingBottom: 48,
+    width: '100%',
+    zIndex: 1,
   },
   icon: {
     width: 80,
@@ -73,9 +91,6 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     width: '100%',
     alignItems: 'center',
-    position: 'absolute',
-    bottom: 48,
-    marginHorizontal: 32,
   },
   buttonText: {
     color: theme.colors.background,

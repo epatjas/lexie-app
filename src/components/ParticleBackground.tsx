@@ -97,6 +97,7 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'transparent',
+    zIndex: 0,
   },
   particle: {
     position: 'absolute',

@@ -5,7 +5,7 @@ import theme from '../styles/theme';
 import { Folder } from '../types/types';
 
 interface FolderCardProps {
-  folder: Folder & { study_set_count: number };
+  folder: Folder & { study_set_count?: number };
   onPress: () => void;
 }
 
@@ -21,7 +21,7 @@ export default function FolderCard({ folder, onPress }: FolderCardProps) {
       <View style={styles.content}>
         <Text style={styles.title}>{folder.name}</Text>
         <Text style={styles.count}>
-          {folder.study_set_count} {folder.study_set_count === 1 ? 'STUDY SET' : 'STUDY SETS'}
+          {folder.study_set_count ? `${folder.study_set_count} STUDY SETS` : '0 STUDY SETS'}
         </Text>
       </View>
       <View style={styles.iconContainer}>

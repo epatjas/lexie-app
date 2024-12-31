@@ -141,6 +141,34 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     return isCorrect;
   };
 
+  const convertSectionsToMarkdown = (sections: any[]): string => {
+    return sections.map(section => {
+      switch (section.type) {
+        case 'heading':
+          // Add appropriate number of # based on heading level
+          const headingMarks = '#'.repeat(section.level || 1);
+          return `${headingMarks} ${section.raw_text}\n\n`;
+          
+        case 'paragraph':
+          // Add double newline after paragraphs
+          return `${section.raw_text}\n\n`;
+          
+        case 'list':
+          // Convert items to bullet points or numbered list
+          return section.items.map((item: string, index: number) => {
+            // Check if the item starts with a number for ordered lists
+            if (/^\d+\./.test(item)) {
+              return `${item}\n`;
+            }
+            return `* ${item}\n`;
+          }).join('') + '\n';
+          
+        default:
+          return `${section.raw_text}\n\n`;
+      }
+    }).join('');
+  };
+
   if (!route.params?.id) {
     return (
       <SafeAreaView style={styles.container}>
@@ -205,11 +233,11 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       return <Text style={styles.loadingText}>Loading content...</Text>;
     }
 
+    const markdownContent = convertSectionsToMarkdown(studySet.text_content.sections);
+
     return (
-      <Markdown 
-        style={markdownStyles}
-      >
-        {studySet.text_content.raw_text}
+      <Markdown style={markdownStyles}>
+        {markdownContent}
       </Markdown>
     );
   };
@@ -602,6 +630,7 @@ const markdownStyles: Record<string, TextStyle | ViewStyle> = {
   },
   bullet_list: {
     paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
   },
 
   ordered_list: {

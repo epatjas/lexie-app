@@ -11,6 +11,7 @@ export type RootStackParamList = {
   } | undefined;
   Welcome: undefined;
   NameInput: undefined;
+  ProfileImage: undefined;
   StudySet: { id: string };
   Flashcards: { studySetId: string };
   Quiz: { studySetId: string; quiz?: QuizQuestion[] };
@@ -36,4 +37,5 @@ export type RootStackParamList = {
   Folder: {
     folderId: string;
   };
+  ProfileSelection: undefined;
 };
