@@ -3,7 +3,14 @@ import { StudyMaterials } from '../types/types';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
 // Server configuration
-const API_URL = 'http://192.168.178.27:3000'; 
+const DEV_API_URL = 'http://192.168.178.27:3000';
+const PROD_API_URL = 'https://lexie-server.onrender.com';
+
+// Determine if we're in development or production
+const isDevelopment = __DEV__;
+
+// Export the API URL based on environment
+export const API_URL = isDevelopment ? DEV_API_URL : PROD_API_URL;
 
 // Helper function to calculate size of base64 string
 // Used for logging compression results

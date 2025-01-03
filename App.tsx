@@ -86,7 +86,12 @@ export default function App() {
             options={{ gestureEnabled: false }}
           />
           <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="StudySet" component={StudySetScreen} />
+          <Stack.Screen
+            name="StudySet"
+            component={StudySetScreen}
+            options={{ headerShown: false }}
+            getId={({ params }) => params?.id}
+          />
           <Stack.Screen name="Flashcards" component={FlashcardsScreen} />
           <Stack.Screen name="Quiz" component={QuizScreen} />
           <Stack.Screen name="QuizComplete" component={QuizCompleteScreen} />
