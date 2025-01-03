@@ -20,7 +20,7 @@
     "expo-blur": "~14.0.1",
     "expo-camera": "~16.0.8",
     "expo-dev-client": "~5.0.5",
-    "expo-file-system": "~18.0.4",
+    "expo-file-system": "~18.0.6",
     "expo-font": "~13.0.1",
     "expo-image-manipulator": "~13.0.5",
     "expo-image-picker": "~16.0.3",

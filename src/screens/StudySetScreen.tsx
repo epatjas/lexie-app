@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,16 +9,18 @@ import {
   Alert,
   TextStyle,
   ViewStyle,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
 import { useStudySetDetails } from '../hooks/useStudySet';
-import { ArrowLeft, FlipHorizontal, Zap, Play, Folder, Calendar, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, FlipHorizontal, Zap, Play, Folder, Calendar, Trash2, Pause } from 'lucide-react-native';
 import { useFolders } from '../hooks/useFolders';
 import FolderSelectModal from '../components/FolderSelectModal';
 import FolderCreationModal from '../components/FolderCreationModal';
 import Markdown from 'react-native-markdown-display';
+import { useAudioPlayback } from '../hooks/useAudioPlayback';
 
 type StudySetScreenProps = NativeStackScreenProps<RootStackParamList, 'StudySet'>;
 
@@ -33,6 +35,9 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const [showToast, setShowToast] = useState(false);
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
   const { studySet, refreshStudySet, loading, deleteStudySet } = useStudySetDetails(route.params?.id);
+  const { isPlaying, currentTime, togglePlayback, error, isLoading, progress } = useAudioPlayback({
+    text: studySet?.text_content?.raw_text || '',
+  });
 
   useEffect(() => {
     if (!route.params?.id) {
@@ -120,14 +125,13 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     );
   };
 
-  const handleListenPress = () => {
-    Alert.alert(
-      "Tulossa pian",  // Title
-      "Kuuntelu-ominaisuus on tulossa pian", // Message
-      [
-        { text: "OK" }
-      ]
-    );
+  const handleListenPress = async () => {
+    try {
+      await togglePlayback();
+    } catch (err) {
+      console.error('[Screen] Listen press error:', err);
+      Alert.alert('Error', 'Failed to play audio');
+    }
   };
 
   const checkAnswer = (selectedAnswer: string, correctAnswer: string) => {
@@ -326,11 +330,25 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
             <TouchableOpacity 
               style={styles.listenButton}
               onPress={handleListenPress}
+              disabled={isLoading}
             >
               <View style={styles.listenIcon}>
-                <Play color={theme.colors.text} size={20} />
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={theme.colors.text} />
+                ) : isPlaying ? (
+                  <Pause color={theme.colors.text} size={20} />
+                ) : (
+                  <Play color={theme.colors.text} size={20} />
+                )}
               </View>
-              <Text style={styles.listenButtonText}>Kuuntele</Text>
+              <Text style={styles.listenButtonText}>
+                {isLoading ? 
+                  'Luodaan ääntä...' :
+                  isPlaying ? 
+                    `${String(Math.floor(currentTime / 60)).padStart(2, '0')}:${String(currentTime % 60).padStart(2, '0')}` : 
+                    'Kuuntele'
+                }
+              </Text>
             </TouchableOpacity>
             
             {renderContent()}
@@ -362,6 +380,12 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         <View style={styles.toast}>
           <Text style={styles.toastText}>Tulossa pian</Text>
         </View>
+      )}
+
+      {error && (
+        <Text style={styles.errorText}>
+          {error}
+        </Text>
       )}
     </SafeAreaView>
   );
@@ -458,7 +482,7 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
   },
   listenIcon: {
-    marginRight: theme.spacing.xs,
+    marginRight: 2,
   },
   contentText: {
     fontSize: theme.fontSizes.md,
@@ -585,6 +609,12 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontFamily: theme.fonts.medium,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 14,
+    fontFamily: theme.fonts.medium,
+    marginTop: theme.spacing.sm,
   },
 });
 
