@@ -13,13 +13,16 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface Props {
   onClose: () => void;
+  visible: boolean;
   existingPhotos?: Array<{
     uri: string;
     base64?: string;
   }>;
 }
 
-export default function CreateStudySetBottomSheet({ onClose, existingPhotos }: Props) {
+export default function CreateStudySetBottomSheet({ onClose, visible, existingPhotos }: Props) {
+  console.log('CreateStudySetBottomSheet rendered with:', { visible, existingPhotos });
+  
   const navigation = useNavigation<NavigationProp>();
 
   const handleImagePicker = async () => {
@@ -60,7 +63,7 @@ export default function CreateStudySetBottomSheet({ onClose, existingPhotos }: P
 
   return (
     <Modal
-      visible={true}
+      visible={visible}
       transparent
       animationType="fade"
       onRequestClose={onClose}
@@ -112,7 +115,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(11, 9, 17, 0.2)',
   },
   container: {
-    backgroundColor: '#1C1D29',
+    backgroundColor: theme.colors.background01,
     borderRadius: 40,
     padding: theme.spacing.lg,
     paddingTop: theme.spacing.md,
@@ -130,7 +133,7 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSizes.lg,
     fontFamily: theme.fonts.medium,
     color: theme.colors.text,
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.sm,
   },
   option: {
     flexDirection: 'row',

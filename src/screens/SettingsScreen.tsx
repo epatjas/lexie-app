@@ -52,7 +52,7 @@ export default function SettingsScreen({ onClose, onProfileDeleted }: SettingsSc
 
     return {
       transform: [{ translateY }],
-      backgroundColor: '#191A22',
+      backgroundColor: '#101011',
       borderTopLeftRadius: 40,
       borderTopRightRadius: 40,
       overflow: 'hidden',
@@ -140,7 +140,7 @@ export default function SettingsScreen({ onClose, onProfileDeleted }: SettingsSc
                 style={styles.closeButton}
                 onPress={handleClose}
               >
-                <X color={theme.colors.text} size={24} />
+                <X color={theme.colors.text} size={20} />
               </TouchableOpacity>
               <Text style={styles.title}>Asetukset</Text>
             </View>
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: theme.spacing.xl,
+    padding: theme.spacing.lg,
     position: 'relative',
   },
   closeButton: {
@@ -237,13 +237,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   section: {
-    backgroundColor: '#20212D',
+    backgroundColor: '#17181A',
     borderRadius: 16,
     overflow: 'hidden',
     marginHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.md,
     borderWidth: 1,
-    borderColor: '#2C2D3B',
+    borderColor: '#27282D',
   },
   item: {
     flexDirection: 'row',
@@ -251,14 +251,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2D3B',
-    backgroundColor: '#20212D',
+    borderBottomColor: '#27282D',
+    backgroundColor: '#17181A',
   },
   iconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#262A35',
+    backgroundColor: theme.colors.background02,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -283,8 +283,8 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.regular,
     color: theme.colors.text,
     textAlign: 'center',
-    marginTop: theme.spacing.lg,
-    marginBottom: theme.spacing.lg,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
   },
 }); 

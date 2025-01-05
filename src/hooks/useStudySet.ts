@@ -18,8 +18,8 @@ export function useStudySets() {
         setStudySets([]);
         return;
       }
-      const sets = await getAllStudySets(activeProfile.id);
-      setStudySets(sets);
+      const results = await getAllStudySets(activeProfile.id);
+      setStudySets(results);
     } catch (error) {
       console.error('Error fetching study sets:', error);
     } finally {

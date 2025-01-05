@@ -26,6 +26,7 @@ export type RootStackParamList = {
       uri: string;
       base64?: string;
     }>;
+    source?: 'camera' | 'imagePicker';
   };
   ScanPage: {
     openBottomSheet?: boolean;

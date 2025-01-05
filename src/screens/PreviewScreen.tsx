@@ -32,15 +32,21 @@ import Animated, {
 import ParticleBackground from '../components/ParticleBackground';
 import axios from 'axios';
 import { getActiveProfile } from '../utils/storage';
+import * as ImagePicker from 'expo-image-picker';
+
+type PreviewScreenParams = {
+  photos: Array<{uri: string; base64?: string}>;
+  source?: 'camera' | 'imagePicker';
+};
 
 type PreviewScreenNavigationProp = NativeStackScreenProps<RootStackParamList, 'Preview'>;
 
 const { width } = Dimensions.get('window');
 
-interface PhotoItem {
+type Photo = {
   uri: string;
-  base64?: string;
-}
+  base64?: string | undefined;
+};
 
 interface AnalysisResult {
   title: string;
@@ -75,7 +81,7 @@ const calculateBase64Size = (base64String: string): number => {
 };
 
 export default function PreviewScreen({ route, navigation }: PreviewScreenNavigationProp) {
-  const { photos } = route.params;
+  const [photos, setPhotos] = useState<Photo[]>(route.params.photos);
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [processingStage, setProcessingStage] = React.useState(0);
@@ -230,8 +236,8 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       return;
     }
     
-    // Update route params with new photos array
-    navigation.setParams({ photos: updatedPhotos });
+    // Update the state with new photos array
+    setPhotos(updatedPhotos);
     
     // Adjust currentIndex if necessary
     if (currentIndex >= updatedPhotos.length) {
@@ -239,7 +245,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
     }
   };
 
-  const renderItem = ({ item, index }: { item: PhotoItem; index: number }) => (
+  const renderItem = ({ item, index }: { item: Photo; index: number }) => (
     <View style={[
       styles.previewContainer,
       photos.length === 1 && styles.singlePreviewContainer
@@ -382,6 +388,9 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
     return () => clearInterval(interval);
   }, [processingId]);
 
+  // Determine if we came from image picker or camera
+  const isFromImagePicker = route.params?.source === 'imagePicker';
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -424,19 +433,60 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.scanMoreButton}
-          onPress={() => {
-            // Navigate back to Home with existing photos and bottom sheet open
-            navigation.navigate('Home', {
-              openBottomSheet: true,
-              existingPhotos: photos
-            });
-          }}
-          disabled={isProcessing}
-        >
-          <Text style={styles.scanMoreText}>Lisää kuvia</Text>
-        </TouchableOpacity>
+        <View style={styles.addMoreButtonsContainer}>
+          <TouchableOpacity
+            style={[styles.addButton, styles.scanButton]}
+            onPress={() => navigation.navigate('ScanPage', { existingPhotos: photos })}
+            disabled={isProcessing}
+          >
+            <Text style={styles.addButtonText}>Skannaa lisää</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.addButton, styles.pickButton]}
+            onPress={async () => {
+              try {
+                // Request permissions first (consistent with CreateStudySetBottomSheet)
+                const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                
+                if (!permissionResult.granted) {
+                  Alert.alert(
+                    'Tarvitaan lupa',
+                    'Lexie tarvitsee luvan käyttää kuvakirjastoa.'
+                  );
+                  return;
+                }
+
+                const result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  allowsEditing: false,
+                  aspect: [4, 3],
+                  quality: 0.7,
+                  allowsMultipleSelection: true,
+                  selectionLimit: 10,
+                  base64: true,
+                });
+
+                if (!result.canceled && result.assets) {
+                  const newPhotos: Photo[] = result.assets.map(asset => ({
+                    uri: asset.uri,
+                    base64: asset.base64 ?? undefined
+                  }));
+                  setPhotos([...photos, ...newPhotos]);
+                }
+              } catch (error) {
+                console.error('Error picking image:', error);
+                Alert.alert(
+                  'Virhe',
+                  'Kuvien lataaminen epäonnistui. Yritä uudelleen.'
+                );
+              }
+            }}
+            disabled={isProcessing}
+          >
+            <Text style={styles.addButtonText}>Lataa kuvia</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <Modal
@@ -477,7 +527,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingLeft: theme.spacing.sm,
     paddingRight: theme.spacing.md,
-    paddingTop: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
     justifyContent: 'space-between',
   },
   backButton: {
@@ -536,7 +586,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     padding: theme.spacing.lg,
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
   analyzeButton: {
     backgroundColor: theme.colors.text,
@@ -553,22 +603,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: theme.spacing.md,
   },
-  scanMoreButton: {
-    borderRadius: 40,
+  addMoreButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 4,
+  },
+  addButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
-    height: 56,
     backgroundColor: theme.colors.background02,
+  },
+  scanButton: {
     borderWidth: 1,
+    borderRadius: 40,
     borderColor: theme.colors.stroke,
   },
-  scanMoreText: {
+  pickButton: {
+    borderWidth: 1,
+    borderRadius: 40,
+    borderColor: theme.colors.stroke,
+  },
+  addButtonText: {
     color: theme.colors.text,
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.regular,
-    textAlign: 'center',
-    paddingHorizontal: theme.spacing.md,
+    fontSize: 15,
+    fontFamily: theme.fonts.medium,
   },
   processingModal: {
     flex: 1,

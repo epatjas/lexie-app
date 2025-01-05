@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  SafeAreaView,
   Alert,
 } from 'react-native';
 import { X, Check, Trash2 } from 'lucide-react-native';
@@ -68,11 +67,16 @@ export default function FolderEditModal({
 
     return {
       transform: [{ translateY }],
-      backgroundColor: theme.colors.background02,
+      backgroundColor: theme.colors.background,
       borderTopLeftRadius: 40,
       borderTopRightRadius: 40,
       overflow: 'hidden',
-      flex: 1,
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: '92%',
+      paddingTop: theme.spacing.xs,
     };
   });
 
@@ -117,7 +121,7 @@ export default function FolderEditModal({
       onRequestClose={onClose}
     >
       <Animated.View style={overlayStyle}>
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
           <Animated.View style={modalStyle}>
             <View style={styles.dragHandleContainer}>
               <DragHandle />
@@ -183,7 +187,7 @@ export default function FolderEditModal({
               </Text>
             </TouchableOpacity>
           </Animated.View>
-        </SafeAreaView>
+        </View>
       </Animated.View>
     </Modal>
   );
@@ -192,10 +196,11 @@ export default function FolderEditModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'flex-end',
   },
   dragHandleContainer: {
     alignItems: 'center',
-    paddingTop: theme.spacing.sm,
+    paddingTop: 8,
   },
   header: {
     flexDirection: 'row',
@@ -228,7 +233,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   input: {
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.background02,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     fontSize: theme.fontSizes.md,
@@ -275,7 +280,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     margin: theme.spacing.lg,
     borderRadius: 64,
-    backgroundColor: theme.colors.background02,
+    backgroundColor: theme.colors.background,
     gap: theme.spacing.sm,
   },
   deleteButtonText: {

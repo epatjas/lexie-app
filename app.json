@@ -32,7 +32,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "The app needs access to your photos to create study sets."
+          "photosPermission": "Allow Lexie App to access your photos to create study sets."
         }
       ],
       "expo-font",

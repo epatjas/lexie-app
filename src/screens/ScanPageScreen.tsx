@@ -9,29 +9,19 @@ import theme from '../styles/theme';
 // Define the screen props type
 type ScanPageScreenProps = NativeStackScreenProps<RootStackParamList, 'ScanPage'>;
 
+// Add this type for the route params
+type ScanPageRouteParams = {
+  existingPhotos?: Array<{uri: string; base64?: string}>;
+};
+
 export default function ScanPageScreen({ route, navigation }: ScanPageScreenProps) {
   const cameraRef = useRef<any>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
   const progressAnimation = useRef(new Animated.Value(0)).current;
-  const [capturedPhotos, setCapturedPhotos] = useState<Array<{uri: string; base64?: string}>>([]);
-  const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
-
-  // Add useEffect to request permission when component mounts
-  React.useEffect(() => {
-    (async () => {
-      if (!permission?.granted) {
-        await requestPermission();
-      }
-    })();
-  }, []);
-
-  // Add useEffect to handle the openBottomSheet parameter
-  React.useEffect(() => {
-    if (route.params?.openBottomSheet) {
-      setIsBottomSheetVisible(true);
-    }
-  }, [route.params?.openBottomSheet]);
+  
+  // Get existing photos from route params
+  const existingPhotos = route.params?.existingPhotos || [];
 
   const startCapture = () => {
     setIsCapturing(true);
@@ -54,9 +44,8 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
           base64: true,
         });
         if (photo?.uri) {
-          const existingPhotos = route.params?.existingPhotos || [];
+          // Combine new photo with existing photos
           const updatedPhotos = [...existingPhotos, photo];
-          setCapturedPhotos(updatedPhotos);
           navigation.navigate('Preview', { photos: updatedPhotos });
         }
       } catch (error) {
@@ -65,7 +54,6 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
     }
   };
 
-  
   if (!permission?.granted) {
     return (
       <SafeAreaView style={styles.container}>
@@ -132,7 +120,7 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.background01,
   },
   header: {
     flexDirection: 'row',
@@ -155,7 +143,7 @@ const styles = StyleSheet.create({
   },
   cornerMarkers: {
     ...StyleSheet.absoluteFillObject,
-    margin: 20,
+    margin: 8,
   },
   corner: {
     position: 'absolute',
@@ -206,7 +194,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: theme.colors.stroke,
+    backgroundColor: theme.colors.background02,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'absolute',

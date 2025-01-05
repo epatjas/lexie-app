@@ -5,7 +5,6 @@ import {
   Modal,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Alert,
 } from 'react-native';
@@ -37,13 +36,12 @@ const EmptyState = () => (
   <View style={styles.emptyStateContainer}>
     <View style={styles.emptyStateIconContainer}>
       <Folder 
-        size={24} 
+        size={20}
         color={theme.colors.textSecondary}
-        style={styles.emptyStateIcon}
       />
     </View>
     <Text style={styles.emptyStateText}>
-      Sinulla ei ole vielä yhtään kansiota
+      Sinulla ei ole vielä kansiota
     </Text>
   </View>
 );
@@ -83,16 +81,21 @@ export default function FolderSelectModal({
     const translateY = interpolate(
       progress.value,
       [0, 1],
-      [1, 0]
+      [1000, 0]
     );
 
     return {
       transform: [{ translateY }],
-      backgroundColor: theme.colors.background02,
+      backgroundColor: theme.colors.background01,
       borderTopLeftRadius: 40,
       borderTopRightRadius: 40,
       overflow: 'hidden',
-      flex: 1,
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: '92%',
+      paddingTop: theme.spacing.xs,
     };
   });
 
@@ -133,7 +136,7 @@ export default function FolderSelectModal({
       onRequestClose={onClose}
     >
       <Animated.View style={overlayStyle}>
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
           <Animated.View style={modalStyle}>
             <View style={styles.dragHandleContainer}>
               <DragHandle />
@@ -142,11 +145,14 @@ export default function FolderSelectModal({
             <View style={styles.header}>
               <Text style={styles.headerTitle}>Kansiot</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X color={theme.colors.text} size={24} />
+                <X color={theme.colors.text} size={20} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.content}>
+            <ScrollView 
+              style={styles.content}
+              contentContainerStyle={styles.scrollContent}
+            >
               {folders.length === 0 ? (
                 <EmptyState />
               ) : (
@@ -187,7 +193,7 @@ export default function FolderSelectModal({
               <Text style={styles.createButtonText}>Luo uusi kansio</Text>
             </TouchableOpacity>
           </Animated.View>
-        </SafeAreaView>
+        </View>
       </Animated.View>
 
       {selectedFolder && (
@@ -207,27 +213,27 @@ export default function FolderSelectModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'flex-end',
   },
   dragHandleContainer: {
     alignItems: 'center',
-    paddingTop: theme.spacing.sm,
+    paddingTop: 8,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
     position: 'relative',
   },
   headerTitle: {
-    fontSize: theme.fontSizes.lg,
+    fontSize: 20,
     fontFamily: theme.fonts.medium,
     color: theme.colors.text,
   },
   closeButton: {
     position: 'absolute',
-    right: theme.spacing.md,
-    padding: theme.spacing.sm,
+    right: theme.spacing.lg,
   },
   subTitle: {
     fontSize: theme.fontSizes.md,
@@ -238,6 +244,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: theme.spacing.lg,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   folderItem: {
     flexDirection: 'row',
@@ -270,10 +279,11 @@ const styles = StyleSheet.create({
     padding: theme.spacing.xs,
   },
   createButton: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.text,
     padding: theme.spacing.md,
-    margin: theme.spacing.md,
-    borderRadius: 64,
+    marginHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+    borderRadius: 100,
     alignItems: 'center',
   },
   createButtonText: {
@@ -286,25 +296,22 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 400,
-    marginTop: 40,
+    minHeight: '100%',
   },
   emptyStateIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: theme.colors.background,
+    width: 64,
+    height: 64,
+    borderRadius: 50,
+    backgroundColor: theme.colors.background02,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: theme.spacing.lg,
-  },
-  emptyStateIcon: {
-    opacity: 0.8,
+    marginBottom: theme.spacing.sm,
   },
   emptyStateText: {
     fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
     textAlign: 'center',
+    opacity: 0.7,
   },
 }); 

@@ -154,36 +154,48 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      console.log('Screen focused, refreshing data...');
+      console.log('Screen focused');
       refreshFolders();
       refreshStudySets();
       
-      const route = navigation.getState().routes.find(r => r.name === 'Home');
-      const params = route?.params;
+      const params = navigation.getState().routes.find(
+        route => route.name === 'Home'
+      )?.params as { 
+        refresh?: boolean; 
+        openBottomSheet?: boolean;
+        existingPhotos?: Array<{ uri: string; base64?: string; }>;
+      } | undefined;
       
       if (params) {
-        if ('refresh' in params && params.refresh) {
-          console.log('Refresh parameter found, updating study sets...');
-          refreshStudySets();
-        }
-
-        if ('openBottomSheet' in params && params.openBottomSheet) {
+        console.log('Route params:', {
+          openBottomSheet: params.openBottomSheet,
+          hasExistingPhotos: !!params.existingPhotos
+        });
+        
+        if (params.openBottomSheet) {
+          console.log('Setting bottom sheet visible to true');
           setIsBottomSheetVisible(true);
-          if ('existingPhotos' in params) {
+          if (params.existingPhotos) {
             setExistingPhotos(params.existingPhotos);
           }
         }
 
-        navigation.setParams({
-          refresh: undefined,
-          openBottomSheet: undefined,
-          existingPhotos: undefined
-        });
+        setTimeout(() => {
+          navigation.setParams({
+            refresh: undefined,
+            openBottomSheet: undefined,
+            existingPhotos: undefined
+          });
+        }, 100);
       }
     });
 
     return unsubscribe;
-  }, [navigation, refreshFolders, refreshStudySets]);
+  }, [navigation]);
+
+  useEffect(() => {
+    console.log('Bottom sheet visibility changed:', isBottomSheetVisible);
+  }, [isBottomSheetVisible]);
 
   useEffect(() => {
     const loadActiveProfile = async () => {
@@ -197,11 +209,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
     loadActiveProfile();
   }, []);
-
-  useEffect(() => {
-    console.log('Study sets loading state:', studySetsLoading);
-    console.log('Study sets:', studySets);
-  }, [studySetsLoading, studySets]);
 
   const renderContent = () => {
     if (studySetsLoading) {
@@ -409,6 +416,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               <CreateStudySetBottomSheet 
                 onClose={handleCloseBottomSheet} 
                 existingPhotos={existingPhotos}
+                visible={isBottomSheetVisible}
               />
             </Animated.View>
           </SafeAreaView>

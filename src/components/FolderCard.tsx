@@ -39,20 +39,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: theme.spacing.md,
     borderRadius: theme.borderRadius.lg,
-    marginBottom: theme.spacing.sm,
   },
   content: {
     flex: 1,
   },
   title: {
-    fontSize: theme.fontSizes.lg,
-    fontFamily: theme.fonts.medium,
+    fontSize: 16,
+    fontFamily: '500',
     color: theme.colors.background,
     marginBottom: theme.spacing.xs,
   },
   count: {
-    fontSize: theme.fontSizes.xs,
-    fontFamily: theme.fonts.regular,
+    fontSize: 12,
+    fontFamily: '500',
     color: theme.colors.background,
   },
   iconContainer: {

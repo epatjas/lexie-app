@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  SafeAreaView,
   Alert,
 } from 'react-native';
 import { X, Check } from 'lucide-react-native';
@@ -64,11 +63,16 @@ export default function FolderCreationModal({
 
     return {
       transform: [{ translateY }],
-      backgroundColor: theme.colors.background02,
+      backgroundColor: theme.colors.background,
       borderTopLeftRadius: 40,
       borderTopRightRadius: 40,
       overflow: 'hidden',
-      flex: 1,
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: '92%',
+      paddingTop: theme.spacing.xs,
     };
   });
 
@@ -94,7 +98,7 @@ export default function FolderCreationModal({
       onRequestClose={onClose}
     >
       <Animated.View style={overlayStyle}>
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
           <Animated.View style={modalStyle}>
             <View style={styles.dragHandleContainer}>
               <DragHandle />
@@ -104,7 +108,7 @@ export default function FolderCreationModal({
             <View style={styles.header}>
               <Text style={styles.title}>Uusi kansio</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X color={theme.colors.text} size={24} />
+                <X color={theme.colors.text} size={20} />
               </TouchableOpacity>
             </View>
 
@@ -166,7 +170,7 @@ export default function FolderCreationModal({
               </Text>
             </TouchableOpacity>
           </Animated.View>
-        </SafeAreaView>
+        </View>
       </Animated.View>
     </Modal>
   );
@@ -175,16 +179,17 @@ export default function FolderCreationModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'flex-end',
   },
   dragHandleContainer: {
     alignItems: 'center',
-    paddingTop: theme.spacing.sm,
+    paddingTop: 8,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: theme.spacing.md,
+    padding: theme.spacing.sm,
     position: 'relative',
   },
   title: {
@@ -252,9 +257,9 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   createButton: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.text,
     padding: theme.spacing.md,
-    margin: theme.spacing.md,
+    margin: theme.spacing.lg,
     borderRadius: 64,
     alignItems: 'center',
   },
@@ -263,7 +268,7 @@ const styles = StyleSheet.create({
   },
   createButtonText: {
     color: theme.colors.background,
-    fontSize: theme.fontSizes.lg,
+    fontSize: 16,
     fontFamily: theme.fonts.medium,
     textAlign: 'center',
   },
