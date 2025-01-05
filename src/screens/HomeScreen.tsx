@@ -29,6 +29,7 @@ import Animated, {
 import ParticleBackground from '../components/ParticleBackground';
 import { getActiveProfile } from '../utils/storage';
 import SettingsScreen from './SettingsScreen';
+import { BlurView } from 'expo-blur';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 type ViewMode = 'all' | 'folders';
@@ -141,14 +142,22 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               Mitä haluaisit harjoitella{'\n'}tänään?
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.createButton}
-            onPress={handleCreatePress}
-          >
-            <Text style={styles.createButtonText}>
-              Luo uusi harjoitussetti
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.createButtonContainer}>
+            <BlurView
+              intensity={20}
+              tint="dark"
+              style={styles.createButtonBlur}
+            >
+              <TouchableOpacity
+                style={styles.createButton}
+                onPress={handleCreatePress}
+              >
+                <Text style={styles.createButtonText}>
+                  Luo uusi harjoittelusetti
+                </Text>
+              </TouchableOpacity>
+            </BlurView>
+          </View>
         </View>
       );
     }
@@ -234,14 +243,22 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           )}
         />
 
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={handleCreatePress}
-        >
-          <Text style={styles.createButtonText}>
-            Luo uusi harjoittelusetti
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.createButtonContainer}>
+          <BlurView
+            intensity={20}
+            tint="dark"
+            style={styles.createButtonBlur}
+          >
+            <TouchableOpacity
+              style={styles.createButton}
+              onPress={handleCreatePress}
+            >
+              <Text style={styles.createButtonText}>
+                Luo uusi harjoittelusetti
+              </Text>
+            </TouchableOpacity>
+          </BlurView>
+        </View>
       </>
     );
   };
@@ -416,29 +433,31 @@ const styles = StyleSheet.create({
   toggleButtonTextActive: {
     color: theme.colors.background,
   },
-  createButton: {
+  createButtonContainer: {
     position: 'absolute',
-    bottom: '8%',
+    bottom: '4%',
     left: theme.spacing.lg,
     right: theme.spacing.lg,
-    backgroundColor: theme.colors.text,
+    borderRadius: 100,
+    overflow: 'hidden',
+  },
+  createButtonBlur: {
+    borderRadius: 100,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  createButton: {
     paddingVertical: 16,
     paddingHorizontal: 32,
-    borderRadius: 100,
     alignItems: 'center',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   createButtonText: {
-    color: theme.colors.background,
+    color: '#FFFFFF',
     fontSize: 16,
     fontFamily: theme.fonts.medium,
+    opacity: 0.9,
   },
   emptyState: {
     flex: 1,
