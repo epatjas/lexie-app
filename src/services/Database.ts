@@ -78,24 +78,38 @@ export const initDatabase = async (): Promise<void> => {
 
   try {
     isInitializing = true;
+    console.log('[Database] Starting initialization...');
+    
     initializationPromise = (async () => {
-      console.log('Initializing database...');
-      
+      console.log('[Database] Checking existing connection...');
       // Close existing connection if any
       if (db) {
+        console.log('[Database] Closing existing connection...');
         await db.closeAsync();
         db = null;
       }
 
-      // Get new database connection (this will also initialize tables)
-      await getDatabase();
+      console.log('[Database] Opening database connection...');
+      // Get new database connection
+      db = await SQLite.openDatabaseAsync('studysets.db');
+      
+      console.log('[Database] Initializing tables...');
+      // Initialize tables with detailed logging
+      await initTables(db).catch(error => {
+        console.error('[Database] Table initialization failed:', error);
+        throw error;
+      });
 
-      console.log('Database initialization completed successfully');
+      console.log('[Database] Initialization completed successfully');
     })();
 
     await initializationPromise;
   } catch (error) {
-    console.error('Failed to initialize database:', error);
+    console.error('[Database] Initialization failed:', error);
+    if (error instanceof Error) {
+      console.error('[Database] Error details:', error.message);
+      console.error('[Database] Stack trace:', error.stack);
+    }
     db = null;
     throw error;
   } finally {
@@ -125,27 +139,10 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
 
 // Separate table initialization into its own function
 const initTables = async (database: SQLite.SQLiteDatabase) => {
-  console.log('Starting table initialization...');
+  console.log('[Database] Creating tables...');
   try {
-    await database.execAsync(`
-      CREATE TABLE IF NOT EXISTS db_version (
-        version INTEGER PRIMARY KEY NOT NULL
-      );
-      INSERT OR REPLACE INTO db_version (version) VALUES (${DB_VERSION});
-    `);
-    console.log('Created db_version table');
-
-    await database.execAsync(`
-      CREATE TABLE IF NOT EXISTS folders (
-        id TEXT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL,
-        color TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
-    `);
-    console.log('Created folders table');
-
+    // Log each table creation
+    console.log('[Database] Creating study_sets table...');
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS study_sets (
         id TEXT PRIMARY KEY NOT NULL,
@@ -154,12 +151,11 @@ const initTables = async (database: SQLite.SQLiteDatabase) => {
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
         folder_id TEXT,
-        profile_id TEXT NOT NULL DEFAULT '',
-        FOREIGN KEY (folder_id) REFERENCES folders(id)
+        profile_id TEXT NOT NULL DEFAULT ''
       );
     `);
-    console.log('Created study_sets table');
 
+    console.log('[Database] Creating flashcards table...');
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS flashcards (
         id TEXT PRIMARY KEY NOT NULL,
@@ -169,8 +165,8 @@ const initTables = async (database: SQLite.SQLiteDatabase) => {
         FOREIGN KEY (study_set_id) REFERENCES study_sets (id) ON DELETE CASCADE
       );
     `);
-    console.log('Created flashcards table');
 
+    console.log('[Database] Creating quiz_questions table...');
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS quiz_questions (
         id TEXT PRIMARY KEY NOT NULL,
@@ -181,11 +177,10 @@ const initTables = async (database: SQLite.SQLiteDatabase) => {
         FOREIGN KEY (study_set_id) REFERENCES study_sets (id) ON DELETE CASCADE
       );
     `);
-    console.log('Created quiz_questions table');
 
-    console.log('All tables initialized successfully');
+    console.log('[Database] All tables created successfully');
   } catch (error) {
-    console.error('Error during table initialization:', error);
+    console.error('[Database] Error during table creation:', error);
     throw error;
   }
 };

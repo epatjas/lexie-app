@@ -79,6 +79,35 @@ export const useAudioPlayback = ({ text }: UseAudioPlaybackProps): UseAudioPlayb
   const totalElapsedTimeRef = useRef(0);
   const chunkStartTimeRef = useRef(0);
 
+  // Add new refs for request management
+  const loadingChunksRef = useRef<Set<number>>(new Set());
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const maxRetries = 3;
+
+  // Add rate limiting refs
+  const lastRequestTimeRef = useRef<number>(0);
+  const minRequestInterval = 1000; // 1 second between requests
+  const maxWaitTime = 10000; // Maximum 10 seconds wait time
+  const baseWaitTime = 2000; // Base wait time of 2 seconds
+
+  // Add a cache for loaded chunks
+  const loadedChunksRef = useRef<Map<number, string>>(new Map());
+
+  // Add a ref to track active file paths
+  const activeFilesRef = useRef<Set<string>>(new Set());
+
+  // Helper function to wait for rate limit
+  const waitForRateLimit = async () => {
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTimeRef.current;
+    
+    if (timeSinceLastRequest < minRequestInterval) {
+      const waitTime = minRequestInterval - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    lastRequestTimeRef.current = Date.now();
+  };
+
   // Update the text splitting logic
   useEffect(() => {
     if (!text) return;
@@ -93,7 +122,9 @@ export const useAudioPlayback = ({ text }: UseAudioPlaybackProps): UseAudioPlayb
   // Preload next chunk while current is playing
   const preloadNextChunk = async () => {
     const nextIndex = currentChunkRef.current + 1;
-    if (nextIndex >= chunksRef.current.length) return;
+    if (nextIndex >= chunksRef.current.length || 
+        loadingChunksRef.current.has(nextIndex) || 
+        nextChunkRef.current) return;
 
     try {
       const nextUri = await loadNextChunk(nextIndex);
@@ -105,40 +136,114 @@ export const useAudioPlayback = ({ text }: UseAudioPlaybackProps): UseAudioPlayb
     }
   };
 
-  // Update loadNextChunk to explicitly return string | null
-  const loadNextChunk = async (index?: number): Promise<string | null> => {
-    const chunkIndex = index ?? currentChunkRef.current;
-    if (chunkIndex >= chunksRef.current.length) return null;
-    
+  // Helper function to get a valid file path
+  const getAudioFilePath = (chunkIndex: number): string => {
+    return `${FileSystem.cacheDirectory || ''}audio_chunk_${chunkIndex}_${Date.now()}.mp3`;
+  };
+
+  // Helper function to ensure file exists
+  const ensureFileExists = async (uri: string): Promise<boolean> => {
     try {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      return fileInfo.exists;
+    } catch (error) {
+      console.error('[Audio] File check error:', error);
+      return false;
+    }
+  };
+
+  // Update loadNextChunk to explicitly return string | null
+  const loadNextChunk = async (index?: number, retryCount: number = 0): Promise<string | null> => {
+    const chunkIndex = index ?? currentChunkRef.current;
+    
+    if (chunkIndex >= chunksRef.current.length) return null;
+    if (loadingChunksRef.current.has(chunkIndex)) return null;
+
+    // Check if chunk is already loaded
+    const cachedUri = loadedChunksRef.current.get(chunkIndex);
+    if (cachedUri && await ensureFileExists(cachedUri)) {
+      console.log(`[Audio] Using cached chunk ${chunkIndex + 1}`);
+      return cachedUri;
+    }
+
+    try {
+      console.log(`[Audio] Loading chunk ${chunkIndex + 1}, attempt ${retryCount + 1}`);
+      loadingChunksRef.current.add(chunkIndex);
+
+      const chunkText = chunksRef.current[chunkIndex];
+      if (!chunkText || chunkText.trim().length === 0) {
+        console.error('[Audio] Empty chunk detected');
+        return null;
+      }
+
+      // Wait for rate limit before making request
+      await waitForRateLimit();
+
       const response = await fetch(`${API_URL}/tts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          text: chunksRef.current[chunkIndex],
+          text: chunkText,
           type: 'chunk' 
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to fetch chunk');
+      if (!response.ok) {
+        console.error(`[Audio] Server responded with status ${response.status}`);
+        if (response.status === 429) {
+          // Use a more reasonable wait time for rate limits
+          const waitTime = Math.min(
+            baseWaitTime * Math.pow(2, retryCount),
+            maxWaitTime
+          );
+          console.log(`[Audio] Rate limited. Waiting ${waitTime}ms before retry`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          return loadNextChunk(chunkIndex, retryCount + 1);
+        } else if (retryCount < maxRetries) {
+          const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000);
+          console.log(`[Audio] Retrying after ${retryDelay}ms`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return loadNextChunk(chunkIndex, retryCount + 1);
+        }
+        throw new Error(`Server error: ${response.status}`);
+      }
 
       const totalChunks = response.headers.get('X-Total-Chunks');
       totalChunksRef.current = totalChunks ? parseInt(totalChunks) : chunksRef.current.length;
       
       const arrayBuffer = await response.arrayBuffer();
+      if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+        throw new Error('Received empty audio data');
+      }
+
+      console.log(`[Audio] Successfully received chunk ${chunkIndex + 1} (${arrayBuffer.byteLength} bytes)`);
+      
       const base64Data = arrayBufferToBase64(arrayBuffer);
-      const fileUri = `${FileSystem.cacheDirectory}temp_audio_chunk_${chunkIndex}_${Date.now()}.mp3`;
+      const fileUri = getAudioFilePath(chunkIndex);
       
       await FileSystem.writeAsStringAsync(fileUri, base64Data, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
+      // Verify file was written
+      if (!(await ensureFileExists(fileUri))) {
+        throw new Error('Failed to write audio file');
+      }
+
+      console.log(`[Audio] Saved chunk ${chunkIndex + 1} to file:`, fileUri);
+      
+      // Track active file
+      activeFilesRef.current.add(fileUri);
+      loadedChunksRef.current.set(chunkIndex, fileUri);
+      
       return fileUri;
     } catch (error) {
-      console.error('[Audio] Chunk load error:', error);
+      console.error(`[Audio] Chunk ${chunkIndex + 1} load error:`, error);
       return null;
+    } finally {
+      loadingChunksRef.current.delete(chunkIndex);
     }
   };
 
@@ -157,48 +262,59 @@ export const useAudioPlayback = ({ text }: UseAudioPlaybackProps): UseAudioPlayb
         { shouldPlay: true, positionMillis: startPosition },
         async (status) => {
           if ('isLoaded' in status && status.isLoaded) {
-            // Preload next chunk at halfway point
             if (status.isPlaying && 
                 status.positionMillis > (status.durationMillis || 0) / 2 && 
                 currentChunkRef.current < chunksRef.current.length - 1) {
               preloadNextChunk();
             }
             
-            // Handle chunk completion
             if (status.didJustFinish) {
-              console.log(`[Audio] Chunk ${currentChunkRef.current + 1} finished`);
+              console.log(`[Audio] Chunk ${currentChunkRef.current + 1} finished, duration: ${status.durationMillis}ms`);
               
-              // Store the duration of the completed chunk
               if (status.durationMillis) {
                 chunkStartTimeRef.current += Math.floor(status.durationMillis / 1000);
               }
               
-              // Move to next chunk if not at the end
               currentChunkRef.current++;
+              console.log(`[Audio] Moving to chunk ${currentChunkRef.current + 1}/${chunksRef.current.length}`);
               
               if (currentChunkRef.current < chunksRef.current.length) {
-                console.log(`[Audio] Moving to chunk ${currentChunkRef.current + 1}`);
+                // Try to get next chunk with retries
+                let nextUri = null;
+                let retryCount = 0;
                 
-                try {
-                  const nextUri = nextChunkRef.current || await loadNextChunk();
-                  nextChunkRef.current = null;
-                  
-                  if (nextUri) {
-                    console.log('[Audio] Starting next chunk playback');
-                    await playChunk(nextUri, 0);
-                  } else {
-                    console.error('[Audio] Failed to get next chunk URI');
-                    setIsPlaying(false);
-                    setError('Failed to load next audio chunk');
+                while (!nextUri && retryCount < maxRetries) {
+                  try {
+                    nextUri = nextChunkRef.current || await loadNextChunk(undefined, retryCount);
+                    nextChunkRef.current = null;
+                    
+                    if (nextUri) {
+                      console.log('[Audio] Starting next chunk playback');
+                      await playChunk(nextUri, 0);
+                      break;
+                    } else {
+                      console.log(`[Audio] Retry ${retryCount + 1}/${maxRetries} for next chunk`);
+                      retryCount++;
+                      if (retryCount < maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                      }
+                    }
+                  } catch (error) {
+                    console.error(`[Audio] Error loading next chunk (attempt ${retryCount + 1}):`, error);
+                    retryCount++;
+                    if (retryCount < maxRetries) {
+                      await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                    }
                   }
-                } catch (error) {
-                  console.error('[Audio] Error during chunk transition:', error);
+                }
+                
+                if (!nextUri) {
+                  console.error('[Audio] Failed to load next chunk after all retries');
                   setIsPlaying(false);
-                  setError('Failed to transition to next chunk');
+                  setError('Failed to load next audio chunk after multiple attempts');
                 }
               } else {
-                // End of all chunks
-                console.log('[Audio] All chunks completed');
+                console.log('[Audio] Reached end of all chunks');
                 setIsPlaying(false);
                 setCurrentTime(0);
                 currentChunkRef.current = 0;
@@ -246,13 +362,26 @@ export const useAudioPlayback = ({ text }: UseAudioPlaybackProps): UseAudioPlayb
         await playChunk(currentFileUriRef.current, pausedPositionRef.current);
         setIsPlaying(true);
       } else {
-        // Start fresh from first chunk
-        const firstChunkUri = await loadNextChunk();
+        // Start fresh from first chunk with retries
+        let firstChunkUri = null;
+        let retryCount = 0;
+        
+        while (!firstChunkUri && retryCount < maxRetries) {
+          if (retryCount > 0) {
+            // Add delay between retries
+            const retryDelay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+          }
+          
+          firstChunkUri = await loadNextChunk(0, retryCount);
+          retryCount++;
+        }
+
         if (firstChunkUri) {
           await playChunk(firstChunkUri, 0);
           setIsPlaying(true);
         } else {
-          throw new Error('Failed to load audio');
+          throw new Error('Failed to load initial audio chunk after multiple attempts');
         }
       }
 
@@ -261,6 +390,7 @@ export const useAudioPlayback = ({ text }: UseAudioPlaybackProps): UseAudioPlayb
     } catch (error) {
       console.error('[Audio] Toggle error:', error);
       setError(error instanceof Error ? error.message : 'Failed to play audio');
+      setIsPlaying(false);
       setIsLoading(false);
     }
   };
@@ -300,9 +430,23 @@ export const useAudioPlayback = ({ text }: UseAudioPlaybackProps): UseAudioPlayb
     setCurrentTime(0);
   }, [text]);
 
-  // Add cleanup effect
+  // Clean up files when component unmounts or text changes
+  const cleanupFiles = async () => {
+    for (const uri of activeFilesRef.current) {
+      try {
+        await FileSystem.deleteAsync(uri, { idempotent: true });
+      } catch (error) {
+        console.error('[Audio] Cleanup error:', error);
+      }
+    }
+    activeFilesRef.current.clear();
+    loadedChunksRef.current.clear();
+  };
+
+  // Update cleanup effects
   useEffect(() => {
     return () => {
+      cleanupFiles();
       if (soundRef.current) {
         soundRef.current.unloadAsync();
       }
@@ -314,8 +458,18 @@ export const useAudioPlayback = ({ text }: UseAudioPlaybackProps): UseAudioPlayb
       currentChunkRef.current = 0;
       pausedPositionRef.current = 0;
       chunkStartTimeRef.current = 0;
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+      loadingChunksRef.current.clear();
+      lastRequestTimeRef.current = 0;
     };
   }, []);
+
+  useEffect(() => {
+    cleanupFiles();
+    // ... existing text change cleanup code ...
+  }, [text]);
 
   return {
     isPlaying,

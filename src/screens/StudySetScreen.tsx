@@ -35,18 +35,43 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const [showToast, setShowToast] = useState(false);
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
   const { studySet, refreshStudySet, loading, deleteStudySet } = useStudySetDetails(route.params?.id);
+
+  const constructAudioText = (studySet: any): string => {
+    if (!studySet.text_content?.sections) return '';
+
+    // Add long pause after main title using commas and spaces
+    let audioText = `${studySet.title}, , , \u2003 \u2003 \u2003`;
+
+    studySet.text_content.sections.forEach((section: any) => {
+      if (section.type === 'heading') {
+        // Long pause before and after headings
+        audioText += `\u2003 \u2003 \u2003 ${section.raw_text}, , , \u2003 \u2003 \u2003`;
+      } else if (section.type === 'paragraph' || section.type === 'definition') {
+        // Medium pause after paragraphs
+        audioText += `${section.raw_text}, , \u2003 \u2003`;
+      } else if (section.type === 'list' && Array.isArray(section.items)) {
+        // Short pauses between list items and medium pause after list
+        audioText += section.items.map((item: string): string => 
+          `${item}, \u2003`
+        ).join('') + ', \u2003 \u2003';
+      }
+    });
+
+    return audioText;
+  };
+
   const { isPlaying, currentTime, togglePlayback, error, isLoading, progress } = useAudioPlayback({
-    text: studySet?.text_content?.raw_text || '',
+    text: studySet ? constructAudioText(studySet) : '',
   });
 
   useEffect(() => {
     if (!route.params?.id) {
-      console.error('No study set ID provided');
+      console.warn('[StudySet] No study set ID provided');
     }
   }, [route.params?.id]);
 
   useEffect(() => {
-    console.log('Should render FolderCreationModal:', folderCreateVisible);
+    // console.log('Should render FolderCreationModal:', folderCreateVisible);
   }, [folderCreateVisible]);
 
   const handleCreateFolder = async (name: string, color: string) => {
@@ -59,7 +84,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       setFolderCreateVisible(false);
       setFolderSelectVisible(false);
     } catch (error) {
-      console.error('Error in handleCreateFolder:', error);
+      console.error('[StudySet] Folder creation error:', error instanceof Error ? error.message : 'Unknown error');
       Alert.alert('Error', 'Failed to create folder');
     }
   };
@@ -72,7 +97,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       }
       setFolderSelectVisible(false);
     } catch (error) {
-      console.error('Error selecting folder:', error);
+      console.error('[StudySet] Folder selection error:', error instanceof Error ? error.message : 'Unknown error');
       Alert.alert('Error', 'Failed to assign study set to folder');
     }
   };
@@ -149,23 +174,35 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     return sections.map(section => {
       switch (section.type) {
         case 'heading':
-          // Add appropriate number of # based on heading level
+          // Add markdown heading symbols based on level
           const headingMarks = '#'.repeat(section.level || 1);
           return `${headingMarks} ${section.raw_text}\n\n`;
           
         case 'paragraph':
-          // Add double newline after paragraphs
+          // Paragraphs don't need special formatting
           return `${section.raw_text}\n\n`;
           
         case 'list':
-          // Convert items to bullet points or numbered list
-          return section.items.map((item: string, index: number) => {
-            // Check if the item starts with a number for ordered lists
+          if (!section.items || !Array.isArray(section.items)) {
+            return `${section.raw_text}\n\n`;
+          }
+          // Convert items array to markdown list
+          return section.items.map((item: string) => {
+            // Check if it's a numbered list item
             if (/^\d+\./.test(item)) {
               return `${item}\n`;
             }
-            return `* ${item}\n`;
+            // Otherwise make it a bullet point
+            return `- ${item}\n`;
           }).join('') + '\n';
+          
+        case 'quote':
+          // Add markdown quote formatting
+          return `> ${section.raw_text}\n\n`;
+          
+        case 'definition':
+          // Format definitions with bold terms
+          return `**${section.raw_text}**\n\n`;
           
         default:
           return `${section.raw_text}\n\n`;
@@ -193,14 +230,8 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleBackPress}>
-            <ArrowLeft color={theme.colors.text} size={24} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitleText}>Loading...</Text>
-          <View style={{ width: 24 }} />
-        </View>
         <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Loading study set...</Text>
         </View>
       </SafeAreaView>
