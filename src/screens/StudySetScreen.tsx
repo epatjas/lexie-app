@@ -29,6 +29,15 @@ type MarkdownStylesObject = {
   [key: string]: TextStyle | ViewStyle;
 };
 
+// Add these interfaces at the top of the file
+interface TextSection {
+  type: 'heading' | 'paragraph' | 'list' | 'definition' | 'quote';
+  level?: number;
+  raw_text: string;
+  items?: string[];
+  style?: 'bullet' | 'numbered';
+}
+
 export default function StudySetScreen({ route, navigation }: StudySetScreenProps): React.JSX.Element {
   const [folderSelectVisible, setFolderSelectVisible] = useState(false);
   const [folderCreateVisible, setFolderCreateVisible] = useState(false);
@@ -170,44 +179,64 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     return isCorrect;
   };
 
-  const convertSectionsToMarkdown = (sections: any[]): string => {
-    return sections.map(section => {
-      switch (section.type) {
-        case 'heading':
-          // Add markdown heading symbols based on level
-          const headingMarks = '#'.repeat(section.level || 1);
-          return `${headingMarks} ${section.raw_text}\n\n`;
-          
-        case 'paragraph':
-          // Paragraphs don't need special formatting
-          return `${section.raw_text}\n\n`;
-          
-        case 'list':
-          if (!section.items || !Array.isArray(section.items)) {
+  const renderContent = () => {
+    if (!studySet?.text_content) {
+      return <Text style={styles.loadingText}>Loading content...</Text>;
+    }
+
+    const mainTitle = studySet.title;
+    
+    const convertSectionsToMarkdown = (sections: TextSection[]): string => {
+      return sections.map(section => {
+        switch (section.type) {
+          case 'heading':
+            if (section.level === 1 && section.raw_text === mainTitle) return '';
+            const headingMarks = '#'.repeat(section.level || 1);
+            return `${headingMarks} ${section.raw_text}\n\n`;
+            
+          case 'paragraph':
             return `${section.raw_text}\n\n`;
-          }
-          // Convert items array to markdown list
-          return section.items.map((item: string) => {
-            // Check if it's a numbered list item
-            if (/^\d+\./.test(item)) {
-              return `${item}\n`;
+            
+          case 'list':
+            if (!section.items || !Array.isArray(section.items)) {
+              return `${section.raw_text}\n\n`;
             }
-            // Otherwise make it a bullet point
-            return `- ${item}\n`;
-          }).join('') + '\n';
+            return section.items.map((item: string) => {
+              // Handle sub-items (a, b, c)
+              if (/^[a-z]\)/.test(item)) {
+                return `   ${item}\n`;  // Just indent, no bullet
+              }
+              // Handle numbered lists
+              if (/^\d+\./.test(item)) {
+                return `${item}\n`;     // Keep original numbering
+              }
+              // Handle bullet points - either keep existing or add new
+              if (/^[•\-\*]/.test(item)) {
+                return `${item}\n`;     // Keep original bullet
+              }
+              // Add bullet for items without any prefix
+              return `• ${item}\n`;     // Add bullet to plain items
+            }).join('') + '\n';
+
+          case 'definition':
+            return `**${section.raw_text}**\n\n`;
+
+          case 'quote':
+            return `> ${section.raw_text}\n\n`;
           
-        case 'quote':
-          // Add markdown quote formatting
-          return `> ${section.raw_text}\n\n`;
-          
-        case 'definition':
-          // Format definitions with bold terms
-          return `**${section.raw_text}**\n\n`;
-          
-        default:
-          return `${section.raw_text}\n\n`;
-      }
-    }).join('');
+          default:
+            return `${section.raw_text}\n\n`;
+        }
+      }).join('');
+    };
+
+    const markdownContent = convertSectionsToMarkdown(studySet.text_content.sections);
+
+    return (
+      <Markdown style={markdownStyles}>
+        {markdownContent}
+      </Markdown>
+    );
   };
 
   if (!route.params?.id) {
@@ -262,20 +291,6 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   });
 
   const currentFolder = folders.find(f => f.id === studySet.folder_id);
-
-  const renderContent = () => {
-    if (!studySet.text_content) {
-      return <Text style={styles.loadingText}>Loading content...</Text>;
-    }
-
-    const markdownContent = convertSectionsToMarkdown(studySet.text_content.sections);
-
-    return (
-      <Markdown style={markdownStyles}>
-        {markdownContent}
-      </Markdown>
-    );
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -651,23 +666,27 @@ const styles = StyleSheet.create({
 
 const markdownStyles: Record<string, TextStyle | ViewStyle> = {
   heading1: {
-    fontSize: 20,
+    fontSize: 24,
+    fontWeight: '700',
     color: theme.colors.text,
-    lineHeight: 26,
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
+    letterSpacing: -0.5,
   },
   heading2: {
-    fontSize: 18,
-    fontWeight: '500',
+    fontSize: 20,
+    fontWeight: '600',
     color: theme.colors.text,
-    lineHeight: 22,
-    letterSpacing: -0.2,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    letterSpacing: -0.3,
   },
   heading3: {
-    fontSize: 18,
-    fontWeight: '500',
+    fontSize: 20,
+    fontWeight: '600',
     color: theme.colors.text,
-    marginTop: 12,
-    lineHeight: 22,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
   },
   paragraph: {
     fontSize: 16,
@@ -680,6 +699,16 @@ const markdownStyles: Record<string, TextStyle | ViewStyle> = {
     fontFamily: theme.fonts.bold,
     color: theme.colors.text,
   },
+  em: {
+    fontFamily: theme.fonts.regular,
+    fontStyle: 'italic',
+    color: theme.colors.text,
+  },
+  text: {
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.md,
+    lineHeight: 24,
+  },
   blockquote: {
     backgroundColor: theme.colors.background01,
     marginVertical: theme.spacing.md,
@@ -690,20 +719,22 @@ const markdownStyles: Record<string, TextStyle | ViewStyle> = {
     borderLeftColor: theme.colors.primary,
   },
   bullet_list: {
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.md,
+    paddingLeft: theme.spacing.md,
+    marginVertical: theme.spacing.sm,
   },
-
+  bullet_list_icon: {
+    marginRight: theme.spacing.sm,
+    color: theme.colors.text,
+  },
+  bullet_list_content: {
+    flex: 1,
+  },
   ordered_list: {
     paddingTop: theme.spacing.md,
   },
   list_item: {
     flexDirection: 'row',
     marginBottom: theme.spacing.xs,
-  },
-  bullet_list_icon: {
-    marginRight: theme.spacing.xs,
-    color: theme.colors.text,
   },
   ordered_list_icon: {
     marginRight: theme.spacing.xs,
