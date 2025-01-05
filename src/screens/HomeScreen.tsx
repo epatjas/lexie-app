@@ -25,6 +25,7 @@ import Animated, {
   useSharedValue,
   interpolate,
   withTiming,
+  useAnimatedScrollHandler,
 } from 'react-native-reanimated';
 import ParticleBackground from '../components/ParticleBackground';
 import { getActiveProfile } from '../utils/storage';
@@ -43,6 +44,75 @@ const LoadingIndicator = () => (
   </View>
 );
 
+// First, create a separate component for the animated item
+const AnimatedListItem = React.memo(({ item, index, viewMode, navigation, scrollY }: {
+  item: ListItem;
+  index: number;
+  viewMode: ViewMode;
+  navigation: any;
+  scrollY: Animated.SharedValue<number>;
+}) => {
+  const itemAnimatedStyle = useAnimatedStyle(() => {
+    const itemOffset = index * 150;
+    const diff = scrollY.value - itemOffset;
+    
+    const opacity = interpolate(
+      diff,
+      [-300, 0, 300],
+      [1, 1, 0.3],
+      'clamp'
+    );
+
+    const scale = interpolate(
+      diff,
+      [-300, 0, 300],
+      [1, 1, 0.95],
+      'clamp'
+    );
+
+    const translateY = interpolate(
+      diff,
+      [-300, 0, 300],
+      [0, 0, 20],
+      'clamp'
+    );
+    
+    return {
+      opacity,
+      transform: [
+        { scale },
+        { translateY }
+      ],
+      backgroundColor: `rgba(30, 30, 35, ${interpolate(
+        diff,
+        [-300, 0, 300],
+        [1, 1, 0.7],
+        'clamp'
+      )})`,
+    };
+  });
+
+  if (viewMode === 'all') {
+    return (
+      <Animated.View style={[styles.cardWrapper, itemAnimatedStyle]}>
+        <StudySetItem
+          studySet={item as StudySet}
+          onPress={() => navigation.navigate('StudySet', { id: item.id })}
+        />
+      </Animated.View>
+    );
+  }
+  
+  return (
+    <Animated.View style={[styles.cardWrapper, itemAnimatedStyle]}>
+      <FolderCard
+        folder={item as Folder}
+        onPress={() => navigation.navigate('Folder', { folderId: item.id })}
+      />
+    </Animated.View>
+  );
+});
+
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('all');
   const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
@@ -56,12 +126,19 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { folders, refreshFolders } = useFolders();
   const { studySets, refreshStudySets, loading: studySetsLoading } = useStudySets();
   const progress = useSharedValue(0);
+  const scrollY = useSharedValue(0);
 
   const overlayStyle = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 1], [0, 1]),
     backgroundColor: 'rgba(0,0,0,0.5)',
     ...StyleSheet.absoluteFillObject,
   }));
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
   useEffect(() => {
     const initDb = async () => {
@@ -142,30 +219,16 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               Mitä haluaisit harjoitella{'\n'}tänään?
             </Text>
           </View>
-          <View style={styles.createButtonContainer}>
-            <BlurView
-              intensity={20}
-              tint="dark"
-              style={styles.createButtonBlur}
-            >
-              <TouchableOpacity
-                style={styles.createButton}
-                onPress={handleCreatePress}
-              >
-                <Text style={styles.createButtonText}>
-                  Luo uusi harjoittelusetti
-                </Text>
-              </TouchableOpacity>
-            </BlurView>
-          </View>
         </View>
       );
     }
 
-    // Use FlatList for both views
+    // Then update the FlatList implementation in renderContent():
     return (
       <>
-        <FlatList<ListItem>
+        <Animated.FlatList
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
           data={viewMode === 'all' ? studySets : folders}
           ListHeaderComponent={() => (
             <>
@@ -207,23 +270,15 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               </View>
             </>
           )}
-          renderItem={({ item }) => {
-            if (viewMode === 'all') {
-              return (
-                <StudySetItem
-                  studySet={item as StudySet}
-                  onPress={() => navigation.navigate('StudySet', { id: item.id })}
-                />
-              );
-            } else {
-              return (
-                <FolderCard
-                  folder={item as Folder}
-                  onPress={() => navigation.navigate('Folder', { folderId: item.id })}
-                />
-              );
-            }
-          }}
+          renderItem={({ item, index }) => (
+            <AnimatedListItem
+              item={item}
+              index={index}
+              viewMode={viewMode}
+              navigation={navigation}
+              scrollY={scrollY}
+            />
+          )}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContainer}
           ListEmptyComponent={() => (
@@ -242,23 +297,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             </View>
           )}
         />
-
-        <View style={styles.createButtonContainer}>
-          <BlurView
-            intensity={20}
-            tint="dark"
-            style={styles.createButtonBlur}
-          >
-            <TouchableOpacity
-              style={styles.createButton}
-              onPress={handleCreatePress}
-            >
-              <Text style={styles.createButtonText}>
-                Luo uusi harjoittelusetti
-              </Text>
-            </TouchableOpacity>
-          </BlurView>
-        </View>
       </>
     );
   };
@@ -320,8 +358,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <Animated.View style={styles.container}>
       <ParticleBackground />
+      
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.settingsButton}
@@ -343,6 +382,19 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
       <View style={styles.contentWrapper}>
         {renderContent()}
+      </View>
+
+      <View style={styles.createButtonContainer}>
+        <BlurView intensity={20} tint="dark">
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={handleCreatePress}
+          >
+            <Text style={styles.createButtonText}>
+              Luo uusi harjoittelusetti
+            </Text>
+          </TouchableOpacity>
+        </BlurView>
       </View>
 
       <Modal
@@ -375,7 +427,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           }}
         />
       )}
-    </SafeAreaView>
+    </Animated.View>
   );
 }
 
@@ -387,7 +439,7 @@ const styles = StyleSheet.create({
   contentWrapper: {
     flex: 1,
     paddingHorizontal: theme.spacing.lg,
-    marginTop: 80,
+    marginTop: 120,
   },
   scrollView: {
     flex: 1,
@@ -440,12 +492,9 @@ const styles = StyleSheet.create({
     right: theme.spacing.lg,
     borderRadius: 100,
     overflow: 'hidden',
-  },
-  createButtonBlur: {
-    borderRadius: 100,
-    overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+    zIndex: 3,
   },
   createButton: {
     paddingVertical: 16,
@@ -530,7 +579,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
   settingsButton: {
     width: 40,
@@ -567,6 +616,13 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     flexGrow: 1,
-    paddingBottom: 100,
+    paddingBottom: 120,
+  },
+  cardWrapper: {
+    marginBottom: theme.spacing.md,
+    borderRadius: theme.spacing.md,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
 });

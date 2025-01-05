@@ -38,9 +38,6 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     backgroundColor: theme.colors.background02,
     borderRadius: theme.borderRadius.lg,
-    marginBottom: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.stroke,
   },
   content: {
     flex: 1,
