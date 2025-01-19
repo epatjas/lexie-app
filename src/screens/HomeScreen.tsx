@@ -154,9 +154,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      console.log('Screen focused');
-      refreshFolders();
+      console.log('Screen focused - refreshing data');
       refreshStudySets();
+      refreshFolders();
       
       const params = navigation.getState().routes.find(
         route => route.name === 'Home'
@@ -191,7 +191,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     });
 
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, refreshStudySets, refreshFolders]);
 
   useEffect(() => {
     console.log('Bottom sheet visibility changed:', isBottomSheetVisible);
@@ -215,7 +215,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       return <LoadingIndicator />;
     }
 
-    if (studySets.length === 0 && folders.length === 0) {
+    // Show "Mitä haluaisit harjoitella" empty state when there are no study sets
+    if (studySets.length === 0) {
       return (
         <View style={styles.emptyContainer}>
           <View style={styles.textContainer}>
@@ -230,7 +231,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       );
     }
 
-    // Then update the FlatList implementation in renderContent():
+    // Show content with study sets
     return (
       <>
         <Animated.FlatList
@@ -240,7 +241,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           ListHeaderComponent={() => (
             <>
               <Text style={[styles.greeting, styles.greetingWithContent]}>
-                Hei 👋🏻 {activeProfile?.name || ''}!{'\n'}
+                Hei 👋🏻 {activeProfile?.name}!{'\n'}
                 Tervetuloa takaisin
               </Text>
 
@@ -425,6 +426,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
       {isSettingsVisible && (
         <SettingsScreen 
+          navigation={navigation}
           onClose={() => setIsSettingsVisible(false)}
           onProfileDeleted={() => {
             setIsSettingsVisible(false);

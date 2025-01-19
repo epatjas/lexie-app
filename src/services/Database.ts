@@ -39,12 +39,13 @@ const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
   try {
     console.log('Verifying database schema...');
     
-    // Add type annotation to tableInfo
-    const tableInfo = await db.getAllAsync<TableColumn>(
+    // Check study_sets table structure
+    const studySetsInfo = await db.getAllAsync<TableColumn>(
       "PRAGMA table_info('study_sets')"
     );
+    console.log('Study sets table structure:', studySetsInfo);
     
-    const hasFolder = tableInfo.some(column => column.name === 'folder_id');
+    const hasFolder = studySetsInfo.some(column => column.name === 'folder_id');
     
     if (!hasFolder) {
       console.log('Adding folder_id column to study_sets table...');
@@ -126,26 +127,33 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
 // Separate table initialization into its own function
 const initTables = async (database: SQLite.SQLiteDatabase) => {
   try {
+    // First verify schema
+    await verifyAndUpdateSchema(database);
+    
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS study_sets (
         id TEXT PRIMARY KEY NOT NULL,
         title TEXT NOT NULL,
         description TEXT,
+        folder_id TEXT REFERENCES folders(id),
+        text_content TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         profile_id TEXT NOT NULL DEFAULT ''
       );
 
-      CREATE TABLE IF NOT EXISTS flashcards (
+      CREATE TABLE IF NOT EXISTS folders (
         id TEXT PRIMARY KEY NOT NULL,
-        study_set_id TEXT NOT NULL,
-        term TEXT NOT NULL,
-        definition TEXT NOT NULL,
+        name TEXT NOT NULL,
+        color TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (study_set_id) REFERENCES study_sets(id) ON DELETE CASCADE
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    
+    // After creating tables, verify the structure
+    const tableInfo = await database.getAllAsync("PRAGMA table_info('study_sets')");
+    console.log('Study sets table structure after init:', tableInfo);
     
     tablesInitialized = true;
   } catch (error) {
@@ -376,13 +384,28 @@ export const verifyDatabaseTables = async (): Promise<void> => {
 export const getAllStudySets = async (profileId: string): Promise<StudySet[]> => {
   try {
     const db = await getDatabase();
-    // Use getAllAsync instead of executeSql
+    console.log('Fetching study sets for profile:', profileId);
+    
+    // Use * to get all columns and avoid schema mismatches
     const results = await db.getAllAsync<StudySet>(
-      'SELECT * FROM study_sets WHERE profile_id = ? ORDER BY created_at DESC',
+      `SELECT s.*, f.name as folder_name 
+       FROM study_sets s 
+       LEFT JOIN folders f ON s.folder_id = f.id 
+       WHERE s.profile_id = ? 
+       ORDER BY s.created_at DESC`,
       [profileId]
     );
     
-    return results;
+    // Parse text_content if needed
+    const parsedResults = results.map(set => ({
+      ...set,
+      text_content: typeof set.text_content === 'string' 
+        ? JSON.parse(set.text_content) 
+        : set.text_content
+    }));
+    
+    console.log('Study sets query results:', parsedResults);
+    return parsedResults;
   } catch (error) {
     console.error('Error in getAllStudySets:', error);
     throw error;

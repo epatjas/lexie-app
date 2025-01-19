@@ -19,14 +19,27 @@ type ProfileSelectionScreenProps = NativeStackScreenProps<RootStackParamList, 'P
 
 const ProfileSelectionScreen: React.FC<ProfileSelectionScreenProps> = ({ navigation }) => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadProfiles();
   }, []);
 
   const loadProfiles = async () => {
-    const savedProfiles = await getUserProfiles();
-    setProfiles(savedProfiles || []);
+    try {
+      setIsLoading(true);
+      const savedProfiles = await getUserProfiles();
+      setProfiles(savedProfiles || []);
+      
+      if (!savedProfiles || savedProfiles.length === 0) {
+        navigation.replace('Welcome');
+        return;
+      }
+    } catch (error) {
+      console.error('Error loading profiles:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAddProfile = () => {
@@ -56,6 +69,17 @@ const ProfileSelectionScreen: React.FC<ProfileSelectionScreenProps> = ({ navigat
     };
     return images[avatarId] || images['1']; // Fallback to first image if ID not found
   };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ParticleBackground />
+        <View style={styles.content}>
+          {/* You can add a loading indicator here if you want */}
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>

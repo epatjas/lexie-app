@@ -21,13 +21,21 @@ import Animated, {
 import DragHandle from '../components/DragHandle';
 import { useActiveProfile } from '../hooks/useActiveProfile';
 import { deleteProfile } from '../utils/storage';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types/navigation';
 
 type SettingsScreenProps = {
+  navigation: NativeStackNavigationProp<RootStackParamList>;
   onClose: () => void;
   onProfileDeleted: () => void;
 };
 
-export default function SettingsScreen({ onClose, onProfileDeleted }: SettingsScreenProps) {
+export default function SettingsScreen({ 
+  navigation,
+  onClose, 
+  onProfileDeleted 
+}: SettingsScreenProps) {
   const progress = useSharedValue(0);
   const [activeProfile, refreshProfile] = useActiveProfile();
 
@@ -97,7 +105,9 @@ export default function SettingsScreen({ onClose, onProfileDeleted }: SettingsSc
           onPress: async () => {
             try {
               await deleteProfile(activeProfile.id);
+              handleClose();
               onProfileDeleted();
+              console.log('Profile deleted successfully:', activeProfile.id);
             } catch (error) {
               console.error('Error deleting profile:', error);
               Alert.alert('Error', 'Failed to delete profile');

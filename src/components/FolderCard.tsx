@@ -21,7 +21,9 @@ export default function FolderCard({ folder, onPress }: FolderCardProps) {
       <View style={styles.content}>
         <Text style={styles.title}>{folder.name}</Text>
         <Text style={styles.count}>
-          {folder.study_set_count ? `${folder.study_set_count} STUDY SETS` : '0 STUDY SETS'}
+          {folder.study_set_count === 1 
+            ? '1 HARJOITTELUSETTI'
+            : `${folder.study_set_count || 0} HARJOITTELUSETTIÄ`}
         </Text>
       </View>
       <View style={styles.iconContainer}>
@@ -45,13 +47,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontFamily: '500',
+    fontFamily: theme.fonts.medium,
     color: theme.colors.background,
     marginBottom: theme.spacing.xs,
   },
   count: {
     fontSize: 12,
-    fontFamily: '500',
+    fontFamily: theme.fonts.medium,
     color: theme.colors.background,
   },
   iconContainer: {

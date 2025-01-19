@@ -17,7 +17,12 @@ export function useFolders() {
       const foldersWithCounts = await db.getAllAsync<FolderWithCount>(`
         SELECT 
           f.*,
-          (SELECT COUNT(*) FROM study_sets s WHERE s.folder_id = f.id) as study_set_count
+          COALESCE((
+            SELECT COUNT(*) 
+            FROM study_sets s 
+            WHERE s.folder_id = f.id 
+            AND s.folder_id IS NOT NULL
+          ), 0) as study_set_count
         FROM folders f
         ORDER BY f.created_at DESC
       `);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,23 +16,54 @@ import { useStudySets } from '../hooks/useStudySet';
 import { useFolders } from '../hooks/useFolders';
 import StudySetItem from '../components/StudySetItem';
 import FolderEditModal from '../components/FolderEditModal';
+import { getDatabase } from '../services/Database';
 
 type FolderScreenProps = NativeStackScreenProps<RootStackParamList, 'Folder'>;
 
 export default function FolderScreen({ route, navigation }: FolderScreenProps) {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const { folderId } = route.params;
-  const { studySets, refreshStudySets } = useStudySets();
-  const { folders, updateFolder, deleteFolder } = useFolders();
+  const { studySets, refreshStudySets, loading } = useStudySets();
+  const { folders, updateFolder, deleteFolder, refreshFolders } = useFolders();
 
-  React.useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      console.log('FolderScreen focused - refreshing data');
-      refreshStudySets();
-    });
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        console.log('Loading folder data for ID:', folderId);
+        
+        // Load folders first
+        await refreshFolders();
+        
+        // Then load study sets
+        await refreshStudySets();
+        
+        // Debug database state
+        const db = await getDatabase();
+        const studySetsInDb = await db.getAllAsync(
+          `SELECT id, title, folder_id, profile_id 
+           FROM study_sets 
+           WHERE folder_id = ?`,
+          [folderId]
+        );
+        console.log('Direct database query - Study sets in folder:', studySetsInDb);
+        
+        // Log the current state
+        console.log('Current state:', {
+          folderId,
+          folderExists: folders.some(f => f.id === folderId),
+          studySetsCount: studySets.length,
+          studySetsInFolder: studySets.filter(s => s.folder_id === folderId).length
+        });
+      } catch (error) {
+        console.error('Error loading folder data:', error);
+      }
+    };
 
+    loadData();
+
+    const unsubscribe = navigation.addListener('focus', loadData);
     return unsubscribe;
-  }, [navigation, refreshStudySets]);
+  }, [folderId, refreshFolders, refreshStudySets]);
 
   console.log('Current folder ID:', folderId);
   console.log('All study sets:', studySets);
@@ -40,13 +71,39 @@ export default function FolderScreen({ route, navigation }: FolderScreenProps) {
   
   const currentFolder = folders.find(f => f.id === folderId);
   const folderStudySets = studySets.filter(set => {
-    console.log('Comparing:', {
-      setFolderId: set.folder_id,
-      folderId: folderId,
-      matches: set.folder_id === folderId
+    // Ensure both values are strings for comparison
+    const setFolderId = set.folder_id ? String(set.folder_id) : null;
+    const targetFolderId = String(folderId);
+    const matches = setFolderId === targetFolderId;
+    
+    console.log('Checking study set:', {
+      id: set.id,
+      title: set.title,
+      setFolderId,
+      targetFolderId,
+      matches,
+      rawFolderID: set.folder_id
     });
-    return set.folder_id === folderId;
+    
+    return matches;
   });
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
+            <ArrowLeft color={theme.colors.text} size={24} />
+          </TouchableOpacity>
+          <Text style={styles.title}>Loading...</Text>
+          <View style={{ width: 40 }} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!currentFolder) {
     return null;

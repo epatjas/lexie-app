@@ -74,7 +74,7 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
         style={styles.content}
       >
         <View style={styles.textContainer}>
-          <Text style={styles.title}>Hei siellä.</Text>
+          <Text style={styles.title}>Hei 👋🏻</Text>
           <Text style={styles.title}>Millä nimellä voisin kutsua sinua?</Text>
         </View>
 

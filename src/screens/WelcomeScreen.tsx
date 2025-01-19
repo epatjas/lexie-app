@@ -2,10 +2,10 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView } from 'react-native';
 import ParticleBackground from '../components/ParticleBackground';
 import theme from '../styles/theme';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types/navigation';
 
-interface WelcomeScreenProps {
-  navigation?: any;
-}
+type WelcomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
   return (

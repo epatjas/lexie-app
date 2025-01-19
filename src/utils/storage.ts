@@ -146,14 +146,16 @@ export const deleteProfile = async (profileId: string) => {
     // Filter out the profile to delete
     const updatedProfiles = profiles.filter(p => p.id !== profileId);
     
-    // Save updated profiles list
-    await AsyncStorage.setItem('profiles', JSON.stringify(updatedProfiles));
+    // Save updated profiles list - Fix: use correct storage key
+    await AsyncStorage.setItem('@user_profiles', JSON.stringify(updatedProfiles));
     
     // Clear active profile if it was the deleted one
     const activeProfile = await getActiveProfile();
     if (activeProfile?.id === profileId) {
-      await AsyncStorage.removeItem('activeProfile');
+      await AsyncStorage.removeItem('@active_profile');
     }
+
+    console.log('Profile deleted from storage:', profileId);
   } catch (error) {
     console.error('Error deleting profile:', error);
     throw error;

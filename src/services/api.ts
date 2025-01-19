@@ -12,6 +12,13 @@ const isDevelopment = __DEV__;
 // Export the API URL based on environment
 export const API_URL = isDevelopment ? DEV_API_URL : PROD_API_URL;
 
+// Add this debug log to verify the environment
+console.log('[Client] Environment:', {
+  isDevelopment: __DEV__,
+  apiUrl: API_URL,
+  buildDate: new Date().toISOString()
+});
+
 // Helper function to calculate size of base64 string
 // Used for logging compression results
 const calculateBase64Size = (base64String: string): number => {
