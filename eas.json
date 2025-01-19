@@ -21,5 +21,14 @@
         "resourceClass": "m-medium"
       }
     }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "elina.patjas@gmail.com",
+        "ascAppId": "1696411888",
+        "appleTeamId": "P34LGZJWZ9"
+      }
+    }
   }
 }
