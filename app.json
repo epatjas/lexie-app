@@ -2,7 +2,7 @@
   "expo": {
     "name": "LexieLearn",
     "slug": "lexie-app",
-    "version": "1.0.1",
+    "version": "3.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "icon": "./assets/icon.png",
