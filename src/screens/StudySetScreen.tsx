@@ -696,7 +696,7 @@ const markdownStyles: Record<string, TextStyle | ViewStyle> = {
     lineHeight: 27,
   },
   strong: {
-    fontFamily: theme.fonts.bold,
+    fontWeight: '700',
     color: theme.colors.text,
   },
   em: {
