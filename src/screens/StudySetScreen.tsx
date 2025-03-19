@@ -11,21 +11,21 @@ import {
   ViewStyle,
   ActivityIndicator,
   BackHandler,
-  TouchableWithoutFeedback,
   Image,
+  Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
 import { useStudySetDetails } from '../hooks/useStudySet';
-import { ChevronLeft, FlipHorizontal, Zap, Play, Folder, Calendar, MoreVertical, Plus, Trash2, Pause } from 'lucide-react-native';
+import { ChevronLeft, FlipHorizontal, Zap, Folder, Calendar, MoreVertical, Plus, Trash2, Play, Pause, Rewind, FastForward, X } from 'lucide-react-native';
 import { useFolders } from '../hooks/useFolders';
 import FolderSelectModal from '../components/FolderSelectModal';
 import FolderCreationModal from '../components/FolderCreationModal';
 import Markdown from 'react-native-markdown-display';
 import { useAudioPlayback } from '../hooks/useAudioPlayback';
 import Svg, { Path, G, Rect } from 'react-native-svg';
-import LinearGradient from 'react-native-linear-gradient';
+
 
 type StudySetScreenProps = NativeStackScreenProps<RootStackParamList, 'StudySet'>;
 
@@ -61,6 +61,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
   const { studySet, refreshStudySet, loading, deleteStudySet } = useStudySetDetails(route.params?.id);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showAudioPlayer, setShowAudioPlayer] = useState(false);
 
   const constructAudioText = (studySet: any): string => {
     if (!studySet.text_content?.sections) return '';
@@ -86,7 +87,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     return audioText;
   };
 
-  const { isPlaying, currentTime, togglePlayback, error, isLoading, progress } = useAudioPlayback({
+  const { isPlaying, currentTime, togglePlayback, error, isLoading, progress, seek } = useAudioPlayback({
     text: studySet ? constructAudioText(studySet) : '',
   });
 
@@ -190,6 +191,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
   const handleListenPress = async () => {
     try {
+      setShowAudioPlayer(true);
       await togglePlayback();
     } catch (err) {
       console.error('[Screen] Listen press error:', err);
@@ -208,6 +210,16 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     return isCorrect;
   };
 
+  // Add this helper function at the component level (outside of render)
+  const renderMarkdownContent = (content: string) => {
+    return (
+      <Markdown style={markdownStyles}>
+        {content}
+      </Markdown>
+    );
+  };
+
+  // Then modify the renderContent function
   const renderContent = () => {
     if (!studySet?.text_content) {
       return <Text style={styles.loadingText}>Loading content...</Text>;
@@ -261,11 +273,47 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
     const markdownContent = convertSectionsToMarkdown(studySet.text_content.sections);
 
-    return (
-      <Markdown style={markdownStyles}>
-        {markdownContent}
-      </Markdown>
-    );
+    // Split content into smaller chunks if it's very large
+    return renderMarkdownContent(markdownContent);
+  };
+
+  // First, add these functions at the top of the component (after all the other const declarations)
+  const skipBackward = async () => {
+    // Skip back 15 seconds, but no lower than 0
+    const newTime = Math.max(0, currentTime - 15);
+    
+    try {
+      // Check if the useAudioPlayback hook now exposes a seek method
+      if (typeof seek === 'function') {
+        await seek(newTime);
+        console.log(`[Audio] Skipped backward to ${newTime}s`);
+      } else {
+        // Fallback to the alert for now
+        Alert.alert("Skip Backward", "Would skip back 15 seconds (to " + newTime.toFixed(0) + "s)");
+      }
+    } catch (error) {
+      console.error('[Audio] Skip backward error:', error);
+      Alert.alert("Error", "Failed to skip backward");
+    }
+  };
+
+  const skipForward = async () => {
+    // Skip forward 15 seconds
+    const newTime = currentTime + 15;
+    
+    try {
+      // Check if the useAudioPlayback hook now exposes a seek method
+      if (typeof seek === 'function') {
+        await seek(newTime);
+        console.log(`[Audio] Skipped forward to ${newTime}s`);
+      } else {
+        // Fallback to the alert for now
+        Alert.alert("Skip Forward", "Would skip forward 15 seconds (to " + newTime.toFixed(0) + "s)");
+      }
+    } catch (error) {
+      console.error('[Audio] Skip forward error:', error);
+      Alert.alert("Error", "Failed to skip forward");
+    }
   };
 
   if (!route.params?.id) {
@@ -323,313 +371,444 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableWithoutFeedback onPress={() => showMoreOptions && setShowMoreOptions(false)}>
-        <View style={{ flex: 1 }}>
-          <View style={styles.headerContainer}>
-            <View style={styles.headerLeft}>
-              <TouchableOpacity 
-                onPress={handleBackPress}
-                style={styles.headerButton}
-              >
-                <ChevronLeft color={theme.colors.text} size={20} />
-              </TouchableOpacity>
+      {/* Keep the header always visible */}
+      <View style={styles.headerContainer}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity 
+            onPress={handleBackPress}
+            style={styles.headerButton}
+          >
+            <ChevronLeft color={theme.colors.text} size={20} />
+          </TouchableOpacity>
+          
+          <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+            {studySet.title}
+          </Text>
+        </View>
+        
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={() => setShowMoreOptions(!showMoreOptions)}
+          >
+            <MoreVertical color={theme.colors.text} size={20} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => navigation.navigate('Home', { openBottomSheet: true })}
+          >
+            <Plus color={theme.colors.text} size={20} />
+          </TouchableOpacity>
+        </View>
+        
+        {showMoreOptions && (
+          <View style={styles.moreOptionsMenu}>
+            <TouchableOpacity 
+              style={styles.moreOptionItem}
+              onPress={() => {
+                setShowMoreOptions(false);
+                handleDeletePress();
+              }}
+            >
+              <Trash2 color={theme.colors.incorrect} size={20} />
+              <Text style={[styles.moreOptionText, { color: theme.colors.incorrect }]}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {/* Rest of the content */}
+      <ScrollView 
+        style={{flex: 1}}
+        contentContainerStyle={{paddingBottom: 150}}
+        showsVerticalScrollIndicator={true}
+        scrollEnabled={true}
+        onScrollBeginDrag={() => setShowMoreOptions(false)}
+      >
+        <View style={{padding: theme.spacing.md}}>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            marginVertical: theme.spacing.md,
+            gap: theme.spacing.sm,
+            position: 'relative',
+          }}>
+            <TouchableOpacity
+              style={styles.card}
+              onPress={handleFlashcardsPress}
+            >
+              <Text style={styles.cardTitle}>Learn</Text>
               
-              <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-                {studySet.title}
-              </Text>
-            </View>
-            
-            <View style={styles.headerRight}>
-              <TouchableOpacity 
-                style={styles.headerButton}
-                onPress={() => setShowMoreOptions(!showMoreOptions)}
-              >
-                <MoreVertical color={theme.colors.text} size={20} />
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.addButton}
-                onPress={() => navigation.navigate('Home', { openBottomSheet: true })}
-              >
-                <Plus color={theme.colors.text} size={20} />
-              </TouchableOpacity>
-            </View>
-            
-            {showMoreOptions && (
-              <View style={styles.moreOptionsMenu}>
-                <TouchableOpacity 
-                  style={styles.moreOptionItem}
-                  onPress={() => {
-                    setShowMoreOptions(false);
-                    handleDeletePress();
-                  }}
-                >
-                  <Trash2 color={theme.colors.incorrect} size={20} />
-                  <Text style={[styles.moreOptionText, { color: theme.colors.incorrect }]}>Delete</Text>
-                </TouchableOpacity>
+              <View style={styles.cardContent}>
+                <Text style={styles.cardCount}>
+                  {studySet.flashcards?.length || 12} flipcards
+                </Text>
               </View>
-            )}
+              
+              <View style={{
+                position: 'absolute',
+                bottom: -3,
+                right: -3,
+                width: 60,
+                height: 65,
+                overflow: 'visible',
+                zIndex: 1,
+              }}>
+                {/* White card at the bottom - position unchanged */}
+                <View style={{
+                  position: 'absolute',
+                  width: 45,
+                  height: 55,
+                  borderRadius: 6,
+                  backgroundColor: '#FFFFFF',
+                  bottom: -8,
+                  right: 20,
+                  transform: [{ rotate: '-10deg' }],
+                  zIndex: 1,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 3,
+                  elevation: 3,
+                }} />
+                
+                {/* Yellow card in the middle - position unchanged */}
+                <View style={{
+                  position: 'absolute',
+                  width: 45,
+                  height: 55,
+                  borderRadius: 6,
+                  backgroundColor: '#E5C07B',
+                  bottom: -3,
+                  right: 10,
+                  transform: [{ rotate: '-5deg' }],
+                  zIndex: 2,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 3,
+                  elevation: 3,
+                }} />
+                
+                {/* Blue card on top - now positioned slightly higher */}
+                <View style={{
+                  position: 'absolute',
+                  width: 45,
+                  height: 55,
+                  borderRadius: 6,
+                  backgroundColor: '#98BDF7',
+                  bottom: 2, // Lifted up by 2 points (from 0 to 2)
+                  right: 0,
+                  transform: [{ rotate: '0deg' }],
+                  zIndex: 3,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 3,
+                  elevation: 3,
+                }} />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.card}
+              onPress={handleCreateQuiz}
+            >
+              <Text style={styles.cardTitle}>Practise</Text>
+              
+              <View style={styles.cardContent}>
+                <Text style={styles.cardCount}>
+                  {(studySet as any).questions?.length || 15} questions
+                </Text>
+              </View>
+              
+              {/* Update the Practice card stacked cards - moved more to the right */}
+              <View style={{
+                position: 'absolute',
+                top: '30%', // Keep high positioning
+                right: -15, // Changed from 0 to -15 to move the whole stack more to the right
+                width: 85, // Keep the increased width
+                height: 65,
+                overflow: 'visible',
+                zIndex: 1,
+                transform: [{ translateY: -25 }], // Keep the vertical centering adjustment
+              }}>
+                {/* Bottom card (furthest right and most cut off) */}
+                <View style={{
+                  position: 'absolute',
+                  width: 90, // Keep the increased width
+                  height: 40, // Keep the height
+                  borderRadius: 6,
+                  backgroundColor: '#252525',
+                  bottom: -8,
+                  right: -15, // Keep the right offset
+                  transform: [{ rotate: '0deg' }], // No rotation
+                  zIndex: 1,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 3,
+                  elevation: 3,
+                  borderWidth: 1,
+                  borderColor: '#343536',
+                }} />
+                
+                {/* Middle card (middle position and partially cut off) */}
+                <View style={{
+                  position: 'absolute',
+                  width: 90, // Keep the increased width
+                  height: 40, // Keep the height
+                  borderRadius: 6,
+                  backgroundColor: '#2A2A2A',
+                  bottom: -4,
+                  right: -8, // Keep the right offset
+                  transform: [{ rotate: '0deg' }], // No rotation
+                  zIndex: 2,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 3,
+                  elevation: 3,
+                  borderWidth: 1,
+                  borderColor: '#343536',
+                }} />
+                
+                {/* Top card (furthest left and least cut off) */}
+                <View style={{
+                  position: 'absolute',
+                  width: 90, // Keep the increased width
+                  height: 40, // Keep the height
+                  borderRadius: 6,
+                  backgroundColor: '#303030',
+                  bottom: 0,
+                  right: 0, // Keep at 0
+                  transform: [{ rotate: '0deg' }], // No rotation
+                  zIndex: 3,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 3,
+                  elevation: 3,
+                  borderWidth: 1,
+                  borderColor: '#343536',
+                }}>
+                  {/* Green circle with check mark - moved more to the left */}
+                  <View style={{
+                    position: 'absolute',
+                    width: 20, // Keep small size
+                    height: 20, // Keep small size
+                    borderRadius: 10, // Half of width/height
+                    backgroundColor: '#9AE6B4', // Light green color
+                    top: 10, // Keep current vertical position
+                    right: 60, // Changed from 45 to 60 to move more to the left
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    borderColor: '#65D9A5', // Slightly darker green for border
+                    zIndex: 4,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 1,
+                    elevation: 2,
+                  }}>
+                    {/* Checkmark */}
+                    <Text style={{
+                      color: '#1F1F1F', // Dark color for contrast
+                      fontSize: 12,
+                      fontWeight: 'bold',
+                      lineHeight: 14,
+                      textAlign: 'center',
+                    }}>✓</Text>
+                  </View>
+                </View>
+              </View>
+            </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.scrollView}>
-            <View style={styles.content}>
-              <View style={styles.cardsContainer}>
-                <TouchableOpacity
-                  style={styles.card}
-                  onPress={handleFlashcardsPress}
-                >
-                  <Text style={styles.cardTitle}>Learn</Text>
-                  
-                  <View style={styles.cardContent}>
-                    <Text style={styles.cardCount}>
-                      {studySet.flashcards?.length || 12} flipcards
-                    </Text>
-                  </View>
-                  
-                  <View style={{
-                    position: 'absolute',
-                    bottom: -3,
-                    right: -3,
-                    width: 60,
-                    height: 65,
-                    overflow: 'visible',
-                    zIndex: 1,
-                  }}>
-                    {/* White card at the bottom - position unchanged */}
-                    <View style={{
-                      position: 'absolute',
-                      width: 45,
-                      height: 55,
-                      borderRadius: 6,
-                      backgroundColor: '#FFFFFF',
-                      bottom: -8,
-                      right: 20,
-                      transform: [{ rotate: '-10deg' }],
-                      zIndex: 1,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 3,
-                      elevation: 3,
-                    }} />
-                    
-                    {/* Yellow card in the middle - position unchanged */}
-                    <View style={{
-                      position: 'absolute',
-                      width: 45,
-                      height: 55,
-                      borderRadius: 6,
-                      backgroundColor: '#E5C07B',
-                      bottom: -3,
-                      right: 10,
-                      transform: [{ rotate: '-5deg' }],
-                      zIndex: 2,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 3,
-                      elevation: 3,
-                    }} />
-                    
-                    {/* Blue card on top - now positioned slightly higher */}
-                    <View style={{
-                      position: 'absolute',
-                      width: 45,
-                      height: 55,
-                      borderRadius: 6,
-                      backgroundColor: '#98BDF7',
-                      bottom: 2, // Lifted up by 2 points (from 0 to 2)
-                      right: 0,
-                      transform: [{ rotate: '0deg' }],
-                      zIndex: 3,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 3,
-                      elevation: 3,
-                    }} />
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.card}
-                  onPress={handleCreateQuiz}
-                >
-                  <Text style={styles.cardTitle}>Practise</Text>
-                  
-                  <View style={styles.cardContent}>
-                    <Text style={styles.cardCount}>
-                      {(studySet as any).questions?.length || 15} questions
-                    </Text>
-                  </View>
-                  
-                  {/* Update the Practice card stacked cards - moved more to the right */}
-                  <View style={{
-                    position: 'absolute',
-                    top: '30%', // Keep high positioning
-                    right: -15, // Changed from 0 to -15 to move the whole stack more to the right
-                    width: 85, // Keep the increased width
-                    height: 65,
-                    overflow: 'visible',
-                    zIndex: 1,
-                    transform: [{ translateY: -25 }], // Keep the vertical centering adjustment
-                  }}>
-                    {/* Bottom card (furthest right and most cut off) */}
-                    <View style={{
-                      position: 'absolute',
-                      width: 90, // Keep the increased width
-                      height: 40, // Keep the height
-                      borderRadius: 6,
-                      backgroundColor: '#252525',
-                      bottom: -8,
-                      right: -15, // Keep the right offset
-                      transform: [{ rotate: '0deg' }], // No rotation
-                      zIndex: 1,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 3,
-                      elevation: 3,
-                      borderWidth: 1,
-                      borderColor: '#343536',
-                    }} />
-                    
-                    {/* Middle card (middle position and partially cut off) */}
-                    <View style={{
-                      position: 'absolute',
-                      width: 90, // Keep the increased width
-                      height: 40, // Keep the height
-                      borderRadius: 6,
-                      backgroundColor: '#2A2A2A',
-                      bottom: -4,
-                      right: -8, // Keep the right offset
-                      transform: [{ rotate: '0deg' }], // No rotation
-                      zIndex: 2,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 3,
-                      elevation: 3,
-                      borderWidth: 1,
-                      borderColor: '#343536',
-                    }} />
-                    
-                    {/* Top card (furthest left and least cut off) */}
-                    <View style={{
-                      position: 'absolute',
-                      width: 90, // Keep the increased width
-                      height: 40, // Keep the height
-                      borderRadius: 6,
-                      backgroundColor: '#303030',
-                      bottom: 0,
-                      right: 0, // Keep at 0
-                      transform: [{ rotate: '0deg' }], // No rotation
-                      zIndex: 3,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 3,
-                      elevation: 3,
-                      borderWidth: 1,
-                      borderColor: '#343536',
-                    }}>
-                      {/* Green circle with check mark - moved more to the left */}
-                      <View style={{
-                        position: 'absolute',
-                        width: 20, // Keep small size
-                        height: 20, // Keep small size
-                        borderRadius: 10, // Half of width/height
-                        backgroundColor: '#9AE6B4', // Light green color
-                        top: 10, // Keep current vertical position
-                        right: 60, // Changed from 45 to 60 to move more to the left
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        borderWidth: 1,
-                        borderColor: '#65D9A5', // Slightly darker green for border
-                        zIndex: 4,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 1 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 1,
-                        elevation: 2,
-                      }}>
-                        {/* Checkmark */}
-                        <Text style={{
-                          color: '#1F1F1F', // Dark color for contrast
-                          fontSize: 12,
-                          fontWeight: 'bold',
-                          lineHeight: 14,
-                          textAlign: 'center',
-                        }}>✓</Text>
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.contentSection}>
-                <TouchableOpacity 
-                  style={styles.listenButton}
-                  onPress={handleListenPress}
-                  disabled={isLoading}
-                >
-                  <View style={styles.listenIcon}>
-                    {isLoading ? (
-                      <ActivityIndicator size="small" color={theme.colors.text} />
-                    ) : isPlaying ? (
-                      <Pause color={theme.colors.text} size={20} />
-                    ) : (
-                      <Play color={theme.colors.text} size={20} />
-                    )}
-                  </View>
-                  <Text style={styles.listenButtonText}>
-                    {isLoading ? 
-                      'Luodaan ääntä...' :
-                      isPlaying ? 
-                        `${String(Math.floor(currentTime / 60)).padStart(2, '0')}:${String(currentTime % 60).padStart(2, '0')}` : 
-                        'Kuuntele'
-                    }
-                  </Text>
-                </TouchableOpacity>
-                
-                {renderContent()}
-              </View>
+          <View style={styles.contentSection}>
+            {/* Listen button as a circle on the right side */}
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: theme.spacing.md,
+            }}>
+              <Text style={{
+                fontSize: theme.fontSizes.lg,
+                fontFamily: theme.fonts.bold,
+                color: theme.colors.text,
+              }}>
+                Key concepts
+              </Text>
+              
+              <TouchableOpacity 
+                style={styles.listenCircleButton}
+                onPress={handleListenPress}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={theme.colors.text} />
+                ) : (
+                  isPlaying ? (
+                    <Pause color="#FFFFFF" size={20} />
+                  ) : (
+                    <Play color="#FFFFFF" size={20} />
+                  )
+                )}
+              </TouchableOpacity>
             </View>
-          </ScrollView>
-
-          {folderSelectVisible && (
-            <FolderSelectModal
-              visible={folderSelectVisible}
-              onClose={() => setFolderSelectVisible(false)}
-              onCreateNew={handleCreateNewFolder}
-              folders={folders}
-              selectedFolderId={studySet.folder_id}
-              onSelect={handleFolderSelect}
-              onUpdateFolder={updateFolder}
-            />
-          )}
-
-          {folderCreateVisible && (
-            <FolderCreationModal
-              visible={folderCreateVisible}
-              onClose={() => setFolderCreateVisible(false)}
-              onCreate={handleCreateFolder}
-            />
-          )}
-
-          {showToast && (
-            <View style={styles.toast}>
-              <Text style={styles.toastText}>Tulossa pian</Text>
-            </View>
-          )}
-
-          {error && (
-            <Text style={styles.errorText}>
-              {error}
-            </Text>
-          )}
+            
+            {renderContent()}
+          </View>
         </View>
-      </TouchableWithoutFeedback>
+      </ScrollView>
+
+      {/* Add the audio player overlay */}
+      {showAudioPlayer && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 80,
+          zIndex: 9999,
+          backgroundColor: '#1A1A1A',
+          borderRadius: 30,
+          margin: 10,
+          marginTop: Platform.OS === 'ios' ? 50 : 10,
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 20,
+          justifyContent: 'space-between',
+        }}>
+          {/* Left side grouping - play button and timer */}
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}>
+            {/* Play/Pause button */}
+            <TouchableOpacity 
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              onPress={togglePlayback}
+            >
+              {isPlaying ? (
+                <Pause color="#FFFFFF" size={28} />
+              ) : (
+                <Play color="#FFFFFF" size={28} />
+              )}
+            </TouchableOpacity>
+            
+            {/* Timer - now smaller and closer to play button */}
+            <Text style={{
+              color: '#FFF',
+              fontSize: 13,
+              fontFamily: theme.fonts.regular,
+              marginLeft: 4,
+            }}>
+              {String(Math.floor(currentTime / 60)).padStart(2, '0')}:{String(Math.floor(currentTime % 60)).padStart(2, '0')}
+            </Text>
+          </View>
+          
+          {/* Right side controls - skip buttons and close */}
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}>
+            {/* Skip backward 15s */}
+            <TouchableOpacity 
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                borderWidth: 2,
+                borderColor: "#FFF",
+                backgroundColor: 'transparent',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginRight: 6,
+              }}
+              onPress={skipBackward}
+            >
+              <Rewind color="#FFFFFF" size={20} />
+            </TouchableOpacity>
+            
+            {/* Skip forward 15s */}
+            <TouchableOpacity 
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                borderWidth: 2,
+                borderColor: "#FFF",
+                backgroundColor: 'transparent',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginRight: 12,
+              }}
+              onPress={skipForward}
+            >
+              <FastForward color="#FFFFFF" size={20} />
+            </TouchableOpacity>
+            
+            {/* Close button */}
+            <TouchableOpacity 
+              style={{
+                width: 40,
+                height: 40,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              onPress={() => {
+                if (isPlaying) togglePlayback();
+                setShowAudioPlayer(false);
+              }}
+            >
+              <X color="#FFFFFF" size={24} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Modals and other elements */}
+      {folderSelectVisible && (
+        <FolderSelectModal
+          visible={folderSelectVisible}
+          onClose={() => setFolderSelectVisible(false)}
+          onCreateNew={handleCreateNewFolder}
+          folders={folders}
+          selectedFolderId={studySet.folder_id}
+          onSelect={handleFolderSelect}
+          onUpdateFolder={updateFolder}
+        />
+      )}
+
+      {folderCreateVisible && (
+        <FolderCreationModal
+          visible={folderCreateVisible}
+          onClose={() => setFolderCreateVisible(false)}
+          onCreate={handleCreateFolder}
+        />
+      )}
+
+      {showToast && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>Tulossa pian</Text>
+        </View>
+      )}
+
+      {error && (
+        <Text style={styles.errorText}>
+          {error}
+        </Text>
+      )}
     </SafeAreaView>
   );
 }
@@ -720,26 +899,15 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     marginBottom: theme.spacing.md,
   },
-  listenButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  listenCircleButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'transparent',
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.md,
     borderWidth: 1,
     borderColor: theme.colors.stroke,
-    borderRadius: theme.borderRadius.xxl,
-    alignSelf: 'flex-start',
-  },
-  listenButtonText: {
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.medium,
-    color: theme.colors.text,
-    marginLeft: theme.spacing.sm,
-  },
-  listenIcon: {
-    marginRight: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   contentText: {
     fontSize: theme.fontSizes.md,
@@ -919,6 +1087,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginVertical: theme.spacing.md,
     gap: theme.spacing.sm,
+    overflow: 'visible',
+    position: 'relative',
+    zIndex: 0,
   },
   card: {
     flex: 1,
@@ -1023,6 +1194,58 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '0deg' }],
     zIndex: 1,
   },
+  // audioPlayer: {
+  //   paddingVertical: 16,
+  //   paddingHorizontal: 20,
+  //   backgroundColor: '#1A1A1A',
+  // },
+  // audioPlayerContent: {
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  //   justifyContent: 'space-between',
+  // },
+  // audioPlayerMainButton: {
+  //   width: 44,
+  //   height: 44,
+  //   borderRadius: 22,
+  //   backgroundColor: theme.colors.primary,
+  //   justifyContent: 'center',
+  //   alignItems: 'center',
+  // },
+  // audioPlayerTimer: {
+  //   color: theme.colors.text,
+  //   fontSize: 28,
+  //   fontFamily: theme.fonts.bold,
+  //   textAlign: 'center',
+  //   flex: 1,
+  // },
+  // audioPlayerRoundButton: {
+  //   width: 42,
+  //   height: 42,
+  //   borderRadius: 21,
+  //   borderWidth: 2,
+  //   borderColor: "#FFF",
+  //   backgroundColor: 'transparent',
+  //   justifyContent: 'center',
+  //   alignItems: 'center',
+  //   marginHorizontal: 10,
+  // },
+  // audioPlayerRoundButtonText: {
+  //   color: theme.colors.text,
+  //   fontSize: 16,
+  //   fontFamily: theme.fonts.bold,
+  // },
+  // audioPlayerCloseButton: {
+  //   width: 40,
+  //   height: 40,
+  //   justifyContent: 'center',
+  //   alignItems: 'center',
+  // },
+  // audioPlayerButtonText: {
+  //   color: theme.colors.text,
+  //   fontSize: 22,
+  //   fontFamily: theme.fonts.bold,
+  // },
 });
 
 const markdownStyles: Record<string, TextStyle | ViewStyle> = {

@@ -15,6 +15,7 @@ interface UseAudioPlaybackReturn {
   isLoading: boolean;
   progress: number;
   isLoadingFull: boolean;
+  seek: (seconds: number) => Promise<void>;
 }
 
 const splitIntoSentences = (text: string): string[] => {
@@ -280,7 +281,7 @@ export const useAudioPlayback = ({ text }: UseAudioPlaybackProps): UseAudioPlayb
               
               if (currentChunkRef.current < chunksRef.current.length) {
                 // Try to get next chunk with retries
-                let nextUri = null;
+                let nextUri: string | null = null;
                 let retryCount = 0;
                 
                 while (!nextUri && retryCount < maxRetries) {
@@ -363,7 +364,7 @@ export const useAudioPlayback = ({ text }: UseAudioPlaybackProps): UseAudioPlayb
         setIsPlaying(true);
       } else {
         // Start fresh from first chunk with retries
-        let firstChunkUri = null;
+        let firstChunkUri: string | null = null;
         let retryCount = 0;
         
         while (!firstChunkUri && retryCount < maxRetries) {
@@ -471,6 +472,72 @@ export const useAudioPlayback = ({ text }: UseAudioPlaybackProps): UseAudioPlayb
     // ... existing text change cleanup code ...
   }, [text]);
 
+  const seek = async (seconds: number) => {
+    try {
+      if (seconds < 0) seconds = 0;
+      
+      // Find the appropriate chunk based on the target time
+      let targetChunk = 0;
+      let targetPosition = 0;
+      let accumulatedTime = 0;
+      
+      // We need to find which chunk contains our target time
+      if (soundRef.current) {
+        // First get the current status to determine current chunk duration
+        const status = await soundRef.current.getStatusAsync();
+        
+        if ('isLoaded' in status && status.isLoaded && status.durationMillis) {
+          const currentChunkDuration = Math.floor(status.durationMillis / 1000);
+          
+          // Calculate the target time relative to the beginning of playback
+          if (seconds <= chunkStartTimeRef.current + currentChunkDuration) {
+            // Target is within current chunk
+            targetChunk = currentChunkRef.current;
+            targetPosition = (seconds - chunkStartTimeRef.current) * 1000; // Convert to milliseconds
+            
+            console.log(`[Audio] Seeking within current chunk to position ${targetPosition}ms`);
+            
+            if (isPlaying) {
+              await soundRef.current.setPositionAsync(targetPosition);
+              setCurrentTime(seconds);
+            } else {
+              // If paused, store the position for when playback resumes
+              pausedPositionRef.current = targetPosition;
+              setCurrentTime(seconds);
+            }
+          } else {
+            // Need to jump to a different chunk - this is much more complex
+            // For now, we'll restart playback from the beginning as a fallback
+            console.log(`[Audio] Cannot seek across chunks yet - restarting from beginning`);
+            
+            // Reset everything
+            currentChunkRef.current = 0;
+            pausedPositionRef.current = 0;
+            chunkStartTimeRef.current = 0;
+            
+            // If playing, start fresh
+            if (isPlaying) {
+              const firstChunkUri = await loadNextChunk(0);
+              if (firstChunkUri) {
+                await playChunk(firstChunkUri, 0);
+              }
+            } else {
+              // Just reset time if paused
+              setCurrentTime(0);
+            }
+          }
+        }
+      } else {
+        // No sound loaded yet, just update the time
+        setCurrentTime(seconds);
+        console.log(`[Audio] No sound loaded, updated time only`);
+      }
+    } catch (error) {
+      console.error('[Audio] Seek error:', error);
+      setError('Failed to seek to position');
+    }
+  };
+
   return {
     isPlaying,
     currentTime,
@@ -479,5 +546,6 @@ export const useAudioPlayback = ({ text }: UseAudioPlaybackProps): UseAudioPlayb
     isLoading,
     progress,
     isLoadingFull,
+    seek,
   };
 }; 
