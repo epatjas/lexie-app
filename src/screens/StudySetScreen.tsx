@@ -18,13 +18,14 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
 import { useStudySetDetails } from '../hooks/useStudySet';
-import { ChevronLeft, FlipHorizontal, Zap, Folder, Calendar, MoreVertical, Plus, Trash2, Play, Pause, Rewind, FastForward, X } from 'lucide-react-native';
+import { ChevronLeft, FlipHorizontal, Zap, Folder, Calendar, MoreVertical, Plus, Trash2, Play, Pause, Rewind, FastForward, X, ChevronRight } from 'lucide-react-native';
 import { useFolders } from '../hooks/useFolders';
 import FolderSelectModal from '../components/FolderSelectModal';
 import FolderCreationModal from '../components/FolderCreationModal';
 import Markdown from 'react-native-markdown-display';
 import { useAudioPlayback } from '../hooks/useAudioPlayback';
 import Svg, { Path, G, Rect } from 'react-native-svg';
+import StudySetSettingsSheet from '../components/StudySetSettingsSheet';
 
 
 type StudySetScreenProps = NativeStackScreenProps<RootStackParamList, 'StudySet'>;
@@ -58,10 +59,12 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const [folderSelectVisible, setFolderSelectVisible] = useState(false);
   const [folderCreateVisible, setFolderCreateVisible] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("Coming soon");
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
   const { studySet, refreshStudySet, loading, deleteStudySet } = useStudySetDetails(route.params?.id);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [showAudioPlayer, setShowAudioPlayer] = useState(false);
+  const [showSettingsSheet, setShowSettingsSheet] = useState(false);
 
   const constructAudioText = (studySet: any): string => {
     if (!studySet.text_content?.sections) return '';
@@ -316,6 +319,34 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     }
   };
 
+  const handleTranslatePress = () => {
+    setShowSettingsSheet(false);
+    // Show a toast message
+    setToastMessage("Translation feature coming soon!");
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  };
+
+  const handleChangeFontPress = () => {
+    setShowSettingsSheet(false);
+    // Show a toast message
+    setToastMessage("Font customization coming soon!");
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  };
+
+  const handleLanguagePress = () => {
+    setShowSettingsSheet(false);
+    // Show a toast message for now
+    setToastMessage("Language settings coming soon!");
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  };
+
+  useEffect(() => {
+    console.log('Folder select modal visible:', folderSelectVisible);
+  }, [folderSelectVisible]);
+
   if (!route.params?.id) {
     return (
       <SafeAreaView style={styles.container}>
@@ -389,7 +420,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         <View style={styles.headerRight}>
           <TouchableOpacity 
             style={styles.headerButton}
-            onPress={() => setShowMoreOptions(!showMoreOptions)}
+            onPress={() => setShowSettingsSheet(true)}
           >
             <MoreVertical color={theme.colors.text} size={20} />
           </TouchableOpacity>
@@ -401,21 +432,6 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
             <Plus color={theme.colors.text} size={20} />
           </TouchableOpacity>
         </View>
-        
-        {showMoreOptions && (
-          <View style={styles.moreOptionsMenu}>
-            <TouchableOpacity 
-              style={styles.moreOptionItem}
-              onPress={() => {
-                setShowMoreOptions(false);
-                handleDeletePress();
-              }}
-            >
-              <Trash2 color={theme.colors.incorrect} size={20} />
-              <Text style={[styles.moreOptionText, { color: theme.colors.incorrect }]}>Delete</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
 
       {/* Rest of the content */}
@@ -784,7 +800,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
           onClose={() => setFolderSelectVisible(false)}
           onCreateNew={handleCreateNewFolder}
           folders={folders}
-          selectedFolderId={studySet.folder_id}
+          selectedFolderId={studySet?.folder_id || null}
           onSelect={handleFolderSelect}
           onUpdateFolder={updateFolder}
         />
@@ -800,7 +816,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
       {showToast && (
         <View style={styles.toast}>
-          <Text style={styles.toastText}>Tulossa pian</Text>
+          <Text style={styles.toastText}>{toastMessage}</Text>
         </View>
       )}
 
@@ -809,6 +825,28 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
           {error}
         </Text>
       )}
+
+      <StudySetSettingsSheet
+        visible={showSettingsSheet}
+        onClose={() => setShowSettingsSheet(false)}
+        onFolderPress={() => {
+          setShowSettingsSheet(false);
+          setTimeout(() => {
+            setFolderSelectVisible(true);
+          }, 300);
+        }}
+        onDeletePress={() => {
+          setShowSettingsSheet(false);
+          handleDeletePress();
+        }}
+        onTranslatePress={handleTranslatePress}
+        onChangeFontPress={handleChangeFontPress}
+        onLanguagePress={handleLanguagePress}
+        hasFolderAssigned={!!studySet?.folder_id}
+        folderName={currentFolder?.name || ''}
+        folderColor={currentFolder?.color || '#888'}
+        language={'English'}
+      />
     </SafeAreaView>
   );
 }
@@ -1246,6 +1284,16 @@ const styles = StyleSheet.create({
   //   fontSize: 22,
   //   fontFamily: theme.fonts.bold,
   // },
+  folderNameText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    fontFamily: theme.fonts.regular,
+    marginTop: 2,
+  },
+  chevronContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
 const markdownStyles: Record<string, TextStyle | ViewStyle> = {

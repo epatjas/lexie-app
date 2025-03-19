@@ -132,80 +132,82 @@ export default function FolderSelectModal({
     <Modal
       visible={visible}
       transparent
-      animationType="none"
+      animationType="slide"
       onRequestClose={onClose}
     >
-      <Animated.View style={overlayStyle}>
-        <View style={styles.container}>
-          <Animated.View style={modalStyle}>
-            <View style={styles.dragHandleContainer}>
-              <DragHandle />
-            </View>
+      <View style={[styles.overlay, { zIndex: 9999 }]}>
+        <Animated.View style={overlayStyle}>
+          <View style={styles.container}>
+            <Animated.View style={modalStyle}>
+              <View style={styles.dragHandleContainer}>
+                <DragHandle />
+              </View>
 
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>Kansiot</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X color={theme.colors.text} size={20} />
-              </TouchableOpacity>
-            </View>
+              <View style={styles.header}>
+                <Text style={styles.headerTitle}>Kansiot</Text>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <X color={theme.colors.text} size={20} />
+                </TouchableOpacity>
+              </View>
 
-            <ScrollView 
-              style={styles.content}
-              contentContainerStyle={styles.scrollContent}
-            >
-              {folders.length === 0 ? (
-                <EmptyState />
-              ) : (
-                <>
-                  <Text style={styles.subTitle}>Valitse tai luo uusi kansio</Text>
-                  {folders.map(folder => (
-                    <TouchableOpacity
-                      key={folder.id}
-                      style={styles.folderItem}
-                      onPress={() => onSelect(folder.id)}
-                    >
-                      <View style={styles.folderItemContent}>
-                        <View 
-                          style={[
-                            styles.folderTag,
-                            { backgroundColor: folder.color }
-                          ]}
-                        >
-                          <Text style={styles.folderName}>{folder.name}</Text>
-                        </View>
-                      </View>
-                      <TouchableOpacity 
-                        style={styles.moreButton}
-                        onPress={() => handleMorePress(folder)}
+              <ScrollView 
+                style={styles.content}
+                contentContainerStyle={styles.scrollContent}
+              >
+                {folders.length === 0 ? (
+                  <EmptyState />
+                ) : (
+                  <>
+                    <Text style={styles.subTitle}>Valitse tai luo uusi kansio</Text>
+                    {folders.map(folder => (
+                      <TouchableOpacity
+                        key={folder.id}
+                        style={styles.folderItem}
+                        onPress={() => onSelect(folder.id)}
                       >
-                        <MoreVertical color={theme.colors.textSecondary} size={20} />
+                        <View style={styles.folderItemContent}>
+                          <View 
+                            style={[
+                              styles.folderTag,
+                              { backgroundColor: folder.color }
+                            ]}
+                          >
+                            <Text style={styles.folderName}>{folder.name}</Text>
+                          </View>
+                        </View>
+                        <TouchableOpacity 
+                          style={styles.moreButton}
+                          onPress={() => handleMorePress(folder)}
+                        >
+                          <MoreVertical color={theme.colors.textSecondary} size={20} />
+                        </TouchableOpacity>
                       </TouchableOpacity>
-                    </TouchableOpacity>
-                  ))}
-                </>
-              )}
-            </ScrollView>
+                    ))}
+                  </>
+                )}
+              </ScrollView>
 
-            <TouchableOpacity
-              style={styles.createButton}
-              onPress={onCreateNew}
-            >
-              <Text style={styles.createButtonText}>Luo uusi kansio</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </Animated.View>
+              <TouchableOpacity
+                style={styles.createButton}
+                onPress={onCreateNew}
+              >
+                <Text style={styles.createButtonText}>Luo uusi kansio</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </Animated.View>
 
-      {selectedFolder && (
-        <FolderEditModal
-          visible={editModalVisible}
-          onClose={handleEditClose}
-          onDelete={handleDeleteFolder}
-          onSave={handleSaveFolder}
-          folderName={selectedFolder.name}
-          folderColor={selectedFolder.color}
-        />
-      )}
+        {selectedFolder && (
+          <FolderEditModal
+            visible={editModalVisible}
+            onClose={handleEditClose}
+            onDelete={handleDeleteFolder}
+            onSave={handleSaveFolder}
+            folderName={selectedFolder.name}
+            folderColor={selectedFolder.color}
+          />
+        )}
+      </View>
     </Modal>
   );
 }
@@ -313,5 +315,9 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     textAlign: 'center',
     opacity: 0.7,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
 }); 
