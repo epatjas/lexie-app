@@ -2,8 +2,9 @@ export interface StudySet {
     id: string;
     title: string;
     text_content: TextContent;
-    created_at: number;
-    updated_at: number;
+    created_at: string | number;
+    updated_at: string | number;
+    subject?: string;
     flashcards?: Flashcard[];
     quiz?: QuizQuestion[];
     folder_id?: string | null;
@@ -91,4 +92,11 @@ export interface StudySet {
     id: string;
     name: string;
     avatarId: string;
+  }
+
+  export interface FolderWithCount {
+    id: string;
+    name: string;
+    count: number;
+    study_sets?: string[];
   }

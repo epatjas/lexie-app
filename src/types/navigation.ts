@@ -1,4 +1,5 @@
 import { QuizQuestion } from './types';
+import { NavigationProp, RouteProp } from '@react-navigation/native';
 
 export type RootStackParamList = {
   Home: {
@@ -40,4 +41,11 @@ export type RootStackParamList = {
   };
   ProfileSelection: undefined;
   Settings: undefined;
+  LessonHistory: undefined;
+};
+
+export type SettingsScreenProps = {
+  navigation: NavigationProp<RootStackParamList, 'Settings'>;
+  onClose: () => void;
+  onProfileDeleted: () => void;
 };

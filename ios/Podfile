@@ -13,8 +13,7 @@ install! 'cocoapods',
 
 prepare_react_native_project!
 
-target 'lexie' do
-  project 'lexie.xcodeproj'	
+target 'LexieLearn' do
   use_expo_modules!
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'

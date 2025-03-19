@@ -19,6 +19,7 @@ export function useStudySets() {
         return;
       }
       const results = await getAllStudySets(activeProfile.id);
+      console.log('Raw study sets data:', JSON.stringify(results));
       setStudySets(results);
     } catch (error) {
       console.error('Error fetching study sets:', error);

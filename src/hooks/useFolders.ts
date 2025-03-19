@@ -3,7 +3,10 @@ import { Folder } from '../types/types';
 import { getFolders, createFolder, updateStudySetFolder, updateFolder as updateFolderInDb, deleteFolder as deleteFolderInDb, getDatabase } from '../services/Database';
 
 // Define a new type that includes study_set_count
-type FolderWithCount = Folder & { study_set_count: number };
+type FolderWithCount = Folder & { 
+  study_set_count: number;
+  study_sets?: string[]; // Add this property
+};
 
 export function useFolders() {
   const [folders, setFolders] = useState<FolderWithCount[]>([]);
@@ -14,6 +17,7 @@ export function useFolders() {
       setLoading(true);
       const db = await getDatabase();
       
+      // First, get all folders with basic information
       const foldersWithCounts = await db.getAllAsync<FolderWithCount>(`
         SELECT 
           f.*,
@@ -27,7 +31,29 @@ export function useFolders() {
         ORDER BY f.created_at DESC
       `);
       
-      setFolders(foldersWithCounts);
+      // Now for each folder, get the actual study sets
+      const foldersWithStudySets = await Promise.all(
+        foldersWithCounts.map(async (folder) => {
+          // Get study set IDs for this folder
+          const studySets = await db.getAllAsync<{ id: string }>(`
+            SELECT id FROM study_sets 
+            WHERE folder_id = ? 
+            AND folder_id IS NOT NULL
+          `, [folder.id]);
+          
+          // Extract just the IDs into an array
+          const studySetIds = studySets.map(set => set.id);
+          
+          // Return the folder with study_sets added
+          return {
+            ...folder,
+            study_sets: studySetIds
+          };
+        })
+      );
+      
+      console.log('Folders with study sets:', foldersWithStudySets);
+      setFolders(foldersWithStudySets);
     } catch (error) {
       console.error('Error refreshing folders:', error);
     } finally {
@@ -81,8 +107,17 @@ export function useFolders() {
     refreshFolders();
   }, [refreshFolders]);
 
+  useEffect(() => {
+    console.log('Folders loaded:', folders);
+    
+    // Log a sample folder to check the structure
+    if (folders && folders.length > 0) {
+      console.log('Sample folder structure:', JSON.stringify(folders[0]));
+    }
+  }, [folders]);
+
   return {
-    folders,
+    folders,  // Use folders directly, no need for transformation
     loading,
     addFolder,
     updateFolder,

@@ -4,7 +4,7 @@ PODS:
   - EXAV (15.0.1):
     - ExpoModulesCore
     - ReactCommon/turbomodule/core
-  - EXConstants (17.0.3):
+  - EXConstants (17.0.8):
     - ExpoModulesCore
   - EXImageLoader (5.0.0):
     - ExpoModulesCore
@@ -231,7 +231,7 @@ PODS:
     - ZXingObjC/PDF417
   - ExpoFileSystem (18.0.6):
     - ExpoModulesCore
-  - ExpoFont (13.0.1):
+  - ExpoFont (13.0.4):
     - ExpoModulesCore
   - ExpoImageManipulator (13.0.5):
     - EXImageLoader
@@ -2179,7 +2179,7 @@ SPEC CHECKSUMS:
   boost: 1dca942403ed9342f98334bf4c3621f011aa7946
   DoubleConversion: f16ae600a246532c4020132d54af21d0ddb2a385
   EXAV: 9773c9799767c9925547b05e41a26a0240bb8ef2
-  EXConstants: dd2fe64c6cdb1383b694c309a63028a8e9f2be6d
+  EXConstants: a1f35b9aabbb3c6791f8e67722579b1ffcdd3f18
   EXImageLoader: 759063a65ab016b836f73972d3bb25404888713d
   EXJSONUtils: 01fc7492b66c234e395dcffdd5f53439c5c29c93
   EXManifests: f30a0c5d3d6cad8db9c01bab579e0aa0df5d3cb2
@@ -2192,7 +2192,7 @@ SPEC CHECKSUMS:
   ExpoBlur: 562b3da84d3cd79016c411671eaf71a404266415
   ExpoCamera: 5f1133dd302a9db5048ad63dd29a08e436dedd9b
   ExpoFileSystem: 179a0661fd6d3c4e5d7e500a99a9cd8b295d9566
-  ExpoFont: 7522d869d84ee2ee8093ee997fef5b86f85d856b
+  ExpoFont: 773955186469acc5108ff569712a2d243857475f
   ExpoImageManipulator: 774eb1a17c5db07944d6f9000650d422ebb3ce47
   ExpoImagePicker: 440a560c9bfc63edae854d08b9f12f75bd11c112
   ExpoKeepAwake: 783e68647b969b210a786047c3daa7b753dcac1f
@@ -2276,6 +2276,6 @@ SPEC CHECKSUMS:
   Yoga: 3deb2471faa9916c8a82dda2a22d3fba2620ad37
   ZXingObjC: 8898711ab495761b2dbbdec76d90164a6d7e14c5
 
-PODFILE CHECKSUM: bd2c37cb470023c9445d92eb8a5669363e4dfa48
+PODFILE CHECKSUM: 957011a17a92022b5a3434837ebb774f17b8c6d2
 
 COCOAPODS: 1.16.2

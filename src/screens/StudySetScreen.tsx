@@ -10,17 +10,22 @@ import {
   TextStyle,
   ViewStyle,
   ActivityIndicator,
+  BackHandler,
+  TouchableWithoutFeedback,
+  Image,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
 import { useStudySetDetails } from '../hooks/useStudySet';
-import { ArrowLeft, FlipHorizontal, Zap, Play, Folder, Calendar, Trash2, Pause } from 'lucide-react-native';
+import { ChevronLeft, FlipHorizontal, Zap, Play, Folder, Calendar, MoreVertical, Plus, Trash2, Pause } from 'lucide-react-native';
 import { useFolders } from '../hooks/useFolders';
 import FolderSelectModal from '../components/FolderSelectModal';
 import FolderCreationModal from '../components/FolderCreationModal';
 import Markdown from 'react-native-markdown-display';
 import { useAudioPlayback } from '../hooks/useAudioPlayback';
+import Svg, { Path, G, Rect } from 'react-native-svg';
+import LinearGradient from 'react-native-linear-gradient';
 
 type StudySetScreenProps = NativeStackScreenProps<RootStackParamList, 'StudySet'>;
 
@@ -38,12 +43,24 @@ interface TextSection {
   style?: 'bullet' | 'numbered';
 }
 
+const StackedCardsIcon = ({ width = 150, height = 150, style }) => (
+  <Svg width={width} height={height} viewBox="0 0 150 150" style={style}>
+    {/* SVG content here - simplified stacked cards */}
+    <G>
+      <Rect x="50" y="30" width="80" height="100" rx="10" fill="#FFFFFF" />
+      <Rect x="40" y="40" width="80" height="100" rx="10" fill="#E5C07B" />
+      <Rect x="30" y="50" width="80" height="100" rx="10" fill="#98BDF7" />
+    </G>
+  </Svg>
+);
+
 export default function StudySetScreen({ route, navigation }: StudySetScreenProps): React.JSX.Element {
   const [folderSelectVisible, setFolderSelectVisible] = useState(false);
   const [folderCreateVisible, setFolderCreateVisible] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
   const { studySet, refreshStudySet, loading, deleteStudySet } = useStudySetDetails(route.params?.id);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
 
   const constructAudioText = (studySet: any): string => {
     if (!studySet.text_content?.sections) return '';
@@ -82,6 +99,18 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   useEffect(() => {
     // console.log('Should render FolderCreationModal:', folderCreateVisible);
   }, [folderCreateVisible]);
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showMoreOptions) {
+        setShowMoreOptions(false);
+        return true;
+      }
+      return false;
+    });
+    
+    return () => backHandler.remove();
+  }, [showMoreOptions]);
 
   const handleCreateFolder = async (name: string, color: string) => {
     try {
@@ -244,7 +273,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBackPress}>
-            <ArrowLeft color={theme.colors.text} size={24} />
+            <ChevronLeft color={theme.colors.text} size={20} />
           </TouchableOpacity>
           <Text style={styles.headerTitleText}>Error</Text>
           <View style={{ width: 24 }} />
@@ -272,7 +301,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBackPress}>
-            <ArrowLeft color={theme.colors.text} size={24} />
+            <ChevronLeft color={theme.colors.text} size={20} />
           </TouchableOpacity>
           <Text style={styles.headerTitleText}>Error</Text>
           <View style={{ width: 24 }} />
@@ -294,145 +323,313 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.headerContainer}>
-        <TouchableOpacity 
-          onPress={handleBackPress}
-          style={styles.backButton}
-        >
-          <ArrowLeft color={theme.colors.text} size={24} />
-        </TouchableOpacity>
-        
-        <View style={styles.headerRight}>
-          <TouchableOpacity 
-            onPress={handleDeletePress}
-            style={styles.deleteButton}
-          >
-            <Trash2 color={theme.colors.text} size={20} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          <Text style={styles.title}>
-            {studySet.title}
-          </Text>
-
-          <View style={styles.metaInfo}>
-            <View style={styles.metaItem}>
-              <Calendar size={20} color={theme.colors.textSecondary} />
-              <Text style={styles.metaLabel}>Päivämäärä</Text>
-              <Text style={styles.metaValue}>{formattedDate}</Text>
+      <TouchableWithoutFeedback onPress={() => showMoreOptions && setShowMoreOptions(false)}>
+        <View style={{ flex: 1 }}>
+          <View style={styles.headerContainer}>
+            <View style={styles.headerLeft}>
+              <TouchableOpacity 
+                onPress={handleBackPress}
+                style={styles.headerButton}
+              >
+                <ChevronLeft color={theme.colors.text} size={20} />
+              </TouchableOpacity>
+              
+              <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+                {studySet.title}
+              </Text>
             </View>
-
-            <View style={styles.metaItem}>
-              <Folder size={20} color={theme.colors.textSecondary} />
-              <Text style={styles.metaLabel}>Kansio</Text>
-              {currentFolder ? (
-                <TouchableOpacity
-                  style={[
-                    styles.folderValue,
-                    { backgroundColor: currentFolder.color }
-                  ]}
-                  onPress={() => setFolderSelectVisible(true)}
+            
+            <View style={styles.headerRight}>
+              <TouchableOpacity 
+                style={styles.headerButton}
+                onPress={() => setShowMoreOptions(!showMoreOptions)}
+              >
+                <MoreVertical color={theme.colors.text} size={20} />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.addButton}
+                onPress={() => navigation.navigate('Home', { openBottomSheet: true })}
+              >
+                <Plus color={theme.colors.text} size={20} />
+              </TouchableOpacity>
+            </View>
+            
+            {showMoreOptions && (
+              <View style={styles.moreOptionsMenu}>
+                <TouchableOpacity 
+                  style={styles.moreOptionItem}
+                  onPress={() => {
+                    setShowMoreOptions(false);
+                    handleDeletePress();
+                  }}
                 >
-                  <Text style={styles.folderText}>
-                    {currentFolder.name}
+                  <Trash2 color={theme.colors.incorrect} size={20} />
+                  <Text style={[styles.moreOptionText, { color: theme.colors.incorrect }]}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          <ScrollView style={styles.scrollView}>
+            <View style={styles.content}>
+              <View style={styles.cardsContainer}>
+                <TouchableOpacity
+                  style={styles.card}
+                  onPress={handleFlashcardsPress}
+                >
+                  <Text style={styles.cardTitle}>Learn</Text>
+                  
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardCount}>
+                      {studySet.flashcards?.length || 12} flipcards
+                    </Text>
+                  </View>
+                  
+                  <View style={{
+                    position: 'absolute',
+                    bottom: -3,
+                    right: -3,
+                    width: 60,
+                    height: 65,
+                    overflow: 'visible',
+                    zIndex: 1,
+                  }}>
+                    {/* White card at the bottom - position unchanged */}
+                    <View style={{
+                      position: 'absolute',
+                      width: 45,
+                      height: 55,
+                      borderRadius: 6,
+                      backgroundColor: '#FFFFFF',
+                      bottom: -8,
+                      right: 20,
+                      transform: [{ rotate: '-10deg' }],
+                      zIndex: 1,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 3,
+                      elevation: 3,
+                    }} />
+                    
+                    {/* Yellow card in the middle - position unchanged */}
+                    <View style={{
+                      position: 'absolute',
+                      width: 45,
+                      height: 55,
+                      borderRadius: 6,
+                      backgroundColor: '#E5C07B',
+                      bottom: -3,
+                      right: 10,
+                      transform: [{ rotate: '-5deg' }],
+                      zIndex: 2,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 3,
+                      elevation: 3,
+                    }} />
+                    
+                    {/* Blue card on top - now positioned slightly higher */}
+                    <View style={{
+                      position: 'absolute',
+                      width: 45,
+                      height: 55,
+                      borderRadius: 6,
+                      backgroundColor: '#98BDF7',
+                      bottom: 2, // Lifted up by 2 points (from 0 to 2)
+                      right: 0,
+                      transform: [{ rotate: '0deg' }],
+                      zIndex: 3,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 3,
+                      elevation: 3,
+                    }} />
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.card}
+                  onPress={handleCreateQuiz}
+                >
+                  <Text style={styles.cardTitle}>Practise</Text>
+                  
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardCount}>
+                      {(studySet as any).questions?.length || 15} questions
+                    </Text>
+                  </View>
+                  
+                  {/* Update the Practice card stacked cards - moved more to the right */}
+                  <View style={{
+                    position: 'absolute',
+                    top: '30%', // Keep high positioning
+                    right: -15, // Changed from 0 to -15 to move the whole stack more to the right
+                    width: 85, // Keep the increased width
+                    height: 65,
+                    overflow: 'visible',
+                    zIndex: 1,
+                    transform: [{ translateY: -25 }], // Keep the vertical centering adjustment
+                  }}>
+                    {/* Bottom card (furthest right and most cut off) */}
+                    <View style={{
+                      position: 'absolute',
+                      width: 90, // Keep the increased width
+                      height: 40, // Keep the height
+                      borderRadius: 6,
+                      backgroundColor: '#252525',
+                      bottom: -8,
+                      right: -15, // Keep the right offset
+                      transform: [{ rotate: '0deg' }], // No rotation
+                      zIndex: 1,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 3,
+                      elevation: 3,
+                      borderWidth: 1,
+                      borderColor: '#343536',
+                    }} />
+                    
+                    {/* Middle card (middle position and partially cut off) */}
+                    <View style={{
+                      position: 'absolute',
+                      width: 90, // Keep the increased width
+                      height: 40, // Keep the height
+                      borderRadius: 6,
+                      backgroundColor: '#2A2A2A',
+                      bottom: -4,
+                      right: -8, // Keep the right offset
+                      transform: [{ rotate: '0deg' }], // No rotation
+                      zIndex: 2,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 3,
+                      elevation: 3,
+                      borderWidth: 1,
+                      borderColor: '#343536',
+                    }} />
+                    
+                    {/* Top card (furthest left and least cut off) */}
+                    <View style={{
+                      position: 'absolute',
+                      width: 90, // Keep the increased width
+                      height: 40, // Keep the height
+                      borderRadius: 6,
+                      backgroundColor: '#303030',
+                      bottom: 0,
+                      right: 0, // Keep at 0
+                      transform: [{ rotate: '0deg' }], // No rotation
+                      zIndex: 3,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 3,
+                      elevation: 3,
+                      borderWidth: 1,
+                      borderColor: '#343536',
+                    }}>
+                      {/* Green circle with check mark - moved more to the left */}
+                      <View style={{
+                        position: 'absolute',
+                        width: 20, // Keep small size
+                        height: 20, // Keep small size
+                        borderRadius: 10, // Half of width/height
+                        backgroundColor: '#9AE6B4', // Light green color
+                        top: 10, // Keep current vertical position
+                        right: 60, // Changed from 45 to 60 to move more to the left
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderWidth: 1,
+                        borderColor: '#65D9A5', // Slightly darker green for border
+                        zIndex: 4,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 1,
+                        elevation: 2,
+                      }}>
+                        {/* Checkmark */}
+                        <Text style={{
+                          color: '#1F1F1F', // Dark color for contrast
+                          fontSize: 12,
+                          fontWeight: 'bold',
+                          lineHeight: 14,
+                          textAlign: 'center',
+                        }}>✓</Text>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.contentSection}>
+                <TouchableOpacity 
+                  style={styles.listenButton}
+                  onPress={handleListenPress}
+                  disabled={isLoading}
+                >
+                  <View style={styles.listenIcon}>
+                    {isLoading ? (
+                      <ActivityIndicator size="small" color={theme.colors.text} />
+                    ) : isPlaying ? (
+                      <Pause color={theme.colors.text} size={20} />
+                    ) : (
+                      <Play color={theme.colors.text} size={20} />
+                    )}
+                  </View>
+                  <Text style={styles.listenButtonText}>
+                    {isLoading ? 
+                      'Luodaan ääntä...' :
+                      isPlaying ? 
+                        `${String(Math.floor(currentTime / 60)).padStart(2, '0')}:${String(currentTime % 60).padStart(2, '0')}` : 
+                        'Kuuntele'
+                    }
                   </Text>
                 </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  onPress={() => setFolderSelectVisible(true)}
-                >
-                  <Text style={styles.emptyFolderText}>Empty</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={styles.optionButton}
-            onPress={handleFlashcardsPress}
-          >
-            <View style={[styles.optionIcon, { backgroundColor: theme.colors.lavender + '20' }]}>
-              <FlipHorizontal color={theme.colors.background} size={20} />
-            </View>
-            <Text style={styles.optionTitle}>Harjoittele avainkäsitteitä</Text>
-            <Text style={styles.chevron}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.optionButton}
-            onPress={handleCreateQuiz}
-          >
-            <View style={[styles.optionIcon, { backgroundColor: theme.colors.mint + '20' }]}>
-              <Zap color={theme.colors.background} size={20} />
-            </View>
-            <Text style={styles.optionTitle}>Testaa taitosi</Text>
-            <Text style={styles.chevron}>›</Text>
-          </TouchableOpacity>
-
-          <View style={styles.contentSection}>
-            <TouchableOpacity 
-              style={styles.listenButton}
-              onPress={handleListenPress}
-              disabled={isLoading}
-            >
-              <View style={styles.listenIcon}>
-                {isLoading ? (
-                  <ActivityIndicator size="small" color={theme.colors.text} />
-                ) : isPlaying ? (
-                  <Pause color={theme.colors.text} size={20} />
-                ) : (
-                  <Play color={theme.colors.text} size={20} />
-                )}
+                
+                {renderContent()}
               </View>
-              <Text style={styles.listenButtonText}>
-                {isLoading ? 
-                  'Luodaan ääntä...' :
-                  isPlaying ? 
-                    `${String(Math.floor(currentTime / 60)).padStart(2, '0')}:${String(currentTime % 60).padStart(2, '0')}` : 
-                    'Kuuntele'
-                }
-              </Text>
-            </TouchableOpacity>
-            
-            {renderContent()}
-          </View>
+            </View>
+          </ScrollView>
+
+          {folderSelectVisible && (
+            <FolderSelectModal
+              visible={folderSelectVisible}
+              onClose={() => setFolderSelectVisible(false)}
+              onCreateNew={handleCreateNewFolder}
+              folders={folders}
+              selectedFolderId={studySet.folder_id}
+              onSelect={handleFolderSelect}
+              onUpdateFolder={updateFolder}
+            />
+          )}
+
+          {folderCreateVisible && (
+            <FolderCreationModal
+              visible={folderCreateVisible}
+              onClose={() => setFolderCreateVisible(false)}
+              onCreate={handleCreateFolder}
+            />
+          )}
+
+          {showToast && (
+            <View style={styles.toast}>
+              <Text style={styles.toastText}>Tulossa pian</Text>
+            </View>
+          )}
+
+          {error && (
+            <Text style={styles.errorText}>
+              {error}
+            </Text>
+          )}
         </View>
-      </ScrollView>
-
-      {folderSelectVisible && (
-        <FolderSelectModal
-          visible={folderSelectVisible}
-          onClose={() => setFolderSelectVisible(false)}
-          onCreateNew={handleCreateNewFolder}
-          folders={folders}
-          selectedFolderId={studySet.folder_id}
-          onSelect={handleFolderSelect}
-          onUpdateFolder={updateFolder}
-        />
-      )}
-
-      {folderCreateVisible && (
-        <FolderCreationModal
-          visible={folderCreateVisible}
-          onClose={() => setFolderCreateVisible(false)}
-          onCreate={handleCreateFolder}
-        />
-      )}
-
-      {showToast && (
-        <View style={styles.toast}>
-          <Text style={styles.toastText}>Tulossa pian</Text>
-        </View>
-      )}
-
-      {error && (
-        <Text style={styles.errorText}>
-          {error}
-        </Text>
-      )}
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 }
@@ -446,20 +643,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingLeft: theme.spacing.xs,
-    paddingRight: theme.spacing.md,
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xs,
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.stroke,
+    position: 'relative',
   },
-  backButton: {
-    padding: theme.spacing.xs,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 0,
+  },
+  headerButton: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 18,
+    paddingRight: 0,
   },
   scrollView: {
     flex: 1,
   },
+  content: {
+    padding: theme.spacing.md,
+  },
   header: {
     padding: theme.spacing.md,
-    
   },
   title: {
     fontSize: theme.fontSizes.xxl,
@@ -638,8 +849,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  deleteButton: {
-    padding: theme.spacing.xs,
+  headerTitle: {
+    fontSize: 16,
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.text,
+    marginLeft: 0,
+    flex: 1,
+  },
+  moreOptionsMenu: {
+    position: 'absolute',
+    top: 70,
+    right: 20,
+    backgroundColor: theme.colors.background01,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.stroke,
+    padding: theme.spacing.sm,
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  moreOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+  },
+  moreOptionText: {
+    fontSize: 16,
+    fontFamily: theme.fonts.regular,
+    marginLeft: theme.spacing.sm,
   },
   toast: {
     position: 'absolute',
@@ -661,6 +903,125 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: theme.fonts.medium,
     marginTop: theme.spacing.sm,
+  },
+  addButton: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.stroke,
+    marginLeft: theme.spacing.xs,
+  },
+  cardsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  card: {
+    flex: 1,
+    backgroundColor: '#1F1F1F',
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.sm,
+    minHeight: 120,
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  cardTitle: {
+    fontSize: 14,
+    fontFamily: theme.fonts.regular,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginLeft: theme.spacing.xs,
+    paddingTop: theme.spacing.xs,
+  },
+  cardContent: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    width: '100%',
+  },
+  cardCount: {
+    fontSize: 14,
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.text,
+    opacity: 0.8,
+    marginLeft: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
+  },
+  checkCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#9AE6B4',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkMark: {
+    color: '#1F1F1F',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  practiseIndicator: {
+    marginLeft: theme.spacing.md,
+    alignItems: 'flex-end',
+  },
+  cardImageContainer: {
+    position: 'absolute',
+    right: -15,
+    bottom: -25,
+    zIndex: 1,
+  },
+  cardImage: {
+    // No specific styles needed here as we're setting width/height directly on the SVG
+  },
+  stackedCardsContainer: {
+    position: 'absolute',
+    bottom: -35,
+    right: -35,
+    width: 90,
+    height: 110,
+    overflow: 'visible',
+    zIndex: 1,
+  },
+  stackedCard: {
+    position: 'absolute',
+    width: 70,
+    height: 90,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+  },
+  cardBlue: {
+    backgroundColor: '#98BDF7',
+    bottom: 0,
+    right: 0,
+    transform: [{ rotate: '10deg' }],
+    zIndex: 3,
+  },
+  cardYellow: {
+    backgroundColor: '#E5C07B',
+    bottom: 5,
+    right: 5,
+    transform: [{ rotate: '5deg' }],
+    zIndex: 2,
+  },
+  cardWhite: {
+    backgroundColor: '#FFFFFF',
+    bottom: 10,
+    right: 10,
+    transform: [{ rotate: '0deg' }],
+    zIndex: 1,
   },
 });
 

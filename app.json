@@ -56,8 +56,16 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#000000",
-      "hideExponentSplash": false
+      "backgroundColor": "#000000"
+    },
+    "fonts": [
+      {
+        "asset": "./assets/fonts/Geist-VariableFont_wght.ttf",
+        "family": "Geist"
+      }
+    ],
+    "updates": {
+      "fallbackToCacheTimeout": 0
     }
   }
 }

@@ -5,116 +5,28 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
-  ActivityIndicator,
   Image,
-  FlatList,
   Modal,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
-import { StudySet, Folder, Profile } from '../types/types';
-import StudySetItem from '../components/StudySetItem';
-import { useFolders } from '../hooks/useFolders';
-import { useStudySets } from '../hooks/useStudySet';
-import FolderCard from '../components/FolderCard';
-import { Folder as FolderIcon, Hexagon } from 'lucide-react-native';
+import { Profile } from '../types/types';
 import CreateStudySetBottomSheet from '../components/CreateStudySetBottomSheet';
 import Animated, { 
   useAnimatedStyle,
   useSharedValue,
   interpolate,
   withTiming,
-  useAnimatedScrollHandler,
 } from 'react-native-reanimated';
 import ParticleBackground from '../components/ParticleBackground';
 import { getActiveProfile } from '../utils/storage';
 import SettingsScreen from './SettingsScreen';
-import { BlurView } from 'expo-blur';
+import { ChevronLeft, Book, Settings } from 'lucide-react-native';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
-type ViewMode = 'all' | 'folders';
-type ListItem = StudySet | (Folder & { study_set_count?: number });
-
-const DEBUG = false;
-
-const LoadingIndicator = () => (
-  <View style={styles.loadingContainer}>
-    <ActivityIndicator size="large" color={theme.colors.primary} />
-  </View>
-);
-
-// First, create a separate component for the animated item
-const AnimatedListItem = React.memo(({ item, index, viewMode, navigation, scrollY }: {
-  item: ListItem;
-  index: number;
-  viewMode: ViewMode;
-  navigation: any;
-  scrollY: Animated.SharedValue<number>;
-}) => {
-  const itemAnimatedStyle = useAnimatedStyle(() => {
-    const itemOffset = index * 150;
-    const diff = scrollY.value - itemOffset;
-    
-    const opacity = interpolate(
-      diff,
-      [-300, 0, 300],
-      [1, 1, 0.3],
-      'clamp'
-    );
-
-    const scale = interpolate(
-      diff,
-      [-300, 0, 300],
-      [1, 1, 0.95],
-      'clamp'
-    );
-
-    const translateY = interpolate(
-      diff,
-      [-300, 0, 300],
-      [0, 0, 20],
-      'clamp'
-    );
-    
-    return {
-      opacity,
-      transform: [
-        { scale },
-        { translateY }
-      ],
-      backgroundColor: `rgba(30, 30, 35, ${interpolate(
-        diff,
-        [-300, 0, 300],
-        [1, 1, 0.7],
-        'clamp'
-      )})`,
-    };
-  });
-
-  if (viewMode === 'all') {
-    return (
-      <Animated.View style={[styles.cardWrapper, itemAnimatedStyle]}>
-        <StudySetItem
-          studySet={item as StudySet}
-          onPress={() => navigation.navigate('StudySet', { id: item.id })}
-        />
-      </Animated.View>
-    );
-  }
-  
-  return (
-    <Animated.View style={[styles.cardWrapper, itemAnimatedStyle]}>
-      <FolderCard
-        folder={item as Folder}
-        onPress={() => navigation.navigate('Folder', { folderId: item.id })}
-      />
-    </Animated.View>
-  );
-});
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('all');
   const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   const [existingPhotos, setExistingPhotos] = useState<Array<{
@@ -122,11 +34,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     base64?: string;
   }> | undefined>(undefined);
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
-
-  const { folders, refreshFolders } = useFolders();
-  const { studySets, refreshStudySets, loading: studySetsLoading } = useStudySets();
   const progress = useSharedValue(0);
-  const scrollY = useSharedValue(0);
 
   const overlayStyle = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 1], [0, 1]),
@@ -134,29 +42,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     ...StyleSheet.absoluteFillObject,
   }));
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-    },
-  });
-
-  useEffect(() => {
-    const initDb = async () => {
-      try {
-        console.log('Database connection successful');
-      } catch (error) {
-        console.error('Database connection failed:', error);
-      }
-    };
-    
-    initDb();
-  }, []);
-
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      console.log('Screen focused - refreshing data');
-      refreshStudySets();
-      refreshFolders();
+      console.log('Screen focused - checking params');
       
       const params = navigation.getState().routes.find(
         route => route.name === 'Home'
@@ -191,11 +79,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     });
 
     return unsubscribe;
-  }, [navigation, refreshStudySets, refreshFolders]);
-
-  useEffect(() => {
-    console.log('Bottom sheet visibility changed:', isBottomSheetVisible);
-  }, [isBottomSheetVisible]);
+  }, [navigation]);
 
   useEffect(() => {
     const loadActiveProfile = async () => {
@@ -210,107 +94,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     loadActiveProfile();
   }, []);
 
-  const renderContent = () => {
-    if (studySetsLoading) {
-      return <LoadingIndicator />;
-    }
-
-    // Show "Mitä haluaisit harjoitella" empty state when there are no study sets
-    if (studySets.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <View style={styles.textContainer}>
-            <Text style={styles.greeting}>
-              Hei 👋🏻 {activeProfile?.name}!
-            </Text>
-            <Text style={styles.emptyMessage}>
-              Mitä haluaisit harjoitella{'\n'}tänään?
-            </Text>
-          </View>
-        </View>
-      );
-    }
-
-    // Show content with study sets
-    return (
-      <>
-        <Animated.FlatList
-          onScroll={scrollHandler}
-          scrollEventThrottle={16}
-          data={viewMode === 'all' ? studySets : folders}
-          ListHeaderComponent={() => (
-            <>
-              <Text style={[styles.greeting, styles.greetingWithContent]}>
-                Hei 👋🏻 {activeProfile?.name}!{'\n'}
-                Tervetuloa takaisin
-              </Text>
-
-              <View style={styles.viewToggle}>
-                <TouchableOpacity
-                  style={[
-                    styles.toggleButton,
-                    viewMode === 'all' && styles.toggleButtonActive
-                  ]}
-                  onPress={() => setViewMode('all')}
-                >
-                  <Text style={[
-                    styles.toggleButtonText,
-                    viewMode === 'all' && styles.toggleButtonTextActive
-                  ]}>
-                    Kaikki setit
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.toggleButton,
-                    viewMode === 'folders' && styles.toggleButtonActive
-                  ]}
-                  onPress={() => setViewMode('folders')}
-                >
-                  <Text style={[
-                    styles.toggleButtonText,
-                    viewMode === 'folders' && styles.toggleButtonTextActive
-                  ]}>
-                    Kansiot
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-          renderItem={({ item, index }) => (
-            <AnimatedListItem
-              item={item}
-              index={index}
-              viewMode={viewMode}
-              navigation={navigation}
-              scrollY={scrollY}
-            />
-          )}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContainer}
-          ListEmptyComponent={() => (
-            <View style={styles.emptyState}>
-              {viewMode === 'folders' && (
-                <View style={styles.emptyIconContainer}>
-                  <FolderIcon color={theme.colors.textSecondary} size={32} />
-                </View>
-              )}
-              <Text style={styles.emptyText}>
-                {viewMode === 'all' 
-                  ? 'Sinulla ei ole vielä yhtään harjoittelusettiä'
-                  : 'Sinulla ei ole vielä yhtään kansiota'
-                }
-              </Text>
-            </View>
-          )}
-        />
-      </>
-    );
-  };
-
-  const handleCreatePress = () => {
-    console.log('Create button pressed');
+  const handleStartLesson = () => {
+    console.log('Start lesson button pressed');
     setIsBottomSheetVisible(true);
   };
 
@@ -368,41 +153,55 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   return (
     <Animated.View style={styles.container}>
       <ParticleBackground />
-      
+
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={() => setIsSettingsVisible(true)}
+          style={styles.lessonsButton}
+          onPress={() => navigation.navigate('LessonHistory')}
         >
-          <Hexagon color={theme.colors.text} size={20} />
-          <View style={styles.settingsButtonDot} />
+          <ChevronLeft size={20} color={theme.colors.text} />
+          <Text style={styles.lessonsButtonText}>Lessons</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.profileButton}
-          onPress={() => navigation.navigate('ProfileSelection')}
-        >
-          <Image
-            source={getProfileImage(activeProfile?.avatarId)}
-            style={styles.profileImage}
-          />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.contentWrapper}>
-        {renderContent()}
-      </View>
-
-      <View style={styles.createButtonContainer}>
-        <BlurView intensity={20} tint="dark">
+        
+        <View style={styles.headerRight}>
           <TouchableOpacity
-            style={styles.createButton}
-            onPress={handleCreatePress}
+            style={styles.settingsButton}
+            onPress={() => setIsSettingsVisible(true)}
           >
-            <Text style={styles.createButtonText}>
-              Luo uusi harjoittelusetti
-            </Text>
+            <Settings size={22} color={theme.colors.text} />
           </TouchableOpacity>
-        </BlurView>
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => navigation.navigate('ProfileSelection')}
+          >
+            <Image
+              source={getProfileImage(activeProfile?.avatarId)}
+              style={styles.profileImage}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.contentContainer}>
+        <View style={styles.textContainer}>
+          <Text style={styles.greeting}>
+            Hi 👋🏻 {activeProfile?.name}!
+          </Text>
+          <Text style={styles.questionText}>
+            What do you want to{'\n'}learn today?
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.startButtonContainer}>
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={handleStartLesson}
+        >
+          <Text style={styles.startButtonText}>
+            Start a lesson with Lexie
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <Modal
@@ -446,150 +245,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  contentWrapper: {
-    flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-    marginTop: 120,
-  },
-  scrollView: {
-    flex: 1,
-    padding: theme.spacing.lg,
-  },
-  scrollViewWithContent: {
-    paddingTop: 48,
-  },
-  greeting: {
-    fontSize: 24,
-    fontFamily: theme.fonts.medium,
-    color: theme.colors.text,
-    textAlign: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  greetingWithContent: {
-    textAlign: 'left',
-    fontSize: 28,
-    marginBottom: theme.spacing.lg,
-  },
-  viewToggle: {
-    flexDirection: 'row',
-    marginBottom: theme.spacing.lg,
-    gap: theme.spacing.sm,
-  },
-  toggleButton: {
-    paddingVertical: theme.spacing.xs,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: 100,
-    backgroundColor: theme.colors.background02,
-    borderWidth: 1,
-    borderColor: theme.colors.stroke,
-  },
-  toggleButtonActive: {
-    backgroundColor: theme.colors.text,
-    borderWidth: 0,
-  },
-  toggleButtonText: {
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.medium,
-    color: theme.colors.textSecondary,
-  },
-  toggleButtonTextActive: {
-    color: theme.colors.background,
-  },
-  createButtonContainer: {
-    position: 'absolute',
-    bottom: '4%',
-    left: theme.spacing.lg,
-    right: theme.spacing.lg,
-    borderRadius: 100,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    zIndex: 3,
-  },
-  createButton: {
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  createButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: theme.fonts.medium,
-    opacity: 0.9,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 100,
-  },
-  emptyIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: theme.colors.background02,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  emptyText: {
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.medium,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: '30%',
-  },
-  textContainer: {
-    alignItems: 'center',
-    marginBottom: 'auto',
-    marginTop: 'auto',
-  },
-  emptyMessage: {
-    fontSize: 20,
-    fontFamily: theme.fonts.medium,
-    color: theme.colors.text,
-    textAlign: 'center',
-    lineHeight: 28,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  toast: {
-    position: 'absolute',
-    top: '10%',
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    zIndex: 1000,
-  },
-  toastText: {
-    color: 'white',
-    fontSize: 14,
-    fontFamily: theme.fonts.medium,
-  },
   header: {
     position: 'absolute',
     top: 64,
-    right: theme.spacing.lg,
+    left: theme.spacing.md,
+    right: theme.spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     zIndex: 1,
+  },
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
+  },
+  lessonsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  lessonsButtonText: {
+    color: theme.colors.text,
+    fontSize: 16,
+    fontFamily: theme.fonts.medium,
   },
   settingsButton: {
     width: 40,
@@ -601,16 +280,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-  },
-  settingsButtonDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.text,
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -2 }, { translateY: -2 }],
   },
   profileButton: {
     width: 40,
@@ -624,15 +293,45 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 20,
   },
-  listContainer: {
-    flexGrow: 1,
-    paddingBottom: 120,
+  contentContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
   },
-  cardWrapper: {
-    marginBottom: theme.spacing.md,
-    borderRadius: theme.spacing.md,
-    overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+  textContainer: {
+    alignItems: 'center',
+  },
+  greeting: {
+    fontSize: 22,
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  questionText: {
+    fontSize: 24,
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.text,
+    textAlign: 'center',
+    lineHeight: 28,
+  },
+  startButtonContainer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: 50,
+  },
+  startButton: {
+    backgroundColor: theme.colors.text,
+    borderRadius: 30,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  startButtonText: {
+    color: theme.colors.background,
+    fontSize: 16,
+    fontFamily: theme.fonts.medium,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
 });

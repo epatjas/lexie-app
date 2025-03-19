@@ -25,17 +25,15 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 
-type SettingsScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList>;
-  onClose: () => void;
-  onProfileDeleted: () => void;
-};
-
 export default function SettingsScreen({ 
-  navigation,
+  navigation, 
   onClose, 
   onProfileDeleted 
-}: SettingsScreenProps) {
+}: {
+  navigation: any,
+  onClose?: () => void,
+  onProfileDeleted?: () => void
+}) {
   const progress = useSharedValue(0);
   const [activeProfile, refreshProfile] = useActiveProfile();
 
@@ -69,13 +67,11 @@ export default function SettingsScreen({
     };
   });
 
-  const handleClose = () => {
-    progress.value = withTiming(0, { duration: 300 }, (finished) => {
-      if (finished) {
-        runOnJS(onClose)();
-      }
-    });
-  };
+  const handleClose = onClose || (() => navigation.goBack());
+  
+  const handleProfileDeleted = onProfileDeleted || (() => {
+    navigation.navigate("ProfileSelection");
+  });
 
   const handleOpenLink = async (url: string) => {
     try {
@@ -106,7 +102,7 @@ export default function SettingsScreen({
             try {
               await deleteProfile(activeProfile.id);
               handleClose();
-              onProfileDeleted();
+              handleProfileDeleted();
               console.log('Profile deleted successfully:', activeProfile.id);
             } catch (error) {
               console.error('Error deleting profile:', error);

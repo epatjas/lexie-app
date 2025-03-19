@@ -39,6 +39,16 @@ const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
   try {
     console.log('Verifying database schema...');
     
+    // Check if study_sets table exists before querying its structure
+    const tableExists = await db.getFirstAsync<{count: number}>(
+      "SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name='study_sets'"
+    );
+    
+    if (!tableExists || tableExists.count === 0) {
+      console.log('Study sets table does not exist yet, skipping schema verification');
+      return;
+    }
+    
     // Check study_sets table structure
     const studySetsInfo = await db.getAllAsync<TableColumn>(
       "PRAGMA table_info('study_sets')"
@@ -58,7 +68,8 @@ const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
     }
   } catch (error) {
     console.error('Schema verification failed:', error);
-    throw error;
+    // Don't throw here, just log the error and continue
+    // This prevents schema verification from blocking table creation
   }
 };
 
@@ -127,10 +138,18 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
 // Separate table initialization into its own function
 const initTables = async (database: SQLite.SQLiteDatabase) => {
   try {
-    // First verify schema
-    await verifyAndUpdateSchema(database);
+    console.log('Creating database tables if they don\'t exist...');
     
+    // Create tables first
     await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS folders (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        color TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE TABLE IF NOT EXISTS study_sets (
         id TEXT PRIMARY KEY NOT NULL,
         title TEXT NOT NULL,
@@ -141,19 +160,27 @@ const initTables = async (database: SQLite.SQLiteDatabase) => {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         profile_id TEXT NOT NULL DEFAULT ''
       );
-
-      CREATE TABLE IF NOT EXISTS folders (
+      
+      CREATE TABLE IF NOT EXISTS flashcards (
         id TEXT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL,
-        color TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        study_set_id TEXT NOT NULL REFERENCES study_sets(id),
+        front TEXT NOT NULL,
+        back TEXT NOT NULL
+      );
+      
+      CREATE TABLE IF NOT EXISTS quiz_questions (
+        id TEXT PRIMARY KEY NOT NULL,
+        study_set_id TEXT NOT NULL REFERENCES study_sets(id),
+        question TEXT NOT NULL,
+        options TEXT NOT NULL,
+        correct TEXT NOT NULL
       );
     `);
     
-    // After creating tables, verify the structure
-    const tableInfo = await database.getAllAsync("PRAGMA table_info('study_sets')");
-    console.log('Study sets table structure after init:', tableInfo);
+    console.log('Tables created successfully');
+    
+    // Now verify and update schema if needed
+    await verifyAndUpdateSchema(database);
     
     tablesInitialized = true;
   } catch (error) {
@@ -481,8 +508,14 @@ const stripOptionPrefix = (option: string): string => {
 // Update createQuiz to handle the OpenAI response format
 export const createQuiz = async (studySetId: string, questions: QuizQuestion[]): Promise<void> => {
   try {
+    if (!questions || questions.length === 0) {
+      console.log('No quiz questions to create');
+      return;
+    }
+    
     const db = await getDatabase();
     console.log('Creating quiz for study set:', studySetId);
+    console.log('Questions to create:', questions.length);
     
     // First, clear existing questions
     await db.runAsync(
@@ -492,13 +525,21 @@ export const createQuiz = async (studySetId: string, questions: QuizQuestion[]):
     
     // Insert each question
     for (const q of questions) {
+      // Ensure we have all required fields
+      if (!q.question || !q.options || !q.correct) {
+        console.warn('Skipping invalid question:', q);
+        continue;
+      }
+      
       // Clean up options if they have prefixes
-      const cleanOptions = q.options.map(stripOptionPrefix);
+      const cleanOptions = Array.isArray(q.options) 
+        ? q.options.map(stripOptionPrefix)
+        : [];
       
       console.log('Processing question:', {
         question: q.question,
-        originalOptions: q.options,
-        cleanedOptions: cleanOptions
+        optionsCount: cleanOptions.length,
+        correct: q.correct
       });
       
       const optionsString = JSON.stringify(cleanOptions);
@@ -821,5 +862,22 @@ export const debugDatabaseState = async () => {
   } catch (error) {
     console.error('Database debug error:', error);
   }
+};
+
+export const forceInitDatabase = async (): Promise<void> => {
+  console.log('Force initializing database...');
+  tablesInitialized = false;
+  if (db) {
+    await db.closeAsync();
+    db = null;
+  }
+  await initDatabase();
+  
+  // Verify tables were created
+  const database = await getDatabase();
+  const tables = await database.getAllAsync<{name: string}>(
+    "SELECT name FROM sqlite_master WHERE type='table'"
+  );
+  console.log('Tables after initialization:', tables.map(t => t.name));
 };
 
