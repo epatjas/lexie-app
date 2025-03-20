@@ -6,7 +6,7 @@ export const theme = {
     background02: 'hsl(0, 0%, 12%)', 
     yellowLight: 'hsl(51, 76%, 65%)',   
     yellowMedium: 'hsl(51, 60%, 55%)',  
-    yellowDark: 'hsl(51, 75%, 40%)',    
+    yellowDark: '#EBCB8B',    
     text: 'hsl(240, 100%, 97%)',        
     textSecondary: 'hsl(220, 1%, 58%)',   
     stroke: 'hsl(230, 6%, 19%)',       

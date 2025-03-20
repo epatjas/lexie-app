@@ -7,7 +7,7 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
-import { ArrowLeft, Check, X } from 'lucide-react-native';
+import { ChevronLeft, Check, X } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
@@ -211,105 +211,110 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <ArrowLeft color={theme.colors.text} size={24} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Testaa taitosi</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <View style={styles.scoreContainer}>
-        <View style={styles.scoreWrapper}>
-          <View style={styles.scoreItem}>
-            <View style={[styles.scoreIndicator, { backgroundColor: theme.colors.correct }]}>
-              <Check size={16} color={theme.colors.text} strokeWidth={3} />
-            </View>
-            <Text style={styles.scoreNumber}>{correctAnswers}</Text>
-          </View>
-          <View style={styles.scoreItem}>
-            <View style={[styles.scoreIndicator, { backgroundColor: theme.colors.incorrect }]}>
-              <X size={16} color={theme.colors.text} strokeWidth={3} />
-            </View>
-            <Text style={styles.scoreNumber}>{wrongAnswers}</Text>
-          </View>
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safeAreaContainer}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <ChevronLeft color={theme.colors.text} size={24} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Practise</Text>
+          <View style={{ width: 20 }} />
         </View>
-        <ProgressCircle 
-          current={currentQuestionIndex + 1} 
-          total={questions.length} 
-        />
-      </View>
 
-      <View style={styles.content}>
-        <Text style={styles.question}>{currentQuestion.question}</Text>
+        <View style={styles.scoreContainer}>
+          <View style={styles.scoreWrapper}>
+            <View style={styles.scoreItem}>
+              <View style={[styles.scoreIndicator, { backgroundColor: theme.colors.correct }]}>
+                <Check size={12} color={theme.colors.background} strokeWidth={3} />
+              </View>
+              <Text style={styles.scoreNumber}>{correctAnswers}</Text>
+            </View>
+            <View style={styles.scoreItem}>
+              <View style={[styles.scoreIndicator, { backgroundColor: theme.colors.incorrect }]}>
+                <X size={12} color={theme.colors.background} strokeWidth={3} />
+              </View>
+              <Text style={styles.scoreNumber}>{wrongAnswers}</Text>
+            </View>
+          </View>
+          <ProgressCircle 
+            current={currentQuestionIndex + 1} 
+            total={questions.length} 
+          />
+        </View>
 
-        <View style={styles.options}>
-          {shuffledOptions.map((option, index) => {
-            const isSelected = selectedAnswer === option;
-            const isCorrect = option === currentQuestion.correct;
+        <View style={styles.content}>
+          <Text style={styles.question}>{currentQuestion.question}</Text>
 
-            return (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.optionButton,
-                  isSelected && styles.selectedOption,
-                  isAnswerChecked && isSelected && isCorrect && styles.correctOption,
-                  isAnswerChecked && isSelected && !isCorrect && styles.wrongOption,
-                ]}
-                onPress={() => handleAnswerSelect(option)}
-                disabled={isAnswerChecked}
-              >
-                <View style={styles.optionContent}>
-                  <Text style={[
-                    styles.optionText,
-                    isSelected && styles.selectedOptionText
-                  ]}>
-                    {option}
-                  </Text>
-                  <View style={[
-                    styles.indicator,
-                    !isAnswerChecked && styles.hiddenIndicator,
-                    { backgroundColor: isAnswerChecked && isSelected 
-                      ? (isCorrect 
-                        ? theme.colors.correct + '20'
-                        : theme.colors.incorrect + '20')
-                      : 'transparent'
-                    }
-                  ]}>
-                    {isAnswerChecked && isSelected && (
-                      isCorrect ? (
-                        <Check size={16} color={theme.colors.correct} />
-                      ) : (
-                        <X size={16} color={theme.colors.incorrect} />
-                      )
-                    )}
+          <View style={styles.options}>
+            {shuffledOptions.map((option, index) => {
+              const isSelected = selectedAnswer === option;
+              const isCorrect = option === currentQuestion.correct;
+
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.optionButton,
+                    isSelected && styles.selectedOption,
+                    isAnswerChecked && isSelected && isCorrect && styles.correctOption,
+                    isAnswerChecked && isSelected && !isCorrect && styles.wrongOption,
+                  ]}
+                  onPress={() => handleAnswerSelect(option)}
+                  disabled={isAnswerChecked}
+                >
+                  <View style={styles.optionContent}>
+                    <Text style={[
+                      styles.optionText,
+                      isSelected && styles.selectedOptionText
+                    ]}>
+                      {option}
+                    </Text>
+                    <View style={[
+                      styles.indicator,
+                      !isAnswerChecked && styles.hiddenIndicator,
+                      { backgroundColor: isAnswerChecked && isSelected 
+                        ? (isCorrect 
+                          ? theme.colors.correct + '20'
+                          : theme.colors.incorrect + '20')
+                        : 'transparent'
+                      }
+                    ]}>
+                      {isAnswerChecked && isSelected && (
+                        isCorrect ? (
+                          <Check size={16} color={theme.colors.correct} />
+                        ) : (
+                          <X size={16} color={theme.colors.incorrect} />
+                        )
+                      )}
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
-      </View>
+      </SafeAreaView>
 
-      <View style={styles.bottomBar}>
+      <View style={[
+        styles.bottomBar,
+        isAnswerChecked && { 
+          backgroundColor: theme.colors.background02, 
+          borderTopLeftRadius: 32,
+          borderTopRightRadius: 32 
+        }
+      ]}>
         {validationMessage ? (
           <Text style={styles.validationText}>{validationMessage}</Text>
         ) : isAnswerChecked ? (
           <Text style={[
             styles.feedbackText,
-            { 
-              color: selectedAnswer === currentQuestion.correct
-                ? theme.colors.correct 
-                : theme.colors.incorrect 
-            }
+            { color: theme.colors.text }
           ]}>
             {selectedAnswer === currentQuestion.correct
-              ? 'Hienoa, oikein meni!'
+              ? 'That was correct.'
               : attempts >= 2
-                ? `Se meni väärin. Oikea vastaus on ${currentQuestion.correct}.`
-                : 'Se meni väärin. Kokeile uudestaan.'}
+                ? `That was incorrect. The correct answer is ${currentQuestion.correct}.`
+                : 'That was incorrect. Try again.'}
           </Text>
         ) : null}
         
@@ -339,8 +344,8 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
                 { color: theme.colors.background }
               ]}>
                 {selectedAnswer === currentQuestion.correct || attempts >= 2
-                  ? 'Jatka'
-                  : 'Selvä'}
+                  ? 'Continue'
+                  : 'OK'}
               </Text>
             </TouchableOpacity>
             {selectedAnswer !== currentQuestion.correct && 
@@ -349,7 +354,7 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
                 style={styles.skipButton}
                 onPress={handleNext}
               >
-                <Text style={styles.skipButtonText}>Hyppää seuraavaan</Text>
+                <Text style={styles.skipButtonText}>Skip question</Text>
               </TouchableOpacity>
             )}
           </>
@@ -370,7 +375,7 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
           </TouchableOpacity>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -378,6 +383,9 @@ const styles = StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
+    },
+    safeAreaContainer: {
+      flex: 1,
     },
     header: {
       flexDirection: 'row',
@@ -387,7 +395,7 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
       color: theme.colors.text,
-      fontSize: theme.fontSizes.lg,
+      fontSize: theme.fontSizes.md,
       fontFamily: theme.fonts.medium,
     },
     scoreContainer: {
@@ -400,7 +408,7 @@ const styles = StyleSheet.create({
     scoreWrapper: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: theme.colors.stroke,
+      backgroundColor: theme.colors.background02,
       borderRadius: 24,
       paddingVertical: 8,
       paddingHorizontal: 12,
@@ -412,16 +420,16 @@ const styles = StyleSheet.create({
       gap: 8,
     },
     scoreIndicator: {
-      width: 24,
-      height: 24,
+      width: 20,
+      height: 20,
       borderRadius: 12,
       justifyContent: 'center',
       alignItems: 'center',
     },
     scoreNumber: {
       color: theme.colors.text,
-      fontSize: theme.fontSizes.md,
-      fontFamily: theme.fonts.medium,
+      fontSize: theme.fontSizes.sm,
+      fontWeight: '500',
     },
     content: {
       flex: 1,
@@ -429,8 +437,8 @@ const styles = StyleSheet.create({
     },
     question: {
       color: theme.colors.text,
-      fontSize: theme.fontSizes.xl,
-      marginBottom: theme.spacing.xl,
+      fontSize: theme.fontSizes.lg,
+      marginBottom: theme.spacing.md,
     },
     options: {
       gap: theme.spacing.sm,
@@ -438,7 +446,7 @@ const styles = StyleSheet.create({
     optionButton: {
       padding: theme.spacing.md,
       borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.background02,
+      backgroundColor: theme.colors.background01,
       borderWidth: 1,
       borderColor: theme.colors.stroke,
     },
@@ -486,9 +494,15 @@ const styles = StyleSheet.create({
     bottomBar: {
       padding: theme.spacing.lg,
       gap: theme.spacing.md,
+      paddingBottom: 34,
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: theme.colors.background,
     },
     actionButton: {
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.text,
       height: 56,
       borderRadius: 28,
       alignItems: 'center',

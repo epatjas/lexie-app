@@ -10,6 +10,7 @@ import theme from '../styles/theme';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { CheckCircle, Timer } from 'lucide-react-native';
+import ParticleBackground from '../components/ParticleBackground';
 
 type QuizCompleteScreenProps = NativeStackScreenProps<RootStackParamList, 'QuizComplete'>;
 
@@ -20,28 +21,28 @@ export default function QuizCompleteScreen({ route, navigation }: QuizCompleteSc
   const getCompletionMessage = (score: number): { title: string; subtitle: string } => {
     if (score === 100) {
       return {
-        title: 'Huippusuoritus!',
-        subtitle: 'Olet mestari!'
+        title: 'Perfect score',
+        subtitle: 'You know this material well'
       };
     } else if (score >= 80) {
       return {
-        title: 'Upeaa!',
-        subtitle: 'Melkein täydellistä!'
+        title: 'Strong work',
+        subtitle: 'You got most of it right'
       };
     } else if (score >= 60) {
       return {
-        title: 'Hieno suoritus!',
-        subtitle: 'Jatka samaan tapaan'
+        title: 'Good progress',
+        subtitle: 'Keep practicing these concepts'
       };
     } else if (score >= 40) {
       return {
-        title: 'Hyvä alku!',
-        subtitle: 'Jatka harjoittelua!'
+        title: 'Getting started',
+        subtitle: 'Try reviewing the material again'
       };
     } else {
       return {
-        title: 'Ei haittaa!',
-        subtitle: 'Kokeile uudestaan?'
+        title: 'Room to improve',
+        subtitle: 'Focus on the basics first'
       };
     }
   };
@@ -50,6 +51,8 @@ export default function QuizCompleteScreen({ route, navigation }: QuizCompleteSc
 
   return (
     <SafeAreaView style={styles.container}>
+      <ParticleBackground />
+      
       <View style={styles.content}>
         <Text style={styles.emoji}>🔥</Text>
         <Text style={styles.title}>{message.title}</Text>
@@ -58,7 +61,7 @@ export default function QuizCompleteScreen({ route, navigation }: QuizCompleteSc
         <View style={styles.statsContainer}>
           <View style={[styles.statBox, { borderColor: theme.colors.yellowDark }]}>
             <Text style={[styles.statLabel, { color: theme.colors.yellowDark }]}>
-              OIKEIN
+              CORRECT
             </Text>
             <CheckCircle 
               size={24} 
@@ -72,7 +75,7 @@ export default function QuizCompleteScreen({ route, navigation }: QuizCompleteSc
 
           <View style={[styles.statBox, { borderColor: theme.colors.blue }]}>
             <Text style={[styles.statLabel, { color: theme.colors.blue }]}>
-             AIKA
+             SUPAFAST
             </Text>
             <Timer 
               size={24} 
@@ -90,7 +93,7 @@ export default function QuizCompleteScreen({ route, navigation }: QuizCompleteSc
         style={styles.button}
         onPress={() => navigation.navigate('StudySet', { id: studySetId })}
       >
-        <Text style={styles.buttonText}>Jatka</Text>
+        <Text style={styles.buttonText}>Back to lesson</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -119,7 +122,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: theme.colors.text,
-    fontSize: theme.fontSizes.lg,
+    fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.medium,
     opacity: 0.7,
     marginBottom: theme.spacing.xl,
@@ -129,7 +132,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   statBox: {
-    backgroundColor: theme.colors.background02,
+    backgroundColor: theme.colors.background,
     padding: theme.spacing.xl,
     borderRadius: theme.borderRadius.xl,
     alignItems: 'center',
@@ -139,8 +142,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statLabel: {
-    fontSize: theme.fontSizes.sm,
-    fontFamily: theme.fonts.medium,
+    fontSize: theme.fontSizes.xs,
+    letterSpacing: 0.1,
+    fontWeight: '600',
     marginBottom: theme.spacing.md,
   },
   statIcon: {
@@ -151,7 +155,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.bold,
   },
   button: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.text,
     marginHorizontal: theme.spacing.lg,
     marginBottom: theme.spacing.xl,
     height: 56,
@@ -160,7 +164,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: {
-    color: theme.colors.text,
+    color: theme.colors.background,
     fontSize: theme.fontSizes.lg,
     fontFamily: theme.fonts.medium,
   },
