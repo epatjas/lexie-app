@@ -14,7 +14,10 @@ export type RootStackParamList = {
   NameInput: undefined;
   ProfileImage: undefined;
   StudySet: { id: string };
-  Flashcards: { studySetId: string };
+  Flashcards: { 
+    studySetId: string; 
+    filterIndices?: number[]; // Optional param to filter cards
+  };
   Quiz: { studySetId: string; quiz?: QuizQuestion[] };
   QuizComplete: { 
     studySetId: string;
@@ -42,6 +45,13 @@ export type RootStackParamList = {
   ProfileSelection: undefined;
   Settings: undefined;
   LessonHistory: undefined;
+  FlashcardResults: {
+    knownCount: number;
+    learningCount: number;
+    total: number;
+    studySetId: string;
+    learningIndices: number[];
+  };
 };
 
 export type SettingsScreenProps = {

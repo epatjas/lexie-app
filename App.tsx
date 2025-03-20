@@ -8,6 +8,7 @@ import { RootStackParamList } from './src/types/navigation';
 import HomeScreen from './src/screens/HomeScreen';
 import StudySetScreen from './src/screens/StudySetScreen';
 import FlashcardsScreen from './src/screens/FlashcardsScreen';
+import FlashcardResultsScreen from './src/screens/FlashcardResultsScreen';
 import QuizScreen from './src/screens/QuizScreen';
 import QuizCompleteScreen from './src/screens/QuizComplete';
 import PreviewScreen from './src/screens/PreviewScreen';
@@ -209,6 +210,7 @@ export default function App() {
               getId={({ params }) => params?.id}
             />
             <Stack.Screen name="Flashcards" component={FlashcardsScreen} />
+            <Stack.Screen name="FlashcardResults" component={FlashcardResultsScreen} />
             <Stack.Screen name="Quiz" component={QuizScreen} />
             <Stack.Screen name="QuizComplete" component={QuizCompleteScreen} />
             <Stack.Screen name="Preview" component={PreviewScreen} />
@@ -216,15 +218,18 @@ export default function App() {
             <Stack.Screen name="Folder" component={FolderScreen} />
             <Stack.Screen 
               name="Settings" 
-              component={(props) => <SettingsScreen 
-                {...props} 
-                onClose={() => props.navigation.goBack()} 
-                onProfileDeleted={() => {
-                  // Handle profile deletion, perhaps navigate to profile selection
-                  props.navigation.navigate("ProfileSelection");
-                }} 
-              />}
-            />
+              options={{ headerShown: false }}
+            >
+              {(props) => (
+                <SettingsScreen 
+                  {...props} 
+                  onClose={() => props.navigation.goBack()} 
+                  onProfileDeleted={() => {
+                    props.navigation.navigate("ProfileSelection");
+                  }} 
+                />
+              )}
+            </Stack.Screen>
             <Stack.Screen name="LessonHistory" component={LessonHistoryScreen} />
           </Stack.Navigator>
         </NavigationContainer>

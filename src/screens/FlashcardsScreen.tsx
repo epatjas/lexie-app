@@ -9,7 +9,7 @@ import {
   Dimensions,
   PanResponder,
 } from 'react-native';
-import { ArrowLeft } from 'lucide-react-native';
+import { ChevronLeft, Volume2, RotateCcw, X, Check } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
@@ -22,7 +22,7 @@ const { width } = Dimensions.get('window');
 const cardWidth = width - 48; // 24px padding on each side
 
 export default function FlashcardsScreen({ route, navigation }: FlashcardsScreenProps) {
-  const { studySetId } = route.params;
+  const { studySetId, filterIndices = [] } = route.params;
   const [isFlipped, setIsFlipped] = useState(false);
   const [flipAnim] = useState(new Animated.Value(0));
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -30,6 +30,23 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
   const currentIndexRef = useRef(0);
   const pan = useRef(new Animated.Value(0)).current;
   const flashcardsRef = useRef<Flashcard[]>([]);
+  const [knownCards, setKnownCards] = useState<number[]>([]);
+  const [learningCards, setLearningCards] = useState<number[]>([]);
+
+  // Add a tracking ref to help synchronize state updates
+  const knownCardsRef = useRef<number[]>([]);
+  const learningCardsRef = useRef<number[]>([]);
+  
+  // Sync the refs when the state changes
+  useEffect(() => {
+    knownCardsRef.current = knownCards;
+    console.log("Known cards updated:", knownCards);
+  }, [knownCards]);
+  
+  useEffect(() => {
+    learningCardsRef.current = learningCards;
+    console.log("Learning cards updated:", learningCards);
+  }, [learningCards]);
 
   useEffect(() => {
     loadFlashcards();
@@ -38,20 +55,52 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
   const loadFlashcards = async () => {
     try {
       console.log('Loading flashcards for study set:', studySetId);
-      const cards = await getFlashcardsFromStudySet(studySetId);
-      console.log('Retrieved flashcards:', cards);
+      const allCards = await getFlashcardsFromStudySet(studySetId);
+      console.log('Retrieved flashcards:', allCards);
       
-      if (!cards || cards.length === 0) {
+      if (!allCards || allCards.length === 0) {
         console.log('No flashcards found');
         return;
       }
       
-      if (cards.length > 0) {
-        console.log('First card structure:', JSON.stringify(cards[0], null, 2));
-      }
+      console.log('Filter indices received:', filterIndices);
       
-      setFlashcards(cards);
-      flashcardsRef.current = cards;
+      // Check if we have filter indices
+      if (filterIndices && filterIndices.length > 0) {
+        console.log('Filtering cards by indices:', filterIndices);
+        
+        // Convert all indices to numbers explicitly
+        const numericIndices = filterIndices.map(idx => typeof idx === 'number' ? idx : Number(idx))
+          .filter(idx => !isNaN(idx) && idx >= 0 && idx < allCards.length);
+        
+        console.log('Numeric indices after conversion:', numericIndices);
+        
+        if (numericIndices.length === 0) {
+          console.log('No valid filter indices, showing all cards');
+          setFlashcards(allCards);
+          flashcardsRef.current = allCards;
+          return;
+        }
+        
+        // Get the filtered cards
+        const filteredCards = numericIndices.map(idx => allCards[idx]);
+        console.log(`Showing ${filteredCards.length} filtered cards out of ${allCards.length} total`);
+        
+        // Set the filtered cards
+        setFlashcards(filteredCards);
+        flashcardsRef.current = filteredCards;
+        
+        // Reset the tracking arrays
+        setKnownCards([]);
+        setLearningCards([]);
+        knownCardsRef.current = [];
+        learningCardsRef.current = [];
+      } else {
+        // No filtering, use all cards
+        console.log('Using all cards');
+        setFlashcards(allCards);
+        flashcardsRef.current = allCards;
+      }
     } catch (error) {
       console.error('Error loading flashcards:', error);
     }
@@ -89,50 +138,83 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
         pan.setValue(gesture.dx);
       },
       onPanResponderRelease: (_, gesture) => {
+        const currentIdx = currentIndexRef.current;
         const currentCards = flashcardsRef.current;
-        const index = currentIndexRef.current;
-        console.log('Released at index:', index);
-        console.log('Total cards:', currentCards.length);
         
-        if (Math.abs(gesture.dx) > 100) {
-          if (gesture.dx < 0 && index < currentCards.length - 1) {
-            // Swipe left - next card
-            console.log('Swiping to next card');
+        // Threshold to determine if swipe is significant enough
+        const swipeThreshold = 100;
+        
+        if (Math.abs(gesture.dx) > swipeThreshold) {
+          let updatedKnownCards = [...knownCardsRef.current];
+          let updatedLearningCards = [...learningCardsRef.current];
+          
+          if (gesture.dx > 0) {
+            // Right swipe - Mark as "Known/Mastered"
+            console.log('Card marked as known:', currentIdx);
+            
+            // Update our tracking arrays first
+            if (!updatedKnownCards.includes(currentIdx)) {
+              updatedKnownCards.push(currentIdx);
+            }
+            updatedLearningCards = updatedLearningCards.filter(idx => idx !== currentIdx);
+            
+            // Now update the state
+            setKnownCards(updatedKnownCards);
+            setLearningCards(updatedLearningCards);
+            
+            // Animate card off screen to the right
             Animated.timing(pan, {
-              toValue: -cardWidth,
-              duration: 200,
+              toValue: cardWidth * 1.5,
+              duration: 250,
               useNativeDriver: false,
             }).start(() => {
-              handleIndexChange(index + 1);  // Use the new helper
+              // First reset the animation
               pan.setValue(0);
-            });
-          } else if (gesture.dx > 0 && index > 0) {
-            // Swipe right - previous card
-            console.log('Swiping to previous card');
-            Animated.timing(pan, {
-              toValue: cardWidth,
-              duration: 200,
-              useNativeDriver: false,
-            }).start(() => {
-              handleIndexChange(index - 1);  // Use the new helper
-              pan.setValue(0);
+              
+              // Check if we've reached the end
+              if (currentIdx < currentCards.length - 1) {
+                // Move to next card
+                handleIndexChange(currentIdx + 1);
+              } else {
+                // We're at the last card - use the updated refs for accurate counts
+                handleEndOfCards(updatedKnownCards, updatedLearningCards);
+              }
             });
           } else {
-            console.log('Cannot move further because:', {
-              direction: gesture.dx < 0 ? 'left' : 'right',
-              currentIndex: index,
-              totalCards: currentCards.length,
-              canMoveNext: index < currentCards.length - 1,
-              canMovePrevious: index > 0
-            });
-            // Bounce back if at the end or beginning
-            Animated.spring(pan, {
-              toValue: 0,
+            // Left swipe - Mark as "Still Learning"
+            console.log('Card marked as still learning:', currentIdx);
+            
+            // Update our tracking arrays first
+            if (!updatedLearningCards.includes(currentIdx)) {
+              updatedLearningCards.push(currentIdx);
+            }
+            updatedKnownCards = updatedKnownCards.filter(idx => idx !== currentIdx);
+            
+            // Now update the state
+            setLearningCards(updatedLearningCards);
+            setKnownCards(updatedKnownCards);
+            
+            // Animate card off screen to the left
+            Animated.timing(pan, {
+              toValue: -cardWidth * 1.5,
+              duration: 250,
               useNativeDriver: false,
-            }).start();
+            }).start(() => {
+              // First reset the animation
+              pan.setValue(0);
+              
+              // Check if we've reached the end
+              if (currentIdx < currentCards.length - 1) {
+                // Move to next card
+                handleIndexChange(currentIdx + 1);
+              } else {
+                // We're at the last card - use the updated refs for accurate counts
+                handleEndOfCards(updatedKnownCards, updatedLearningCards);
+              }
+            });
           }
         } else {
-          console.log('Swipe not far enough:', gesture.dx);
+          // Not a significant swipe, bounce back to center
           Animated.spring(pan, {
             toValue: 0,
             useNativeDriver: false,
@@ -193,11 +275,56 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
   const renderCard = (index: number, animatedStyle: any = {}) => {
     if (index >= flashcards.length) return null;
     
+    const isKnown = knownCards.includes(index);
+    const isLearning = learningCards.includes(index);
+    
+    // Update border width interpolation to have 0 at rest position
+    const borderWidthInterpolation = pan.interpolate({
+      inputRange: [-100, -20, -10, 10, 20, 100],
+      outputRange: [2, 2, 0, 0, 2, 2],
+      extrapolate: 'clamp'
+    });
+    
+    // Keep the border color interpolation
+    const borderColorInterpolation = pan.interpolate({
+      inputRange: [-100, -20, 20, 100],
+      outputRange: ['#EE5775', '#EE5775', '#72CDA8', '#72CDA8'],
+      extrapolate: 'clamp'
+    });
+    
+    // Keep rotation and other interpolations
+    const rotationInterpolation = pan.interpolate({
+      inputRange: [-200, 0, 200],
+      outputRange: ['-5deg', '0deg', '5deg'],
+      extrapolate: 'clamp'
+    });
+    
+    // Determine which text to show based on swipe direction
+    const swipeTextOpacity = pan.interpolate({
+      inputRange: [-100, -40, 40, 100],
+      outputRange: [1, 0, 0, 1],
+      extrapolate: 'clamp'
+    });
+    
+    const originalTextOpacity = pan.interpolate({
+      inputRange: [-100, -40, 40, 100],
+      outputRange: [0, 1, 1, 0],
+      extrapolate: 'clamp'
+    });
+
     return (
       <Animated.View
         style={[
           styles.card,
-          animatedStyle
+          animatedStyle,
+          {
+            transform: [
+              ...(animatedStyle.transform || []),
+              { rotate: rotationInterpolation }
+            ],
+            borderWidth: borderWidthInterpolation,
+            borderColor: borderColorInterpolation,
+          }
         ]}
       >
         <TouchableOpacity 
@@ -205,48 +332,212 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
           onPress={flipCard}
           style={styles.touchableCard}
         >
-          <Animated.View style={[styles.cardFace, frontAnimatedStyle]}>
-            <Text style={styles.cardText}>{flashcards[index].front}</Text>
+          <Animated.View style={[
+            styles.cardFace, 
+            frontAnimatedStyle
+          ]}>
+            {/* Original card text - fades out during swipe */}
+            <Animated.Text 
+              style={[
+                styles.cardText,
+                { opacity: originalTextOpacity }
+              ]}
+            >
+              {flashcards[index].front}
+            </Animated.Text>
+            
+            {/* "Still learning" text - appears when swiping left */}
+            <Animated.Text 
+              style={[
+                styles.cardText,
+                styles.learningText, 
+                { 
+                  opacity: pan.interpolate({
+                    inputRange: [-100, -40, 0],
+                    outputRange: [1, 0, 0],
+                    extrapolate: 'clamp'
+                  }) 
+                }
+              ]}
+            >
+              Still learning
+            </Animated.Text>
+            
+            {/* "I know this" text - appears when swiping right */}
+            <Animated.Text 
+              style={[
+                styles.cardText,
+                styles.knownText, 
+                { 
+                  opacity: pan.interpolate({
+                    inputRange: [0, 40, 100],
+                    outputRange: [0, 0, 1],
+                    extrapolate: 'clamp'
+                  }) 
+                }
+              ]}
+            >
+              I know this
+            </Animated.Text>
+            
+            {/* Card footer with counter and sound button */}
+            <View style={styles.cardFooter}>
+              <View style={styles.cardCounter}>
+                <Text style={styles.cardCounterText}>
+                  {currentIndex + 1} / {flashcards.length}
+                </Text>
+              </View>
+              
+              <TouchableOpacity style={styles.soundButton}>
+                <Volume2 color={theme.colors.text} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Status indicator for cards already categorized */}
+            {(isKnown || isLearning) && (
+              <View 
+                style={[
+                  styles.statusIndicator, 
+                  { backgroundColor: isKnown ? '#72CDA8' : '#EE5775' }
+                ]} 
+              />
+            )}
           </Animated.View>
           
-          <Animated.View style={[styles.cardFace, styles.cardBack, backAnimatedStyle]}>
+          {/* Back of card - same approach for consistency */}
+          <Animated.View style={[
+            styles.cardFace,
+            styles.cardBack, 
+            backAnimatedStyle
+          ]}>
             <Text style={styles.cardText}>{flashcards[index].back}</Text>
+            
+            <View style={styles.cardFooter}>
+              <View style={styles.cardCounter}>
+                <Text style={styles.cardCounterText}>
+                  {currentIndex + 1} / {flashcards.length}
+                </Text>
+              </View>
+              
+              <TouchableOpacity style={styles.soundButton}>
+                <Volume2 color={theme.colors.text} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            {(isKnown || isLearning) && (
+              <View 
+                style={[
+                  styles.statusIndicator, 
+                  { backgroundColor: isKnown ? '#72CDA8' : '#EE5775' }
+                ]} 
+              />
+            )}
           </Animated.View>
         </TouchableOpacity>
       </Animated.View>
     );
   };
 
+  // Update the handleEndOfCards function to accept the updated arrays directly
+  const handleEndOfCards = (finalKnownCards = knownCardsRef.current, finalLearningCards = learningCardsRef.current) => {
+    console.log('End of flashcards reached');
+    console.log('Final known cards indices:', finalKnownCards);
+    console.log('Final learning cards indices:', finalLearningCards);
+    
+    let originalLearningIndices = [...finalLearningCards];
+    
+    // If we're using a filtered set, we need to map back to original indices
+    if (filterIndices && filterIndices.length > 0) {
+      console.log('Current filterIndices:', filterIndices);
+      // Map from the positions in the filtered set to the original indices
+      originalLearningIndices = finalLearningCards.map(filteredIdx => {
+        const originalIdx = filterIndices[filteredIdx];
+        console.log(`Mapping filtered index ${filteredIdx} to original index ${originalIdx}`);
+        return originalIdx;
+      });
+      console.log('Mapped to original indices:', originalLearningIndices);
+    }
+    
+    // Navigate to the results screen with the statistics
+    navigation.navigate('FlashcardResults', { 
+      knownCount: finalKnownCards.length, 
+      learningCount: finalLearningCards.length,
+      total: flashcards.length,
+      studySetId: studySetId,
+      learningIndices: originalLearningIndices
+    });
+  };
+
+  // Also update the button handler functions to work similarly
+  const markAsKnown = () => {
+    const currentIdx = currentIndexRef.current;
+    
+    // Create updated arrays first
+    let updatedKnownCards = [...knownCardsRef.current];
+    let updatedLearningCards = [...learningCardsRef.current];
+    
+    if (!updatedKnownCards.includes(currentIdx)) {
+      updatedKnownCards.push(currentIdx);
+    }
+    updatedLearningCards = updatedLearningCards.filter(idx => idx !== currentIdx);
+    
+    // Update state
+    setKnownCards(updatedKnownCards);
+    setLearningCards(updatedLearningCards);
+    
+    // Move to next card or end
+    if (currentIdx < flashcards.length - 1) {
+      handleIndexChange(currentIdx + 1);
+    } else {
+      handleEndOfCards(updatedKnownCards, updatedLearningCards);
+    }
+  };
+
+  const markAsLearning = () => {
+    const currentIdx = currentIndexRef.current;
+    
+    // Create updated arrays first
+    let updatedKnownCards = [...knownCardsRef.current];
+    let updatedLearningCards = [...learningCardsRef.current];
+    
+    if (!updatedLearningCards.includes(currentIdx)) {
+      updatedLearningCards.push(currentIdx);
+    }
+    updatedKnownCards = updatedKnownCards.filter(idx => idx !== currentIdx);
+    
+    // Update state
+    setKnownCards(updatedKnownCards);
+    setLearningCards(updatedLearningCards);
+    
+    // Move to next card or end
+    if (currentIdx < flashcards.length - 1) {
+      handleIndexChange(currentIdx + 1);
+    } else {
+      handleEndOfCards(updatedKnownCards, updatedLearningCards);
+    }
+  };
+
+  const restartCards = () => {
+    // Reset to the first card
+    handleIndexChange(0);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <ArrowLeft color={theme.colors.text} size={24} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <ChevronLeft color={theme.colors.text} size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Kääntökortit</Text>
+        <Text style={styles.headerTitle}>Learn</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.cardContainer}>
         {flashcards.length > 0 ? (
           <View {...panResponder.panHandlers} style={styles.cardStack}>
-            {/* Previous card */}
-            {currentIndex > 0 && renderCard(currentIndex - 1, {
-              transform: [
-                { translateX: pan.interpolate({
-                  inputRange: [0, cardWidth],
-                  outputRange: [-cardWidth - 20, 0],
-                  extrapolate: 'clamp',
-                })}
-              ],
-              opacity: pan.interpolate({
-                inputRange: [0, 50],
-                outputRange: [0, 1],
-                extrapolate: 'clamp',
-              }),
-              zIndex: -1,
-            })}
-
+            {/* Background placeholder for next card - just a fixed background that doesn't animate */}
+            <View style={styles.cardPlaceholder} />
+            
             {/* Current card */}
             {renderCard(currentIndex, {
               transform: [
@@ -255,38 +546,63 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
               zIndex: 1,
             })}
             
-            {/* Next card */}
-            {currentIndex < flashcards.length - 1 && renderCard(currentIndex + 1, {
-              transform: [
-                { translateX: pan.interpolate({
-                  inputRange: [-cardWidth, 0],
-                  outputRange: [0, cardWidth + 20],
-                  extrapolate: 'clamp',
-                })}
-              ],
-              opacity: pan.interpolate({
-                inputRange: [-50, 0],
-                outputRange: [1, 0],
-                extrapolate: 'clamp',
-              }),
-              zIndex: -1,
-            })}
+            {/* Next card - completely invisible during swipe, only appears after transition */}
+            {currentIndex < flashcards.length - 1 && 
+              <Animated.View 
+                style={{
+                  ...styles.card,
+                  opacity: pan.interpolate({
+                    inputRange: [-cardWidth, -cardWidth + 1, cardWidth - 1, cardWidth],
+                    outputRange: [0, 0, 0, 0], // Completely invisible during swipe
+                    extrapolate: 'clamp',
+                  }),
+                  zIndex: -2,
+                }}
+              >
+                {/* Next card content will be shown after animation completes */}
+              </Animated.View>
+            }
           </View>
         ) : (
           <Text style={styles.noCardsText}>No flashcards available</Text>
         )}
       </View>
 
-      <View style={styles.progressDots}>
-        {flashcards.map((_, i) => (
-          <View 
-            key={i} 
-            style={[
-              styles.dot,
-              i === currentIndex ? styles.activeDot : null
-            ]} 
-          />
-        ))}
+      {/* Updated control buttons */}
+      <View style={styles.controlButtons}>
+        {/* "Still learning" button with updated color */}
+        <TouchableOpacity 
+          style={styles.learningPill}
+          onPress={markAsLearning}
+        >
+          <View style={[styles.iconCircle, { backgroundColor: '#EE5775' }]}>
+            <X color="#333333" size={12} />
+          </View>
+          <Text style={styles.indicatorCount}>
+            {learningCards.length}
+          </Text>
+        </TouchableOpacity>
+        
+        {/* Refresh/restart button */}
+        <TouchableOpacity 
+          style={styles.centerButton}
+          onPress={restartCards}
+        >
+          <RotateCcw color={theme.colors.text} size={28} />
+        </TouchableOpacity>
+        
+        {/* "Known" button with updated color */}
+        <TouchableOpacity 
+          style={styles.knownPill}
+          onPress={markAsKnown}
+        >
+          <Text style={styles.indicatorCount}>
+            {knownCards.length}
+          </Text>
+          <View style={[styles.iconCircle, { backgroundColor: '#72CDA8' }]}>
+            <Check color="#333333" size={12} />
+          </View>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -312,10 +628,14 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     paddingTop: theme.spacing.lg,
   },
+  backButton: {
+    padding: 8,
+  },
   headerTitle: {
     color: theme.colors.text,
-    fontSize: theme.fontSizes.lg,
-    fontFamily: theme.fonts.medium,
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.regular,
+    fontWeight: '600',
   },
   cardContainer: {
     flex: 1,
@@ -325,8 +645,9 @@ const styles = StyleSheet.create({
   },
   card: {
     width: cardWidth,
-    height: cardWidth * 0.7,
+    height: cardWidth * 1.4, // Make cards taller to match design
     position: 'absolute',
+    borderRadius: 24,
   },
   touchableCard: {
     width: '100%',
@@ -355,25 +676,82 @@ const styles = StyleSheet.create({
     textAlign: 'center' as const,
     fontFamily: theme.fonts.regular,
   },
-  progressDots: {
-    flexDirection: 'row' as const,
-    justifyContent: 'center' as const,
-    paddingBottom: theme.spacing.xl,
-    gap: 8,
+  cardFooter: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.stroke,
+  cardCounter: {
+    position: 'relative',
   },
-  activeDot: {
-    backgroundColor: theme.colors.primary,
+  cardCounterText: {
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.sm,
+    fontWeight: '600',
+    lineHeight: 20,
   },
-  ...additionalStyles,
+  soundButton: {
+    position: 'relative',
+  },
+  controlButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  learningPill: {
+    height: 48,
+    borderTopRightRadius: 20,
+    borderBottomRightRadius: 20,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 0,
+    paddingRight: 12,
+    backgroundColor: theme.colors.background02,
+  },
+  knownPill: {
+    height: 44,
+    borderTopLeftRadius: 20,
+    borderBottomLeftRadius: 20,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 0,
+    paddingLeft: 12,
+    backgroundColor: theme.colors.background02,
+  },
+  iconCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  centerButton: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: theme.colors.background02,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  indicatorCount: {
+    color: theme.colors.text,
+    fontWeight: '600',
+    fontSize: theme.fontSizes.md,
+    marginHorizontal: 8,
+  },
   cardStack: {
     width: cardWidth,
-    height: cardWidth * 0.7,
+    height: cardWidth * 1.4,
     position: 'relative',
   },
   cardFace: {
@@ -384,8 +762,6 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.stroke,
     position: 'absolute',
     backfaceVisibility: 'hidden',
     shadowColor: '#0D0B0B',
@@ -397,4 +773,31 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  statusIndicator: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  learningText: {
+    color: '#EE5775',
+    position: 'absolute',
+    fontWeight: '600',
+  },
+  knownText: {
+    color: '#72CDA8',
+    position: 'absolute',
+    fontWeight: '600',
+  },
+  cardPlaceholder: {
+    width: cardWidth,
+    height: cardWidth * 1.4,
+    backgroundColor: theme.colors.background02,
+    borderRadius: 24,
+    position: 'absolute',
+    zIndex: -3, // Behind everything else
+  },
+  ...additionalStyles,
 });
