@@ -150,8 +150,11 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   };
 
   const handleCreateQuiz = () => {
-    if (route.params?.id) {
-      navigation.navigate('Quiz', { studySetId: route.params.id });
+    if (route.params?.id && studySet?.quiz) {
+      navigation.navigate('Quiz', {
+        quiz: [],
+        studySetId: route.params.id
+      });
     }
   };
 

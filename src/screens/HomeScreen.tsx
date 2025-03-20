@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,9 @@ import {
   SafeAreaView,
   Image,
   Modal,
+  StatusBar,
+  Platform,
+  Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
@@ -22,7 +25,11 @@ import Animated, {
 import ParticleBackground from '../components/ParticleBackground';
 import { getActiveProfile } from '../utils/storage';
 import SettingsScreen from './SettingsScreen';
-import { ChevronLeft, Book, Settings } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Book, Settings, FileText, Sparkles, LogOut, UserCog } from 'lucide-react-native';
+import ProfileBadge from '../components/ProfileBadge';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -35,6 +42,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   }> | undefined>(undefined);
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const progress = useSharedValue(0);
+  const insets = useSafeAreaInsets();
 
   const overlayStyle = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 1], [0, 1]),
@@ -81,18 +89,41 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     return unsubscribe;
   }, [navigation]);
 
-  useEffect(() => {
-    const loadActiveProfile = async () => {
-      try {
-        const profile = await getActiveProfile();
-        setActiveProfile(profile);
-      } catch (error) {
-        console.error('Error loading active profile:', error);
-      }
-    };
-
-    loadActiveProfile();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log("HomeScreen got focus - refreshing profile");
+      const loadProfile = async () => {
+        try {
+          console.log('Loading profile on screen focus');
+          const profileId = await AsyncStorage.getItem('@active_profile');
+          if (profileId) {
+            // First try to get from active_profile_data for immediate updates
+            const profileDataJson = await AsyncStorage.getItem('@active_profile_data');
+            if (profileDataJson) {
+              console.log('Found profile data in @active_profile_data');
+              setActiveProfile(JSON.parse(profileDataJson));
+              return;
+            }
+            
+            // Fall back to loading from user_profiles
+            const profilesJson = await AsyncStorage.getItem('@user_profiles');
+            if (profilesJson) {
+              const profiles = JSON.parse(profilesJson);
+              const profile = profiles.find(p => p.id === profileId);
+              if (profile) {
+                console.log('Found profile in @user_profiles');
+                setActiveProfile(profile);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error loading profile:', error);
+        }
+      };
+      
+      loadProfile();
+    }, [])
+  );
 
   const handleStartLesson = () => {
     console.log('Start lesson button pressed');
@@ -104,17 +135,25 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     setExistingPhotos(undefined);
   };
 
+  const handleCloseSettings = () => {
+    setIsSettingsVisible(false);
+  };
+
   React.useEffect(() => {
-    if (isBottomSheetVisible) {
+    console.log('useEffect triggered, isSettingsVisible:', isSettingsVisible);
+    
+    if (isBottomSheetVisible || isSettingsVisible) {
+      console.log('Setting progress value to 1');
       progress.value = withTiming(1, {
         duration: 300,
       });
     } else {
+      console.log('Setting progress value to 0');
       progress.value = withTiming(0, {
         duration: 300,
       });
     }
-  }, [isBottomSheetVisible]);
+  }, [isBottomSheetVisible, isSettingsVisible]);
 
   const modalStyle = useAnimatedStyle(() => {
     const translateY = interpolate(
@@ -125,13 +164,14 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     
     return {
       transform: [{ translateY }],
-      backgroundColor: theme.colors.background02,
+      backgroundColor: theme.colors.background,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       position: 'absolute',
       bottom: 0,
       left: 0,
       right: 0,
+      maxHeight: '90%',
     };
   });
 
@@ -150,36 +190,39 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     return images[avatarId || '1'];
   };
 
+  console.log('HomeScreen render, isSettingsVisible:', isSettingsVisible);
+
   return (
-    <Animated.View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="transparent"
+        translucent
+      />
       <ParticleBackground />
 
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.lessonsButton}
-          onPress={() => navigation.navigate('LessonHistory')}
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => {
+            navigation.navigate('LessonHistory');
+          }}
         >
-          <ChevronLeft size={20} color={theme.colors.text} />
-          <Text style={styles.lessonsButtonText}>Lessons</Text>
+          <ChevronLeft color={theme.colors.text} size={20} />
+          <Text style={styles.backButtonText}>Lessons</Text>
         </TouchableOpacity>
-        
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => setIsSettingsVisible(true)}
-          >
-            <Settings size={22} color={theme.colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => navigation.navigate('ProfileSelection')}
-          >
-            <Image
-              source={getProfileImage(activeProfile?.avatarId)}
-              style={styles.profileImage}
-            />
-          </TouchableOpacity>
-        </View>
+
+        <ProfileBadge 
+          style={styles.profileBadge}
+          profileData={activeProfile}
+          onPress={() => {
+            console.log('Profile badge clicked');
+            setIsSettingsVisible(prevState => {
+              console.log('Previous state:', prevState);
+              return true;
+            });
+          }}
+        />
       </View>
 
       <View style={styles.contentContainer}>
@@ -225,8 +268,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
       {isSettingsVisible && (
         <SettingsScreen 
+          visible={isSettingsVisible}
           navigation={navigation}
-          onClose={() => setIsSettingsVisible(false)}
+          onClose={() => {
+            console.log('Settings closed');
+            setIsSettingsVisible(false);
+          }}
           onProfileDeleted={() => {
             setIsSettingsVisible(false);
             navigation.reset({
@@ -236,68 +283,47 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           }}
         />
       )}
-    </Animated.View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
   header: {
-    position: 'absolute',
-    top: 64,
-    left: theme.spacing.md,
-    right: theme.spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    zIndex: 1,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
   },
-  headerRight: {
+  backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
+    height: 40,
   },
-  lessonsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  lessonsButtonText: {
-    color: theme.colors.text,
-    fontSize: 16,
+  backButtonText: {
+    fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.medium,
+    color: theme.colors.text,
+    marginLeft: 4,
   },
-  settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.background02,
-    borderWidth: 1,
-    borderColor: theme.colors.stroke,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  profileButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: theme.colors.background02,
-  },
-  profileImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 20,
+  profileBadge: {
+    // Any additional styling you want for the badge in this specific context
   },
   contentContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
+    paddingBottom: 120,
   },
   textContainer: {
     alignItems: 'center',
@@ -316,8 +342,12 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   startButtonContainer: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: 50,
+    position: 'absolute',
+    bottom: 40,
+    left: theme.spacing.lg,
+    right: theme.spacing.lg,
+    paddingBottom: 0,
+    marginTop: 0,
   },
   startButton: {
     backgroundColor: theme.colors.text,
@@ -333,5 +363,90 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
+  },
+  settingsContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  settingsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
+  },
+  settingsBackButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+  },
+  settingsTitle: {
+    fontSize: theme.fontSizes.xl,
+    color: theme.colors.text,
+    fontFamily: theme.fonts.medium,
+  },
+  settingsSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background02,
+    borderRadius: 16,
+    padding: theme.spacing.lg,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  sectionLabel: {
+    fontSize: theme.fontSizes.sm,
+    color: theme.colors.text,
+    fontFamily: theme.fonts.regular,
+    marginBottom: 4,
+  },
+  sectionValue: {
+    fontSize: theme.fontSizes.lg,
+    color: theme.colors.text,
+    fontFamily: theme.fonts.medium,
+  },
+  settingsOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+  },
+  optionIcon: {
+    width: 24,
+    height: 24,
+    marginRight: theme.spacing.md,
+  },
+  optionIconImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  optionText: {
+    flex: 1,
+    fontSize: theme.fontSizes.md,
+    color: theme.colors.text,
+    fontFamily: theme.fonts.medium,
+  },
+  settingsFooter: {
+    alignItems: 'center',
+    marginTop: 'auto',
+    paddingBottom: theme.spacing.xxl,
+    paddingTop: theme.spacing.xxl,
+  },
+  footerText: {
+    fontSize: theme.fontSizes.sm,
+    color: theme.colors.text,
+    fontFamily: theme.fonts.regular,
+    marginBottom: 4,
+  },
+  indicatorBar: {
+    width: 80,
+    height: 4,
+    backgroundColor: theme.colors.text,
+    borderRadius: 2,
+    marginTop: theme.spacing.lg,
   },
 });

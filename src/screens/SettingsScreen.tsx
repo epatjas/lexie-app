@@ -8,9 +8,10 @@ import {
   Linking,
   Modal,
   Alert,
+  ScrollView,
 } from 'react-native';
 import theme from '../styles/theme';
-import { ChevronRight, Heart, FileText, AlertTriangle, X } from 'lucide-react-native';
+import { ChevronRight, Heart, FileText, AlertTriangle, X, ChevronLeft, UserCog, Sparkles, LogOut } from 'lucide-react-native';
 import Animated, { 
   useAnimatedStyle,
   withTiming,
@@ -24,22 +25,29 @@ import { deleteProfile } from '../utils/storage';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SettingsScreen({ 
   navigation, 
   onClose, 
-  onProfileDeleted 
+  onProfileDeleted,
+  visible = true
 }: {
   navigation: any,
   onClose?: () => void,
-  onProfileDeleted?: () => void
+  onProfileDeleted?: () => void,
+  visible?: boolean
 }) {
   const progress = useSharedValue(0);
   const [activeProfile, refreshProfile] = useActiveProfile();
 
   React.useEffect(() => {
-    progress.value = withTiming(1, { duration: 300 });
-  }, []);
+    if (visible) {
+      progress.value = withTiming(1, { duration: 300 });
+    } else {
+      progress.value = withTiming(0, { duration: 300 });
+    }
+  }, [visible]);
 
   const overlayStyle = useAnimatedStyle(() => {
     return {
@@ -55,15 +63,19 @@ export default function SettingsScreen({
       [0, 1],
       [1000, 0]
     );
-
+    
     return {
       transform: [{ translateY }],
-      backgroundColor: '#101011',
+      backgroundColor: theme.colors.background,
       borderTopLeftRadius: 40,
       borderTopRightRadius: 40,
       overflow: 'hidden',
-      height: 'auto',
-      paddingBottom: 34,
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: '85%',
+      paddingBottom: 20,
     };
   });
 
@@ -114,183 +126,266 @@ export default function SettingsScreen({
     );
   };
 
-  return (
-    <Modal
-      visible={true}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      onRequestClose={handleClose}
-    >
-      <View style={StyleSheet.absoluteFill}>
-        <Animated.View 
-          style={[
-            StyleSheet.absoluteFill,
-            overlayStyle
-          ]} 
-        >
-          <TouchableOpacity 
-            style={StyleSheet.absoluteFill}
-            onPress={handleClose}
-          />
-        </Animated.View>
-        
-        <View style={styles.container}>
-          <Animated.View style={modalStyle}>
-            <View style={styles.dragHandleContainer}>
-              <DragHandle />
-            </View>
-
-            <View style={styles.header}>
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={handleClose}
-              >
-                <X color={theme.colors.text} size={20} />
-              </TouchableOpacity>
-              <Text style={styles.title}>Asetukset</Text>
-            </View>
+  const handleLogout = () => {
+    Alert.alert(
+      "Log Out",
+      "Are you sure you want to log out?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Log Out",
+          onPress: async () => {
+            // Clear active profile
+            await AsyncStorage.removeItem('@active_profile');
+            await AsyncStorage.removeItem('@active_profile_data');
             
-            <View style={styles.section}>
-              <TouchableOpacity 
-                style={styles.item}
-                onPress={() => handleOpenLink('https://www.lexielearn.com/terms')}
-              >
-                <View style={styles.itemContent}>
-                  <View style={styles.iconContainer}>
-                    <FileText color={theme.colors.text} size={16} />
-                  </View>
-                  <Text style={styles.itemText}>Käyttöehdot</Text>
-                </View>
-                <ChevronRight color={theme.colors.textSecondary} size={20} />
-              </TouchableOpacity>
+            // Close the settings modal first
+            handleClose();
+            
+            // Navigate to profile selection
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'ProfileSelection' }],
+            });
+          }
+        }
+      ]
+    );
+  };
 
-              <TouchableOpacity 
-                style={styles.item}
-                onPress={() => handleOpenLink('https://www.lexielearn.com/privacy')}
-              >
-                <View style={styles.itemContent}>
-                  <View style={styles.iconContainer}>
-                    <FileText color={theme.colors.text} size={16} />
-                  </View>
-                  <Text style={styles.itemText}>Tietosuoja</Text>
-                </View>
-                <ChevronRight color={theme.colors.textSecondary} size={20} />
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.item}
-                onPress={() => handleOpenLink('https://apps.apple.com/app/lexielearn')}
-              >
-                <View style={styles.itemContent}>
-                  <View style={styles.iconContainer}>
-                    <Heart color={theme.colors.text} size={16} />
-                  </View>
-                  <Text style={styles.itemText}>Anna Lexielle 5 tähteä</Text>
-                </View>
-                <ChevronRight color={theme.colors.textSecondary} size={20} />
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.item, styles.deleteItem]}
-                onPress={handleDeleteProfile}
-              >
-                <View style={styles.itemContent}>
-                  <View style={styles.iconContainer}>
-                    <AlertTriangle color={theme.colors.error} size={16} />
-                  </View>
-                  <Text style={[styles.itemText, styles.deleteText]}>Poista profiili</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.footer}>
-              Kiitos, että valitsit Lexien.{'\n'}
-              We love you.
-            </Text>
-          </Animated.View>
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      <Animated.View 
+        style={overlayStyle}
+      >
+        <TouchableOpacity 
+          style={StyleSheet.absoluteFill}
+          onPress={handleClose}
+        />
+      </Animated.View>
+      
+      <Animated.View style={modalStyle}>
+        <View style={[styles.dragHandleContainer, { paddingTop: 4 }]}>
+          <DragHandle />
         </View>
-      </View>
-    </Modal>
+
+        <View style={[styles.header, { paddingTop: theme.spacing.sm, marginBottom: theme.spacing.md }]}>
+          <TouchableOpacity onPress={onClose} style={styles.backButton}>
+            <ChevronLeft color={theme.colors.text} size={20} />
+          </TouchableOpacity>
+          <Text style={styles.title}>Settings</Text>
+          <View style={styles.backButton} />
+        </View>
+        
+        <View style={{flex: 1, padding: 20, paddingTop: 0}}>
+          {/* Profile Section */}
+          <TouchableOpacity 
+            style={{
+              backgroundColor: 'transparent', 
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.1)',
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 8,
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
+            onPress={() => navigation.navigate('ProfileSelection')}
+          >
+            <View>
+              <Text style={{color: theme.colors.text, opacity: 0.7, fontSize: 14}}>Profile</Text>
+              <Text style={{color: theme.colors.text, fontSize: 16}}>{activeProfile?.name || 'Ilona'}</Text>
+            </View>
+            <ChevronRight color={theme.colors.text} size={20} />
+          </TouchableOpacity>
+
+          {/* Language Section */}
+          <TouchableOpacity 
+            style={{
+              backgroundColor: 'transparent', 
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.1)',
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 16,
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
+            onPress={() => navigation.navigate('LanguageSelect')}
+          >
+            <View>
+              <Text style={{color: theme.colors.text, opacity: 0.7, fontSize: 14}}>Language</Text>
+              <Text style={{color: theme.colors.text, fontSize: 16}}>English</Text>
+            </View>
+            <ChevronRight color={theme.colors.text} size={20} />
+          </TouchableOpacity>
+
+          {/* Profile Settings Option */}
+          <TouchableOpacity 
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              marginBottom: 8
+            }}
+            onPress={() => navigation.navigate('ProfileSettings')}
+          >
+            <UserCog size={20} color={theme.colors.text} style={{marginRight: 12}} />
+            <Text style={{flex: 1, color: 'white', fontSize: 16}}>Profile settings</Text>
+            <ChevronRight color={theme.colors.text} size={16} />
+          </TouchableOpacity>
+
+          {/* Terms & Conditions */}
+          <TouchableOpacity 
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              marginBottom: 8
+            }}
+            onPress={() => handleOpenLink('https://www.lexielearn.com/terms')}
+          >
+            <FileText size={20} color={theme.colors.text} style={{marginRight: 12}} />
+            <Text style={{flex: 1, color: 'white', fontSize: 16}}>Terms & conditions</Text>
+            <ChevronRight color={theme.colors.text} size={16} />
+          </TouchableOpacity>
+
+          {/* Give Feedback */}
+          <TouchableOpacity 
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              marginBottom: 8
+            }}
+            onPress={() => navigation.navigate('Feedback')}
+          >
+            <Sparkles size={20} color={theme.colors.text} style={{marginRight: 12}} />
+            <Text style={{flex: 1, color: 'white', fontSize: 16}}>Give feedback</Text>
+            <ChevronRight color={theme.colors.text} size={16} />
+          </TouchableOpacity>
+
+          {/* Log Out */}
+          <TouchableOpacity 
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              marginBottom: 8
+            }}
+            onPress={handleLogout}
+          >
+            <LogOut size={20} color={theme.colors.text} style={{marginRight: 12}} />
+            <Text style={{flex: 1, color: 'white', fontSize: 16}}>Log out</Text>
+          </TouchableOpacity>
+          
+          <View style={{
+            marginTop: 'auto', 
+            alignItems: 'center', 
+            marginBottom: 10
+          }}>
+            <Text style={{color: theme.colors.text, fontSize: 14}}>Thank you for choosing LexieLearn.</Text>
+            <Text style={{color: theme.colors.text, fontSize: 14}}>We love you.</Text>
+          </View>
+        </View>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'flex-end',
+    backgroundColor: theme.colors.background,
   },
   dragHandleContainer: {
     alignItems: 'center',
-    paddingTop: theme.spacing.sm,
+    paddingTop: 4,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing.lg,
-    position: 'relative',
-  },
-  closeButton: {
-    position: 'absolute',
-    right: theme.spacing.md,
-    padding: theme.spacing.sm,
-  },
-  title: {
-    fontSize: 16,
-    fontFamily: theme.fonts.medium,
-    color: theme.colors.text,
-    textAlign: 'center',
-  },
-  section: {
-    backgroundColor: '#17181A',
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: '#27282D',
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    padding: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: '#27282D',
-    backgroundColor: '#17181A',
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
   },
-  iconContainer: {
+  backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.background02,
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  itemContent: {
+  title: {
+    fontSize: theme.fontSizes.md,
+    color: theme.colors.text,
+    fontFamily: theme.fonts.medium,
+  },
+  content: {
+    flex: 1,
+    paddingBottom: 24,
+  },
+  section: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background02,
+    borderRadius: 16,
+    padding: theme.spacing.lg,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  sectionLabel: {
+    fontSize: theme.fontSizes.sm,
+    color: theme.colors.text,
+    opacity: 0.7,
+    fontFamily: theme.fonts.regular,
+    marginBottom: 4,
+  },
+  sectionValue: {
+    fontSize: theme.fontSizes.md,
+    color: theme.colors.text,
+    fontFamily: theme.fonts.medium,
+  },
+  option: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
   },
-  itemText: {
-    fontSize: 16,
-    fontFamily: theme.fonts.regular,
+  optionIcon: {
+    marginRight: theme.spacing.md,
+  },
+  optionText: {
+    flex: 1,
+    fontSize: theme.fontSizes.md,
     color: theme.colors.text,
+    fontFamily: theme.fonts.medium,
   },
-  deleteItem: {
-    borderBottomWidth: 0,
-  },
-  deleteText: {
-    color: '#EE5775',
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
   },
   footer: {
-    fontSize: 16,
-    fontFamily: theme.fonts.regular,
+    alignItems: 'center',
+    paddingBottom: theme.spacing.xxl,
+    marginTop: theme.spacing.xxl,
+  },
+  footerText: {
+    fontSize: theme.fontSizes.sm,
     color: theme.colors.text,
-    textAlign: 'center',
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.lg,
+    fontFamily: theme.fonts.regular,
+    marginBottom: 4,
   },
 }); 

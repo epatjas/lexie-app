@@ -26,6 +26,7 @@ import LessonHistoryScreen from './src/screens/LessonHistoryScreen';
 import * as Font from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { cacheAssets } from './src/utils/asset';
+import ProfileSettingsScreen from './src/screens/ProfileSettingsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -231,6 +232,11 @@ export default function App() {
               )}
             </Stack.Screen>
             <Stack.Screen name="LessonHistory" component={LessonHistoryScreen} />
+            <Stack.Screen 
+              name="ProfileSettings" 
+              component={ProfileSettingsScreen} 
+              options={{ headerShown: false }}
+            />
           </Stack.Navigator>
         </NavigationContainer>
       </GestureHandlerRootView>

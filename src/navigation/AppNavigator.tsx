@@ -15,6 +15,7 @@ import PreviewScreen from '../screens/PreviewScreen';
 import ScanPageScreen from '../screens/ScanPageScreen';
 import FolderScreen from '../screens/FolderScreen';
 import ProfileImageScreen from '../screens/ProfileImageScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -49,6 +50,7 @@ export default function AppNavigator() {
       <Stack.Screen name="Preview" component={PreviewScreen} />
       <Stack.Screen name="ScanPage" component={ScanPageScreen} />
       <Stack.Screen name="Folder" component={FolderScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
   );
 } 

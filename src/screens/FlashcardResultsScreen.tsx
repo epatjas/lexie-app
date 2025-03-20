@@ -45,8 +45,10 @@ export default function FlashcardResultsScreen({ route, navigation }: FlashcardR
   });
   
   const handlePracticeWithQuestions = () => {
-    // Navigate to the quiz mode or questions screen
-    navigation.navigate('Quiz', { studySetId });
+    navigation.navigate('Quiz', {
+      quiz: [], // Pass the array of questions directly
+      studySetId: studySetId
+    });
   };
   
   const handleKeepReviewing = () => {

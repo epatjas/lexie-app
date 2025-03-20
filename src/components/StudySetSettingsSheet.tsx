@@ -81,7 +81,7 @@ const StudySetSettingsSheet: React.FC<StudySetSettingsSheetProps> = ({
             onPress={onLanguagePress || onTranslatePress}
           >
             <Text style={styles.languageLabel}>
-              Lesson language
+              Study set language
             </Text>
             <View style={styles.languageValueContainer}>
               <Text style={styles.languageValue}>

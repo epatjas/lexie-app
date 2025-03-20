@@ -160,4 +160,43 @@ export const deleteProfile = async (profileId: string) => {
     console.error('Error deleting profile:', error);
     throw error;
   }
+};
+
+export const updateProfile = async (profileId: string, updates: { name?: string; avatarId?: string }) => {
+  try {
+    console.log('Starting profile update for ID:', profileId);
+    
+    // Get existing profiles - Fix: use correct storage key '@user_profiles'
+    const profilesJson = await AsyncStorage.getItem('@user_profiles');
+    const profiles = profilesJson ? JSON.parse(profilesJson) : [];
+    console.log('Current profiles:', profiles);
+    
+    // Find and update the profile
+    const updatedProfiles = profiles.map(profile => {
+      if (profile.id === profileId) {
+        console.log('Updating profile:', { ...profile, ...updates });
+        return { ...profile, ...updates };
+      }
+      return profile;
+    });
+    
+    // Save updated profiles - Fix: use correct storage key '@user_profiles'
+    await AsyncStorage.setItem('@user_profiles', JSON.stringify(updatedProfiles));
+    
+    // Update active profile if it's the current one - Fix: use correct storage key '@active_profile'
+    const activeProfileId = await AsyncStorage.getItem('@active_profile');
+    if (activeProfileId === profileId) {
+      console.log('Updating active profile');
+      const updatedProfile = updatedProfiles.find(p => p.id === profileId);
+      if (updatedProfile) {
+        await AsyncStorage.setItem('@active_profile', profileId);
+      }
+    }
+    
+    console.log('Profile update completed');
+    return true;
+  } catch (error) {
+    console.error('Error in updateProfile:', error);
+    throw error;
+  }
 }; 

@@ -14,33 +14,58 @@ import { Plus } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { Profile } from '../types/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ProfileSelectionScreenProps = NativeStackScreenProps<RootStackParamList, 'ProfileSelection'>;
 
 const ProfileSelectionScreen: React.FC<ProfileSelectionScreenProps> = ({ navigation }) => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [shouldShowScreen, setShouldShowScreen] = useState(false);
 
+  // Perform navigation check immediately on mount
   useEffect(() => {
-    loadProfiles();
-  }, []);
-
-  const loadProfiles = async () => {
-    try {
-      setIsLoading(true);
-      const savedProfiles = await getUserProfiles();
-      setProfiles(savedProfiles || []);
-      
-      if (!savedProfiles || savedProfiles.length === 0) {
-        navigation.replace('Welcome');
-        return;
+    const checkProfilesAndNavigate = async () => {
+      try {
+        // Load all profiles
+        const savedProfiles = await getUserProfiles();
+        setProfiles(savedProfiles || []);
+        
+        // If there are no profiles, go to Welcome screen
+        if (!savedProfiles || savedProfiles.length === 0) {
+          navigation.replace('Welcome');
+          return;
+        }
+        
+        // If there are profiles, check if there's an active one
+        const activeProfileId = await AsyncStorage.getItem('@active_profile');
+        
+        if (activeProfileId) {
+          // We have an active profile, go directly to Home
+          navigation.replace('Home');
+          return;
+        } else if (savedProfiles.length === 1) {
+          // We only have one profile, make it active and go to Home
+          const newActiveProfileId = savedProfiles[0].id;
+          await AsyncStorage.setItem('@active_profile', newActiveProfileId);
+          await AsyncStorage.setItem('@active_profile_data', JSON.stringify(savedProfiles[0]));
+          navigation.replace('Home');
+          return;
+        }
+        
+        // If we reach here, we have multiple profiles but none active
+        // Now we should show the profile selection screen
+        setShouldShowScreen(true);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error checking profiles:', error);
+        setIsLoading(false);
+        setShouldShowScreen(true);
       }
-    } catch (error) {
-      console.error('Error loading profiles:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    
+    checkProfilesAndNavigate();
+  }, [navigation]);
 
   const handleAddProfile = () => {
     navigation.navigate('NameInput');
@@ -70,14 +95,10 @@ const ProfileSelectionScreen: React.FC<ProfileSelectionScreenProps> = ({ navigat
     return images[avatarId] || images['1']; // Fallback to first image if ID not found
   };
 
-  if (isLoading) {
+  // Render an empty view while we're checking profiles and deciding where to navigate
+  if (isLoading || !shouldShowScreen) {
     return (
-      <SafeAreaView style={styles.container}>
-        <ParticleBackground />
-        <View style={styles.content}>
-          {/* You can add a loading indicator here if you want */}
-        </View>
-      </SafeAreaView>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]} />
     );
   }
 

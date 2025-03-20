@@ -100,3 +100,8 @@ export interface StudySet {
     count: number;
     study_sets?: string[];
   }
+
+  export interface QuizResult {
+    correctAnswers: boolean[];
+    studySetId: string;
+  }
