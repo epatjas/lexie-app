@@ -8,7 +8,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { X, Folder, MoreVertical } from 'lucide-react-native';
+import { X, Folder, MoreVertical, ChevronLeft, Check } from 'lucide-react-native';
 import Animated, { 
   withSpring,
   useAnimatedStyle,
@@ -46,6 +46,37 @@ const EmptyState = () => (
   </View>
 );
 
+const FolderItem = ({ folder, isSelected, onPress, onMorePress }) => (
+  <TouchableOpacity
+    style={styles.folderItem}
+    onPress={onPress}
+  >
+    <View style={styles.folderItemContent}>
+      <Text 
+        style={[
+          styles.folderName,
+          isSelected && styles.folderNameSelected
+        ]}
+      >
+        {folder.name}
+      </Text>
+    </View>
+    <View style={styles.folderItemActions}>
+      {isSelected && (
+        <View style={styles.checkCircle}>
+          <Check color={theme.colors.background} size={14} />
+        </View>
+      )}
+      <TouchableOpacity 
+        style={styles.moreButton}
+        onPress={onMorePress}
+      >
+        <MoreVertical color={theme.colors.textSecondary} size={20} />
+      </TouchableOpacity>
+    </View>
+  </TouchableOpacity>
+);
+
 export default function FolderSelectModal({
   visible,
   onClose,
@@ -71,18 +102,14 @@ export default function FolderSelectModal({
 
   const overlayStyle = useAnimatedStyle(() => {
     return {
-      opacity: interpolate(progress.value, [0, 1], [0, 1]),
+      opacity: progress.value,
       backgroundColor: 'rgba(0,0,0,0.5)',
       ...StyleSheet.absoluteFillObject,
     };
   });
 
   const modalStyle = useAnimatedStyle(() => {
-    const translateY = interpolate(
-      progress.value,
-      [0, 1],
-      [1000, 0]
-    );
+    const translateY = 1000 - (progress.value * 1000);
 
     return {
       transform: [{ translateY }],
@@ -144,10 +171,10 @@ export default function FolderSelectModal({
               </View>
 
               <View style={styles.header}>
-                <Text style={styles.headerTitle}>Kansiot</Text>
-                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                  <X color={theme.colors.text} size={20} />
+                <TouchableOpacity onPress={onClose} style={styles.backButton}>
+                  <ChevronLeft color={theme.colors.text} size={20} />
                 </TouchableOpacity>
+                <Text style={styles.headerTitle}>Choose folder</Text>
               </View>
 
               <ScrollView 
@@ -158,30 +185,15 @@ export default function FolderSelectModal({
                   <EmptyState />
                 ) : (
                   <>
-                    <Text style={styles.subTitle}>Valitse tai luo uusi kansio</Text>
+                    <Text style={styles.subTitle}>Choose or create new</Text>
                     {folders.map(folder => (
-                      <TouchableOpacity
+                      <FolderItem
                         key={folder.id}
-                        style={styles.folderItem}
+                        folder={folder}
+                        isSelected={folder.id === selectedFolderId}
                         onPress={() => onSelect(folder.id)}
-                      >
-                        <View style={styles.folderItemContent}>
-                          <View 
-                            style={[
-                              styles.folderTag,
-                              { backgroundColor: folder.color }
-                            ]}
-                          >
-                            <Text style={styles.folderName}>{folder.name}</Text>
-                          </View>
-                        </View>
-                        <TouchableOpacity 
-                          style={styles.moreButton}
-                          onPress={() => handleMorePress(folder)}
-                        >
-                          <MoreVertical color={theme.colors.textSecondary} size={20} />
-                        </TouchableOpacity>
-                      </TouchableOpacity>
+                        onMorePress={() => handleMorePress(folder)}
+                      />
                     ))}
                   </>
                 )}
@@ -191,7 +203,7 @@ export default function FolderSelectModal({
                 style={styles.createButton}
                 onPress={onCreateNew}
               >
-                <Text style={styles.createButtonText}>Luo uusi kansio</Text>
+                <Text style={styles.createButtonText}>Create new folder</Text>
               </TouchableOpacity>
             </Animated.View>
           </View>
@@ -225,17 +237,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
     position: 'relative',
   },
   headerTitle: {
-    fontSize: 20,
-    fontFamily: theme.fonts.medium,
+    fontSize: 16,
+    fontFamily: theme.fonts.regular,
     color: theme.colors.text,
+    textAlign: 'center',
   },
-  closeButton: {
+  backButton: {
     position: 'absolute',
-    right: theme.spacing.lg,
+    left: theme.spacing.lg,
+    zIndex: 1,
   },
   subTitle: {
     fontSize: theme.fontSizes.md,
@@ -245,7 +259,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.md,
   },
   scrollContent: {
     flexGrow: 1,
@@ -255,7 +269,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: theme.spacing.md,
-    backgroundColor: theme.colors.background02,
     borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.sm,
     borderWidth: 1,
@@ -266,16 +279,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  folderTag: {
-    alignSelf: 'flex-start',
-    paddingVertical: theme.spacing.xs,
-    paddingHorizontal: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
-  },
   folderName: {
-    fontSize: theme.fontSizes.sm,
+    fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.medium,
-    color: theme.colors.background,
+    color: theme.colors.text,
+  },
+  folderNameSelected: {
+    color: theme.colors.primary,
+  },
+  folderItemActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#A2B8FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: theme.spacing.xs,
   },
   moreButton: {
     padding: theme.spacing.xs,

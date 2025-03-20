@@ -8,9 +8,8 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { X, Check } from 'lucide-react-native';
+import { ChevronLeft, Check, AlertCircle } from 'lucide-react-native';
 import Animated, { 
-  withSpring,
   useAnimatedStyle,
   withTiming,
   useSharedValue,
@@ -35,6 +34,7 @@ export default function FolderCreationModal({
 }: FolderCreationModalProps) {
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState<string>(FOLDER_COLORS.pink);
+  const [showValidation, setShowValidation] = useState(false);
   
   const progress = useSharedValue(0);
 
@@ -48,19 +48,15 @@ export default function FolderCreationModal({
 
   const overlayStyle = useAnimatedStyle(() => {
     return {
-      opacity: interpolate(progress.value, [0, 1], [0, 1]),
+      opacity: progress.value,
       backgroundColor: 'rgba(0,0,0,0.5)',
       ...StyleSheet.absoluteFillObject,
     };
   });
 
   const modalStyle = useAnimatedStyle(() => {
-    const translateY = interpolate(
-      progress.value,
-      [0, 1],
-      [1000, 0]
-    );
-
+    const translateY = 1000 - (progress.value * 1000);
+    
     return {
       transform: [{ translateY }],
       backgroundColor: theme.colors.background,
@@ -82,11 +78,14 @@ export default function FolderCreationModal({
         onCreate(name.trim(), selectedColor);
         setName('');
         setSelectedColor(FOLDER_COLORS.pink);
+        setShowValidation(false);
         onSuccess?.();
         onClose();
       } catch (error) {
         Alert.alert('Error', error instanceof Error ? error.message : 'Unknown error');
       }
+    } else {
+      setShowValidation(true);
     }
   };
 
@@ -106,28 +105,39 @@ export default function FolderCreationModal({
 
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Uusi kansio</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X color={theme.colors.text} size={20} />
+              <TouchableOpacity onPress={onClose} style={styles.backButton}>
+                <ChevronLeft color={theme.colors.text} size={20} />
               </TouchableOpacity>
+              <Text style={styles.title}>Create folder</Text>
             </View>
 
             <View style={styles.content}>
               {/* Folder name input */}
               <View style={styles.inputSection}>
-                <Text style={styles.label}>Kansion nimi</Text>
+                <Text style={styles.label}>Folder name</Text>
                 <TextInput
                   style={styles.input}
                   value={name}
-                  onChangeText={setName}
-                  placeholder="Anna kansiolle nimi"
+                  onChangeText={(text) => {
+                    setName(text);
+                    if (text.trim()) {
+                      setShowValidation(false);
+                    }
+                  }}
+                  placeholder="ie. Math, Science, etc."
                   placeholderTextColor={theme.colors.textSecondary}
                 />
+                {showValidation && (
+                  <View style={styles.validationMessage}>
+                    <AlertCircle color="#FF6B6B" size={16} />
+                    <Text style={styles.validationText}>Please enter a folder name</Text>
+                  </View>
+                )}
               </View>
 
               {/* Updated color selection */}
               <View style={styles.colorSection}>
-                <Text style={styles.label}>Valitse väri</Text>
+                <Text style={styles.label}>Pick a color</Text>
                 <View style={styles.colorGrid}>
                   {FOLDER_COLOR_OPTIONS.map((color) => (
                     <TouchableOpacity
@@ -145,7 +155,9 @@ export default function FolderCreationModal({
                         <Text style={styles.colorName}>{color.name}</Text>
                       </View>
                       {selectedColor === color.value && (
-                        <Check color={theme.colors.text} size={20} />
+                        <View style={styles.checkCircle}>
+                          <Check color="#17181A" size={14} />
+                        </View>
                       )}
                     </TouchableOpacity>
                   ))}
@@ -153,20 +165,13 @@ export default function FolderCreationModal({
               </View>
             </View>
 
-            {/* Updated create button */}
+            {/* Create button - always active */}
             <TouchableOpacity
-              style={[
-                styles.createButton,
-                !name.trim() && styles.createButtonDisabled
-              ]}
+              style={styles.createButton}
               onPress={handleCreate}
-              disabled={!name.trim()}
             >
-              <Text style={[
-                styles.createButtonText,
-                !name.trim() && styles.createButtonTextDisabled
-              ]}>
-                Luo
+              <Text style={styles.createButtonText}>
+                Create new folder
               </Text>
             </TouchableOpacity>
           </Animated.View>
@@ -189,17 +194,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: theme.spacing.sm,
+    padding: theme.spacing.md,
     position: 'relative',
   },
   title: {
-    fontSize: theme.fontSizes.lg,
+    fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.medium,
     color: theme.colors.text,
+    textAlign: 'center',
   },
-  closeButton: {
+  backButton: {
     position: 'absolute',
-    right: theme.spacing.md,
+    left: theme.spacing.md,
     padding: theme.spacing.sm,
   },
   content: {
@@ -210,13 +216,12 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xl,
   },
   label: {
-    fontSize: theme.fontSizes.md,
+    fontSize: theme.fontSizes.sm,
     fontFamily: theme.fonts.medium,
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.sm,
   },
   input: {
-    backgroundColor: theme.colors.background,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     fontSize: theme.fontSizes.md,
@@ -225,26 +230,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.stroke,
   },
+  validationMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
+    gap: theme.spacing.xs,
+  },
+  validationText: {
+    fontSize: theme.fontSizes.sm,
+    fontFamily: theme.fonts.regular,
+    color: '#FF6B6B',
+  },
   colorSection: {
     marginBottom: theme.spacing.xl,
   },
   colorGrid: {
-    gap: theme.spacing.sm,
+    gap: theme.spacing.xs,
   },
   colorOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: theme.spacing.md,
-    backgroundColor: theme.colors.background02,
     borderRadius: theme.borderRadius.lg,
+    marginBottom: theme.spacing.xs,
     borderWidth: 1,
     borderColor: theme.colors.stroke,
   },
   colorOptionContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
   colorSquare: {
     width: 24,
@@ -252,9 +268,17 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
   },
   colorName: {
-    fontSize: theme.fontSizes.md,
+    fontSize: theme.fontSizes.sm,
     fontFamily: theme.fonts.regular,
     color: theme.colors.text,
+  },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#A2B8FD',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   createButton: {
     backgroundColor: theme.colors.text,
@@ -263,16 +287,10 @@ const styles = StyleSheet.create({
     borderRadius: 64,
     alignItems: 'center',
   },
-  createButtonDisabled: {
-    backgroundColor: theme.colors.background02,
-  },
   createButtonText: {
     color: theme.colors.background,
-    fontSize: 16,
+    fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.medium,
     textAlign: 'center',
-  },
-  createButtonTextDisabled: {
-    color: theme.colors.textSecondary,
   },
 }); 

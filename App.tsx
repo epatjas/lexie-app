@@ -1,3 +1,4 @@
+import 'react-native/Libraries/Image/AssetRegistry';
 import React, { useEffect, useState } from 'react';
 import { AppState, AppStateStatus, View, StyleSheet, LogBox, Text, Alert, Button } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -23,6 +24,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import LessonHistoryScreen from './src/screens/LessonHistoryScreen';
 import * as Font from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
+import { cacheAssets } from './src/utils/asset';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -45,7 +47,10 @@ export default function App() {
       try {
         console.log("Starting app preparation...");
         
-        // Load font manually
+        // Cache assets first
+        await cacheAssets();
+        
+        // Then load font
         try {
           await Font.loadAsync({
             'Geist': require('./assets/fonts/Geist-VariableFont_wght.ttf'),
@@ -53,7 +58,7 @@ export default function App() {
           console.log("Font loaded successfully");
           setFontsLoaded(true);
         } catch (fontError) {
-          console.warn("Font loading error:", fontError);
+          console.error("Font loading error details:", fontError);
           // Continue without custom font
           setFontsLoaded(true); // Still mark as loaded even if it fails
         }

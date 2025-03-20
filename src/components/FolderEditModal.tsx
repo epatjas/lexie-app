@@ -8,12 +8,12 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { X, Check, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, Check, Trash2, AlertCircle } from 'lucide-react-native';
 import Animated, { 
   withTiming,
   useAnimatedStyle,
   useSharedValue,
-  interpolate,
+  Extrapolate,
 } from 'react-native-reanimated';
 import theme from '../styles/theme';
 import { FOLDER_COLOR_OPTIONS } from '../constants/colors';
@@ -39,6 +39,16 @@ export default function FolderEditModal({
   const [name, setName] = useState(folderName);
   const [selectedColor, setSelectedColor] = useState(folderColor);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showValidation, setShowValidation] = useState(false);
+  
+  // Reset state when modal opens with new data
+  React.useEffect(() => {
+    if (visible) {
+      setName(folderName);
+      setSelectedColor(folderColor);
+      setShowValidation(false);
+    }
+  }, [visible, folderName, folderColor]);
 
   const progress = useSharedValue(0);
 
@@ -52,18 +62,14 @@ export default function FolderEditModal({
 
   const overlayStyle = useAnimatedStyle(() => {
     return {
-      opacity: interpolate(progress.value, [0, 1], [0, 1]),
+      opacity: progress.value,
       backgroundColor: 'rgba(0,0,0,0.5)',
       ...StyleSheet.absoluteFillObject,
     };
   });
 
   const modalStyle = useAnimatedStyle(() => {
-    const translateY = interpolate(
-      progress.value,
-      [0, 1],
-      [1000, 0]
-    );
+    const translateY = 1000 - (progress.value * 1000);
 
     return {
       transform: [{ translateY }],
@@ -82,20 +88,40 @@ export default function FolderEditModal({
 
   const handleColorSelect = (color: string) => {
     setSelectedColor(color);
-    onSave(name, color);
+    // Save both the current name and the new color
+    if (name.trim()) {
+      onSave(name.trim(), color);
+    }
+  };
+
+  const handleNameChange = (text: string) => {
+    setName(text);
+    if (text.trim()) {
+      setShowValidation(false);
+    }
+  };
+
+  const handleBackPress = () => {
+    // Save name changes when going back
+    if (name.trim()) {
+      onSave(name.trim(), selectedColor);
+      onClose();
+    } else {
+      setShowValidation(true);
+    }
   };
 
   const handleDelete = async () => {
     Alert.alert(
-      'Poista kansio',
-      'Haluatko varmasti poistaa tämän kansion? Tätä toimintoa ei voi kumota.',
+      'Delete folder',
+      'Are you sure you want to delete this folder? This action cannot be undone.',
       [
         {
-          text: 'Peruuta',
+          text: 'Cancel',
           style: 'cancel',
         },
         {
-          text: 'Poista',
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -103,7 +129,7 @@ export default function FolderEditModal({
               await onDelete();
               onClose();
             } catch (error) {
-              Alert.alert('Virhe', 'Kansion poistaminen epäonnistui');
+              Alert.alert('Error', 'Failed to delete folder');
             } finally {
               setIsDeleting(false);
             }
@@ -118,7 +144,7 @@ export default function FolderEditModal({
       visible={visible}
       transparent
       animationType="none"
-      onRequestClose={onClose}
+      onRequestClose={handleBackPress}
     >
       <Animated.View style={overlayStyle}>
         <View style={styles.container}>
@@ -128,26 +154,40 @@ export default function FolderEditModal({
             </View>
 
             <View style={styles.header}>
-              <Text style={styles.title}>{folderName}</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X color={theme.colors.text} size={24} />
+              <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+                <ChevronLeft color={theme.colors.text} size={20} />
               </TouchableOpacity>
+              <Text style={styles.title}>Edit folder</Text>
             </View>
 
             <View style={styles.content}>
               <View style={styles.inputSection}>
-                <Text style={styles.label}>Kansion nimi</Text>
+                <Text style={styles.label}>Folder name</Text>
                 <TextInput
                   style={styles.input}
                   value={name}
-                  onChangeText={setName}
-                  placeholder="Anna kansiolle nimi"
+                  onChangeText={handleNameChange}
+                  onBlur={() => {
+                    // Save when user finishes editing
+                    if (name.trim()) {
+                      onSave(name.trim(), selectedColor);
+                    } else {
+                      setShowValidation(true);
+                    }
+                  }}
+                  placeholder="Enter folder name"
                   placeholderTextColor={theme.colors.textSecondary}
                 />
+                {showValidation && (
+                  <View style={styles.validationMessage}>
+                    <AlertCircle color="#FF6B6B" size={16} />
+                    <Text style={styles.validationText}>Please enter a folder name</Text>
+                  </View>
+                )}
               </View>
 
               <View style={styles.colorSection}>
-                <Text style={styles.label}>Valitse väri</Text>
+                <Text style={styles.label}>Pick a color</Text>
                 <View style={styles.colorGrid}>
                   {FOLDER_COLOR_OPTIONS.map((color) => (
                     <TouchableOpacity
@@ -165,7 +205,9 @@ export default function FolderEditModal({
                         <Text style={styles.colorName}>{color.name}</Text>
                       </View>
                       {selectedColor === color.value && (
-                        <Check color={theme.colors.text} size={20} />
+                        <View style={styles.checkCircle}>
+                          <Check color="#17181A" size={14} />
+                        </View>
                       )}
                     </TouchableOpacity>
                   ))}
@@ -174,16 +216,13 @@ export default function FolderEditModal({
             </View>
 
             <TouchableOpacity
-              style={[
-                styles.deleteButton,
-                isDeleting && styles.deleteButtonDisabled
-              ]}
+              style={styles.deleteButton}
               onPress={handleDelete}
               disabled={isDeleting}
             >
               <Trash2 color={theme.colors.text} size={20} />
               <Text style={styles.deleteButtonText}>
-                {isDeleting ? 'Poistetaan...' : 'Poista'}
+                {isDeleting ? 'Deleting...' : 'Delete'}
               </Text>
             </TouchableOpacity>
           </Animated.View>
@@ -210,13 +249,14 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   title: {
-    fontSize: theme.fontSizes.lg,
+    fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.medium,
     color: theme.colors.text,
+    textAlign: 'center',
   },
-  closeButton: {
+  backButton: {
     position: 'absolute',
-    right: theme.spacing.md,
+    left: theme.spacing.md,
     padding: theme.spacing.sm,
   },
   content: {
@@ -227,13 +267,12 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xl,
   },
   label: {
-    fontSize: theme.fontSizes.md,
+    fontSize: theme.fontSizes.sm,
     fontFamily: theme.fonts.medium,
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.sm,
   },
   input: {
-    backgroundColor: theme.colors.background02,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     fontSize: theme.fontSizes.md,
@@ -242,26 +281,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.stroke,
   },
+  validationMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
+    gap: theme.spacing.xs,
+  },
+  validationText: {
+    fontSize: theme.fontSizes.sm,
+    fontFamily: theme.fonts.regular,
+    color: '#FF6B6B',
+  },
   colorSection: {
     marginBottom: theme.spacing.xl,
   },
   colorGrid: {
-    gap: theme.spacing.sm,
+    gap: theme.spacing.xs,
   },
   colorOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: theme.spacing.md,
-    backgroundColor: theme.colors.background02,
     borderRadius: theme.borderRadius.lg,
+    marginBottom: theme.spacing.xs,
     borderWidth: 1,
     borderColor: theme.colors.stroke,
   },
   colorOptionContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
   colorSquare: {
     width: 24,
@@ -269,26 +319,31 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
   },
   colorName: {
-    fontSize: theme.fontSizes.md,
+    fontSize: theme.fontSizes.sm,
     fontFamily: theme.fonts.regular,
     color: theme.colors.text,
+  },
+  checkCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 12,
+    backgroundColor: '#98BDF7',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   deleteButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: theme.spacing.lg,
+    padding: theme.spacing.md,
     margin: theme.spacing.lg,
     borderRadius: 64,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.background02,
     gap: theme.spacing.sm,
   },
   deleteButtonText: {
     color: theme.colors.text,
     fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.medium,
-  },
-  deleteButtonDisabled: {
-    opacity: 0.5,
   },
 }); 

@@ -20,7 +20,11 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
     },
     "plugins": [
       [
@@ -60,12 +64,15 @@
     },
     "fonts": [
       {
-        "asset": "./assets/fonts/Geist-VariableFont_wght.ttf",
+        "asset": "assets/fonts/Geist-VariableFont_wght.ttf",
         "family": "Geist"
       }
     ],
     "updates": {
       "fallbackToCacheTimeout": 0
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     }
   }
 }
