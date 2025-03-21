@@ -101,6 +101,14 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   }, [route.params?.id]);
 
   useEffect(() => {
+    if (studySet) {
+      console.log("StudySet loaded with ID:", route.params?.id);
+      console.log("Quiz data available:", !!studySet.quiz);
+      console.log("First quiz questions:", studySet.quiz?.slice(0, 2));
+    }
+  }, [studySet, route.params?.id]);
+
+  useEffect(() => {
     // console.log('Should render FolderCreationModal:', folderCreateVisible);
   }, [folderCreateVisible]);
 
@@ -150,9 +158,10 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   };
 
   const handleCreateQuiz = () => {
-    if (route.params?.id && studySet?.quiz) {
+    if (route.params?.id) {
+      console.log("Navigating to Quiz with studySetId:", route.params.id);
       navigation.navigate('Quiz', {
-        quiz: [],
+        quiz: [], // Always pass an empty array
         studySetId: route.params.id
       });
     }

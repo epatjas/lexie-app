@@ -273,7 +273,16 @@ export const createStudySet = async (input: CreateStudySetInput): Promise<StudyS
 
     // Create quiz questions if they exist from OpenAI response
     if (input.quiz && input.quiz.length > 0) {
-      await createQuiz(id, input.quiz);
+      // Convert the input.quiz items to full QuizQuestion objects with IDs
+      const quizWithIds = input.quiz.map(q => ({
+        id: uuidv4(),
+        study_set_id: id,
+        question: q.question,
+        options: q.options,
+        correct: q.correct
+      }));
+      
+      await createQuiz(id, quizWithIds);
       console.log('Created quiz questions from OpenAI response');
     }
 
@@ -314,6 +323,12 @@ interface RawQuizQuestion {
   options: string; // JSON string in database
   correct: string;
 }
+
+// Add this near the top of your file
+type DatabaseQuizQuestion = QuizQuestion & {
+  id: string;
+  study_set_id: string;
+};
 
 /**
  * Retrieves a complete study set with all materials by ID.
@@ -482,14 +497,38 @@ export const getQuizFromStudySet = async (studySetId: string): Promise<QuizQuest
     
     console.log('Raw questions from database:', rawQuestions);
     
-    // Parse the options JSON string into array
-    const questions = rawQuestions.map(q => ({
-      id: q.id,
-      study_set_id: q.study_set_id,
-      question: q.question,
-      options: JSON.parse(q.options),
-      correct: q.correct
-    }));
+    if (!rawQuestions || rawQuestions.length === 0) {
+      console.warn('No questions found for study set:', studySetId);
+      return [];
+    }
+    
+    // Parse the options JSON string into array with better error handling
+    const questions: QuizQuestion[] = [];
+    for (const q of rawQuestions) {
+      try {
+        let parsedOptions: string[];
+        try {
+          const parsed = JSON.parse(q.options);
+          parsedOptions = Array.isArray(parsed) ? parsed : [q.options];
+        } catch (parseError) {
+          console.error('Failed to parse options for question:', q.id, parseError);
+          parsedOptions = [q.options]; // Fallback
+        }
+        
+        // Make sure this object structure includes ALL required properties
+        const question: QuizQuestion = {
+          id: q.id,
+          study_set_id: q.study_set_id,
+          question: q.question,
+          options: parsedOptions,
+          correct: q.correct
+        };
+        
+        questions.push(question);
+      } catch (questionError) {
+        console.error('Error processing question:', q, questionError);
+      }
+    }
     
     console.log('Parsed questions:', questions);
     return questions;
@@ -506,7 +545,7 @@ const stripOptionPrefix = (option: string): string => {
 };
 
 // Update createQuiz to handle the OpenAI response format
-export const createQuiz = async (studySetId: string, questions: QuizQuestion[]): Promise<void> => {
+export const createQuiz = async (studySetId: string, questions: Partial<QuizQuestion>[]): Promise<void> => {
   try {
     if (!questions || questions.length === 0) {
       console.log('No quiz questions to create');
@@ -543,12 +582,13 @@ export const createQuiz = async (studySetId: string, questions: QuizQuestion[]):
       });
       
       const optionsString = JSON.stringify(cleanOptions);
+      const questionId = q.id || uuidv4(); // Use existing ID or generate new one
       
       await db.runAsync(
         `INSERT INTO quiz_questions (id, study_set_id, question, options, correct) 
          VALUES (?, ?, ?, ?, ?)`,
         [
-          uuidv4(),
+          questionId,
           studySetId,
           q.question,
           optionsString,
@@ -698,8 +738,9 @@ export const updateFolder = async (folderId: string, updates: { name?: string; c
     const db = await getDatabase();
     const now = Date.now();
     
-    const updateFields = [];
-    const values = [];
+    // Fix the array types by adding explicit type annotations
+    const updateFields: string[] = [];
+    const values: (string | number)[] = [];
     
     if (updates.name) {
       updateFields.push('name = ?');
@@ -766,10 +807,13 @@ export const createQuizQuestions = async (studySetId: string, flashcards: { fron
         wrongAnswers[2]
       ];
       
+      // Include ALL required properties for QuizQuestion
       return {
+        id: uuidv4(), // Generate a unique ID
+        study_set_id: studySetId,
         question: card.front,
         options: options,
-        correct: 'A' // Since we put the correct answer first
+        correct: card.back // The correct answer is the 'back' content
       };
     });
     

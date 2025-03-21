@@ -32,6 +32,8 @@ export interface StudySet {
   }
   
   export interface QuizQuestion {
+    id: string;
+    study_set_id: string;
     question: string;
     options: string[];
     correct: string;

@@ -75,8 +75,14 @@ const ProgressCircle = ({ current, total }: { current: number; total: number }) 
 };
 
 export default function QuizScreen({ route, navigation }: QuizScreenProps) {
-  const { quiz, studySetId } = route.params;
-  const [questions, setQuestions] = useState<QuizQuestion[]>(quiz || []);
+  const { studySetId } = route.params;
+  const quizFromParams = route.params.quiz;
+  
+  const hasInitialQuiz = Array.isArray(quizFromParams) && quizFromParams.length > 0;
+  
+  const [questions, setQuestions] = useState<QuizQuestion[]>(
+    hasInitialQuiz ? quizFromParams : []
+  );
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [selectedAnswerText, setSelectedAnswerText] = useState<string | null>(null);
@@ -92,7 +98,13 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
   useEffect(() => {
-    if (!quiz && studySetId) {
+    console.log('Quiz loading condition check:', {
+      hasInitialQuiz,
+      studySetId,
+      quizParamsLength: Array.isArray(quizFromParams) ? quizFromParams.length : 'not array'
+    });
+    
+    if (!hasInitialQuiz && studySetId) {
       console.log('Fetching quiz questions for study set:', studySetId);
       fetchQuizQuestions(studySetId)
         .then(fetchedQuestions => {
@@ -117,7 +129,7 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
           );
         });
     }
-  }, [studySetId, quiz]);
+  }, [studySetId, hasInitialQuiz]);
 
   useEffect(() => {
     if (questions.length > 0) {
