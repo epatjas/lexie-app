@@ -9,7 +9,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import { Folder, Trash2, Globe, Type, ChevronRight } from 'lucide-react-native';
+import { Folder, Trash2, Globe, Type, ChevronRight, ChevronLeft, Check } from 'lucide-react-native';
 import theme from '../styles/theme';
 
 interface StudySetSettingsSheetProps {
@@ -24,6 +24,7 @@ interface StudySetSettingsSheetProps {
   folderName?: string;
   folderColor?: string;
   language?: string;
+  selectedFont?: string;
 }
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -40,6 +41,7 @@ const StudySetSettingsSheet: React.FC<StudySetSettingsSheetProps> = ({
   folderName = '',
   folderColor = '#888',
   language = 'English',
+  selectedFont = 'Standard',
 }) => {
   const [animation] = React.useState(new Animated.Value(SCREEN_HEIGHT));
 
@@ -111,7 +113,7 @@ const StudySetSettingsSheet: React.FC<StudySetSettingsSheetProps> = ({
             <Type color={theme.colors.text} size={20} />
             <Text style={styles.optionText}>Choose font</Text>
             <View style={styles.rightContainer}>
-              <Text style={styles.selectionText}>Normal</Text>
+              <Text style={styles.selectionText}>{selectedFont}</Text>
               <ChevronRight color={theme.colors.textSecondary} size={20} style={styles.chevronIcon} />
             </View>
           </TouchableOpacity>

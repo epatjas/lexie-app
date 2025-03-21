@@ -15,11 +15,16 @@ import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
 import { getFlashcardsFromStudySet } from '../services/Database';
 import { Flashcard } from '../types/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FontSettings } from './FontSelectionScreen';
 
 type FlashcardsScreenProps = NativeStackScreenProps<RootStackParamList, 'Flashcards'>;
 
 const { width } = Dimensions.get('window');
 const cardWidth = width - 48; // 24px padding on each side
+
+// Add this constant
+const FONT_SETTINGS_KEY = 'global_font_settings';
 
 export default function FlashcardsScreen({ route, navigation }: FlashcardsScreenProps) {
   const { studySetId, filterIndices = [] } = route.params;
@@ -51,6 +56,29 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
   useEffect(() => {
     loadFlashcards();
   }, [studySetId]);
+
+  // Keep font settings state
+  const [fontSettings, setFontSettings] = useState<FontSettings>({
+    font: 'Standard',
+    size: 16,
+    isAllCaps: false
+  });
+  
+  // Load global font settings when component mounts
+  useEffect(() => {
+    const loadFontSettings = async () => {
+      try {
+        const storedSettings = await AsyncStorage.getItem(FONT_SETTINGS_KEY);
+        if (storedSettings) {
+          setFontSettings(JSON.parse(storedSettings));
+        }
+      } catch (error) {
+        console.error('[Flashcards] Error loading font settings:', error);
+      }
+    };
+    
+    loadFontSettings();
+  }, []);
 
   const loadFlashcards = async () => {
     try {
@@ -272,11 +300,34 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
     ],
   };
 
+  // Function to get font family based on selected font
+  const getFontFamily = () => {
+    switch (fontSettings.font) {
+      case 'Reading':
+        return 'Georgia';
+      case 'Dyslexia-friendly':
+        return 'OpenDyslexic';
+      case 'High-visibility':
+        return 'AtkinsonHyperlegible';
+      case 'Monospaced':
+        return 'IBMPlexMono';
+      default: // Standard
+        return theme.fonts.regular;
+    }
+  };
+
   const renderCard = (index: number, animatedStyle: any = {}) => {
     if (index >= flashcards.length) return null;
     
     const isKnown = knownCards.includes(index);
     const isLearning = learningCards.includes(index);
+    
+    // Update the custom text style with proper type assertions
+    const customTextStyle = {
+      ...styles.cardText,
+      fontFamily: getFontFamily(),
+      textTransform: fontSettings.isAllCaps ? 'uppercase' as const : 'none' as const,
+    };
     
     // Update border width interpolation to have 0 at rest position
     const borderWidthInterpolation = pan.interpolate({
@@ -336,10 +387,10 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
             styles.cardFace, 
             frontAnimatedStyle
           ]}>
-            {/* Original card text - fades out during swipe */}
+            {/* Apply custom font to card text */}
             <Animated.Text 
               style={[
-                styles.cardText,
+                customTextStyle,
                 { opacity: originalTextOpacity }
               ]}
             >
@@ -410,7 +461,8 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
             styles.cardBack, 
             backAnimatedStyle
           ]}>
-            <Text style={styles.cardText}>{flashcards[index].back}</Text>
+            {/* Apply custom font to back card text */}
+            <Text style={customTextStyle}>{flashcards[index].back}</Text>
             
             <View style={styles.cardFooter}>
               <View style={styles.cardCounter}>

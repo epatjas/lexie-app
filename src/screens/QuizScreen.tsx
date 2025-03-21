@@ -14,6 +14,8 @@ import theme from '../styles/theme';
 import { QuizQuestion } from '../types/types';
 import { getQuizFromStudySet } from '../services/Database';
 import Svg, { Circle } from 'react-native-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FontSettings } from '../types/fontSettings';
 
 type QuizScreenProps = NativeStackScreenProps<RootStackParamList, 'Quiz'>;
 
@@ -74,6 +76,9 @@ const ProgressCircle = ({ current, total }: { current: number; total: number }) 
   );
 };
 
+// Add this constant
+const FONT_SETTINGS_KEY = 'global_font_settings';
+
 export default function QuizScreen({ route, navigation }: QuizScreenProps) {
   const { studySetId } = route.params;
   const quizFromParams = route.params.quiz;
@@ -93,6 +98,13 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
   const [attempts, setAttempts] = useState(0);
   const [startTime, setStartTime] = useState<Date>(new Date());
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
+  
+  // Keep font settings state
+  const [fontSettings, setFontSettings] = useState<FontSettings>({
+    font: 'Standard',
+    size: 16,
+    isAllCaps: false
+  });
   
   const currentQuestion = questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
@@ -158,6 +170,22 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
     }
   }, [currentQuestion]);
 
+  // Load global font settings
+  useEffect(() => {
+    const loadFontSettings = async () => {
+      try {
+        const storedSettings = await AsyncStorage.getItem(FONT_SETTINGS_KEY);
+        if (storedSettings) {
+          setFontSettings(JSON.parse(storedSettings));
+        }
+      } catch (error) {
+        console.error('[Quiz] Error loading font settings:', error);
+      }
+    };
+    
+    loadFontSettings();
+  }, []);
+
   if (!currentQuestion) {
     return (
       <SafeAreaView style={styles.container}>
@@ -222,6 +250,26 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
     }
   };
 
+  const getFontFamily = () => {
+    switch (fontSettings.font) {
+      case 'Reading':
+        return 'Georgia';
+      case 'Dyslexia-friendly':
+        return 'OpenDyslexic';
+      case 'High-visibility':
+        return 'AtkinsonHyperlegible';
+      case 'Monospaced':
+        return 'IBMPlexMono';
+      default: // Standard
+        return theme.fonts.regular;
+    }
+  };
+
+  const getCustomFontStyle = () => ({
+    fontFamily: getFontFamily(),
+    textTransform: fontSettings.isAllCaps ? 'uppercase' as const : 'none' as const,
+  });
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeAreaContainer}>
@@ -255,7 +303,12 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.question}>{currentQuestion.question}</Text>
+          <Text style={[
+            styles.question,
+            getCustomFontStyle()
+          ]}>
+            {currentQuestion.question}
+          </Text>
 
           <View style={styles.options}>
             {shuffledOptions.map((option, index) => {
@@ -277,6 +330,7 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
                   <View style={styles.optionContent}>
                     <Text style={[
                       styles.optionText,
+                      getCustomFontStyle(),
                       isSelected && styles.selectedOptionText
                     ]}>
                       {option}

@@ -26,6 +26,7 @@ import ProfileImageScreen from '../screens/ProfileImageScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LessonHistoryScreen from '../screens/LessonHistoryScreen';
 import FlashcardResultsScreen from '../screens/FlashcardResultsScreen';
+import FontSelectionScreen from '../screens/FontSelectionScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -56,6 +57,9 @@ const AppNavigator = () => {
       <Stack.Screen name="FlashcardResults" component={FlashcardResultsScreen} />
       <Stack.Screen name="Quiz" component={QuizScreen} />
       <Stack.Screen name="QuizComplete" component={QuizCompleteScreen} />
+      
+      {/* Font Selection */}
+      <Stack.Screen name="FontSelection" component={FontSelectionScreen} />
       
       {/* Document handling */}
       <Stack.Screen name="Preview" component={PreviewScreen} />

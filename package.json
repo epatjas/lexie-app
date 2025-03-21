@@ -9,12 +9,15 @@
     "web": "expo start --web --no-typescript"
   },
   "dependencies": {
+    "@expo-google-fonts/atkinson-hyperlegible": "^0.2.3",
+    "@expo-google-fonts/ibm-plex-mono": "^0.2.3",
     "@expo-google-fonts/inter": "^0.2.3",
     "@gorhom/bottom-sheet": "^4.6.4",
     "@hugeicons/core-free-icons": "^1.0.13",
     "@hugeicons/react": "^1.0.5",
     "@hugeicons/react-native": "^1.0.7",
     "@react-native-async-storage/async-storage": "^1.23.1",
+    "@react-native-community/slider": "^4.5.6",
     "@react-native-masked-view/masked-view": "0.3.2",
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/native-stack": "^6.11.0",

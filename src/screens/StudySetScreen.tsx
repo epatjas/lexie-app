@@ -13,12 +13,13 @@ import {
   BackHandler,
   Image,
   Platform,
+  Modal,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
 import { useStudySetDetails } from '../hooks/useStudySet';
-import { ChevronLeft, FlipHorizontal, Zap, Folder, Calendar, MoreVertical, Plus, Trash2, Play, Pause, Rewind, FastForward, X, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, FlipHorizontal, Zap, Folder, Calendar, MoreVertical, Plus, Trash2, Play, Pause, Rewind, FastForward, X, ChevronRight, Check } from 'lucide-react-native';
 import { useFolders } from '../hooks/useFolders';
 import FolderSelectModal from '../components/FolderSelectModal';
 import FolderCreationModal from '../components/FolderCreationModal';
@@ -26,6 +27,11 @@ import Markdown from 'react-native-markdown-display';
 import { useAudioPlayback } from '../hooks/useAudioPlayback';
 import Svg, { Path, G, Rect } from 'react-native-svg';
 import StudySetSettingsSheet from '../components/StudySetSettingsSheet';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FontSettings } from '../types/fontSettings';
+import { CommonActions } from '@react-navigation/native';
+import Slider from '@react-native-community/slider';
+import FontSelectionSheet from '../components/FontSelectionSheet';
 
 
 type StudySetScreenProps = NativeStackScreenProps<RootStackParamList, 'StudySet'>;
@@ -55,6 +61,9 @@ const StackedCardsIcon = ({ width = 150, height = 150, style }) => (
   </Svg>
 );
 
+// Add this constant
+const FONT_SETTINGS_KEY = 'global_font_settings';
+
 export default function StudySetScreen({ route, navigation }: StudySetScreenProps): React.JSX.Element {
   const [folderSelectVisible, setFolderSelectVisible] = useState(false);
   const [folderCreateVisible, setFolderCreateVisible] = useState(false);
@@ -65,6 +74,44 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [showAudioPlayer, setShowAudioPlayer] = useState(false);
   const [showSettingsSheet, setShowSettingsSheet] = useState(false);
+  const [fontSettings, setFontSettings] = useState<FontSettings>({
+    font: 'Standard',
+    size: 16,
+    isAllCaps: false
+  });
+  const [fontSheetVisible, setFontSheetVisible] = useState(false);
+
+  // Load global font settings
+  useEffect(() => {
+    const loadFontSettings = async () => {
+      try {
+        const storedSettings = await AsyncStorage.getItem(FONT_SETTINGS_KEY);
+        if (storedSettings) {
+          setFontSettings(JSON.parse(storedSettings));
+        }
+      } catch (error) {
+        console.error('[StudySet] Error loading font settings:', error);
+      }
+    };
+    
+    loadFontSettings();
+  }, []);
+  
+  // We should also refresh font settings when screen is focused
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', async () => {
+      try {
+        const storedSettings = await AsyncStorage.getItem(FONT_SETTINGS_KEY);
+        if (storedSettings) {
+          setFontSettings(JSON.parse(storedSettings));
+        }
+      } catch (error) {
+        console.error('[StudySet] Error refreshing font settings:', error);
+      }
+    });
+    
+    return unsubscribe;
+  }, [navigation]);
 
   const constructAudioText = (studySet: any): string => {
     if (!studySet.text_content?.sections) return '';
@@ -123,6 +170,43 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     
     return () => backHandler.remove();
   }, [showMoreOptions]);
+
+  useEffect(() => {
+    const loadFontSettings = async () => {
+      try {
+        if (!route.params?.id) return;
+        
+        const storedSettings = await AsyncStorage.getItem(`font_settings_${route.params.id}`);
+        if (storedSettings) {
+          setFontSettings(JSON.parse(storedSettings));
+        }
+      } catch (error) {
+        console.error('[StudySet] Error loading font settings:', error);
+      }
+    };
+    
+    loadFontSettings();
+  }, [route.params?.id]);
+  
+  useEffect(() => {
+    if (route.params?.fontSettings) {
+      setFontSettings(route.params.fontSettings);
+      
+      // Save to AsyncStorage
+      const saveSettings = async () => {
+        try {
+          await AsyncStorage.setItem(
+            `font_settings_${route.params.id}`,
+            JSON.stringify(route.params.fontSettings)
+          );
+        } catch (error) {
+          console.error('[StudySet] Error saving font settings:', error);
+        }
+      };
+      
+      saveSettings();
+    }
+  }, [route.params?.fontSettings, route.params?.id]);
 
   const handleCreateFolder = async (name: string, color: string) => {
     try {
@@ -225,74 +309,75 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     return isCorrect;
   };
 
-  // Add this helper function at the component level (outside of render)
+  const getFontFamily = () => {
+    switch (fontSettings.font) {
+      case 'Reading':
+        return 'Georgia';
+      case 'Dyslexia-friendly':
+        return 'OpenDyslexic';
+      case 'High-visibility':
+        return 'AtkinsonHyperlegible';
+      case 'Monospaced':
+        return 'IBMPlexMono';
+      default: // Standard
+        return theme.fonts.regular;
+    }
+  };
+
   const renderMarkdownContent = (content: string) => {
+    const customMarkdownStyles = {
+      ...markdownStyles,
+      text: {
+        ...markdownStyles.text,
+        fontFamily: getFontFamily(),
+        fontSize: fontSettings.size,
+        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+      },
+      paragraph: {
+        ...markdownStyles.paragraph,
+        fontFamily: getFontFamily(),
+        fontSize: fontSettings.size,
+        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+      },
+      heading1: {
+        ...markdownStyles.heading1,
+        fontFamily: getFontFamily(),
+        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+      },
+      heading2: {
+        ...markdownStyles.heading2,
+        fontFamily: getFontFamily(),
+        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+      },
+      heading3: {
+        ...markdownStyles.heading3,
+        fontFamily: getFontFamily(),
+        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+      },
+      bullet_list: {
+        ...markdownStyles.bullet_list,
+      },
+      ordered_list: {
+        ...markdownStyles.ordered_list,
+      },
+      list_item: {
+        ...markdownStyles.list_item,
+      },
+      bullet_list_content: {
+        ...markdownStyles.bullet_list_content,
+        fontFamily: getFontFamily(),
+        fontSize: fontSettings.size,
+        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+      },
+    };
+
     return (
-      <Markdown style={markdownStyles}>
+      <Markdown style={customMarkdownStyles}>
         {content}
       </Markdown>
     );
   };
 
-  // Then modify the renderContent function
-  const renderContent = () => {
-    if (!studySet?.text_content) {
-      return <Text style={styles.loadingText}>Loading content...</Text>;
-    }
-
-    const mainTitle = studySet.title;
-    
-    const convertSectionsToMarkdown = (sections: TextSection[]): string => {
-      return sections.map(section => {
-        switch (section.type) {
-          case 'heading':
-            if (section.level === 1 && section.raw_text === mainTitle) return '';
-            const headingMarks = '#'.repeat(section.level || 1);
-            return `${headingMarks} ${section.raw_text}\n\n`;
-            
-          case 'paragraph':
-            return `${section.raw_text}\n\n`;
-            
-          case 'list':
-            if (!section.items || !Array.isArray(section.items)) {
-              return `${section.raw_text}\n\n`;
-            }
-            return section.items.map((item: string) => {
-              // Handle sub-items (a, b, c)
-              if (/^[a-z]\)/.test(item)) {
-                return `   ${item}\n`;  // Just indent, no bullet
-              }
-              // Handle numbered lists
-              if (/^\d+\./.test(item)) {
-                return `${item}\n`;     // Keep original numbering
-              }
-              // Handle bullet points - either keep existing or add new
-              if (/^[•\-\*]/.test(item)) {
-                return `${item}\n`;     // Keep original bullet
-              }
-              // Add bullet for items without any prefix
-              return `• ${item}\n`;     // Add bullet to plain items
-            }).join('') + '\n';
-
-          case 'definition':
-            return `**${section.raw_text}**\n\n`;
-
-          case 'quote':
-            return `> ${section.raw_text}\n\n`;
-          
-          default:
-            return `${section.raw_text}\n\n`;
-        }
-      }).join('');
-    };
-
-    const markdownContent = convertSectionsToMarkdown(studySet.text_content.sections);
-
-    // Split content into smaller chunks if it's very large
-    return renderMarkdownContent(markdownContent);
-  };
-
-  // First, add these functions at the top of the component (after all the other const declarations)
   const skipBackward = async () => {
     // Skip back 15 seconds, but no lower than 0
     const newTime = Math.max(0, currentTime - 15);
@@ -341,10 +426,15 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
   const handleChangeFontPress = () => {
     setShowSettingsSheet(false);
-    // Show a toast message
-    setToastMessage("Font customization coming soon!");
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
+    
+    // Open the font selection sheet instead of showing toast
+    setTimeout(() => {
+      setFontSheetVisible(true);
+    }, 300);
+  };
+
+  const handleFontChange = (newSettings: FontSettings) => {
+    setFontSettings(newSettings);
   };
 
   const handleLanguagePress = () => {
@@ -358,6 +448,16 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   useEffect(() => {
     console.log('Folder select modal visible:', folderSelectVisible);
   }, [folderSelectVisible]);
+
+  // Create a handler for the back button in the font sheet
+  const handleFontSheetBack = () => {
+    setFontSheetVisible(false);
+    
+    // Wait for the font sheet to close, then open the settings sheet
+    setTimeout(() => {
+      setShowSettingsSheet(true);
+    }, 300);
+  };
 
   if (!route.params?.id) {
     return (
@@ -680,15 +780,15 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                   <ActivityIndicator size="small" color={theme.colors.text} />
                 ) : (
                   isPlaying ? (
-                    <Pause color="#FFFFFF" size={20} />
+                    <Pause color="#FFFFFF" size={16} />
                   ) : (
-                    <Play color="#FFFFFF" size={20} />
+                    <Play color="#FFFFFF" size={16} />
                   )
                 )}
               </TouchableOpacity>
             </View>
             
-            {renderContent()}
+            {renderMarkdownContent(studySet.text_content.sections.map(section => section.raw_text).join('\n'))}
           </View>
         </View>
       </ScrollView>
@@ -858,6 +958,17 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         folderName={currentFolder?.name || ''}
         folderColor={currentFolder?.color || '#888'}
         language={'English'}
+        selectedFont={fontSettings.font}
+      />
+
+      <FontSelectionSheet
+        visible={fontSheetVisible}
+        onClose={() => setFontSheetVisible(false)}
+        onBack={handleFontSheetBack}
+        selectedFont={fontSettings.font}
+        fontSize={fontSettings.size}
+        isAllCaps={fontSettings.isAllCaps}
+        onFontChange={handleFontChange}
       />
     </SafeAreaView>
   );
@@ -1244,58 +1355,6 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '0deg' }],
     zIndex: 1,
   },
-  // audioPlayer: {
-  //   paddingVertical: 16,
-  //   paddingHorizontal: 20,
-  //   backgroundColor: '#1A1A1A',
-  // },
-  // audioPlayerContent: {
-  //   flexDirection: 'row',
-  //   alignItems: 'center',
-  //   justifyContent: 'space-between',
-  // },
-  // audioPlayerMainButton: {
-  //   width: 44,
-  //   height: 44,
-  //   borderRadius: 22,
-  //   backgroundColor: theme.colors.primary,
-  //   justifyContent: 'center',
-  //   alignItems: 'center',
-  // },
-  // audioPlayerTimer: {
-  //   color: theme.colors.text,
-  //   fontSize: 28,
-  //   fontFamily: theme.fonts.bold,
-  //   textAlign: 'center',
-  //   flex: 1,
-  // },
-  // audioPlayerRoundButton: {
-  //   width: 42,
-  //   height: 42,
-  //   borderRadius: 21,
-  //   borderWidth: 2,
-  //   borderColor: "#FFF",
-  //   backgroundColor: 'transparent',
-  //   justifyContent: 'center',
-  //   alignItems: 'center',
-  //   marginHorizontal: 10,
-  // },
-  // audioPlayerRoundButtonText: {
-  //   color: theme.colors.text,
-  //   fontSize: 16,
-  //   fontFamily: theme.fonts.bold,
-  // },
-  // audioPlayerCloseButton: {
-  //   width: 40,
-  //   height: 40,
-  //   justifyContent: 'center',
-  //   alignItems: 'center',
-  // },
-  // audioPlayerButtonText: {
-  //   color: theme.colors.text,
-  //   fontSize: 22,
-  //   fontFamily: theme.fonts.bold,
-  // },
   folderNameText: {
     fontSize: 14,
     color: theme.colors.textSecondary,

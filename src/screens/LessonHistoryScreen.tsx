@@ -369,7 +369,11 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
   const renderSection = ({ item }: { item: TimeSection }) => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{item.title}</Text>
-      {item.data.map(studySet => renderItem({ item: studySet }))}
+      {item.data.map(studySet => (
+        <React.Fragment key={studySet.id}>
+          {renderItem({ item: studySet })}
+        </React.Fragment>
+      ))}
     </View>
   );
 

@@ -27,6 +27,12 @@ import * as Font from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { cacheAssets } from './src/utils/asset';
 import ProfileSettingsScreen from './src/screens/ProfileSettingsScreen';
+import { 
+  AtkinsonHyperlegible_400Regular, 
+} from '@expo-google-fonts/atkinson-hyperlegible';
+import {
+  IBMPlexMono_400Regular
+} from '@expo-google-fonts/ibm-plex-mono';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -56,12 +62,16 @@ export default function App() {
         try {
           await Font.loadAsync({
             'Geist': require('./assets/fonts/Geist-VariableFont_wght.ttf'),
+            'OpenDyslexic': require('./assets/fonts/OpenDyslexic-Regular.otf'),
+            'OpenDyslexic-Bold': require('./assets/fonts/OpenDyslexic-Bold.otf'),
+            'OpenDyslexic-Italic': require('./assets/fonts/OpenDyslexic-Italic.otf'),
+            'AtkinsonHyperlegible': AtkinsonHyperlegible_400Regular,
+            'IBMPlexMono': IBMPlexMono_400Regular,
           });
-          console.log("Font loaded successfully");
+          console.log("Fonts loaded successfully");
           setFontsLoaded(true);
         } catch (fontError) {
           console.error("Font loading error details:", fontError);
-          // Continue without custom font
           setFontsLoaded(true); // Still mark as loaded even if it fails
         }
         

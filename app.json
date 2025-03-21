@@ -66,6 +66,18 @@
       {
         "asset": "assets/fonts/Geist-VariableFont_wght.ttf",
         "family": "Geist"
+      },
+      {
+        "asset": "assets/OpenDyslexic-Regular.otf",
+        "family": "OpenDyslexic"
+      },
+      {
+        "asset": "assets/OpenDyslexic-Bold.otf",
+        "family": "OpenDyslexic-Bold"
+      },
+      {
+        "asset": "assets/OpenDyslexic-Italic.otf",
+        "family": "OpenDyslexic-Italic"
       }
     ],
     "updates": {

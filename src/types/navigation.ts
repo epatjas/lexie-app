@@ -11,10 +11,10 @@ export type RootStackParamList = {
     }>;
   } | undefined;
   Welcome: undefined;
-  NameInput: undefined;
-  ProfileImage: undefined;
+  NameInput: { profileId: string };
+  ProfileImage: { profileId: string };
   ProfileSelection: undefined;
-  StudySet: { id: string };
+  StudySet: { id: string; fontSettings?: FontSettings };
   Flashcards: { 
     studySetId: string; 
     filterIndices?: number[]; // Optional param to filter cards
@@ -56,6 +56,7 @@ export type RootStackParamList = {
     learningIndices: number[];
   };
   ProfileSettings: undefined;
+  FontSelection: undefined;
 };
 
 export type SettingsScreenProps = {
