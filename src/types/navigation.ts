@@ -29,7 +29,13 @@ export type RootStackParamList = {
     timeSpent: string;
     studySetId: string;
   };
-  Preview: { document: Document };
+  Preview: { 
+    photos: Array<{
+      uri: string;
+      base64?: string;
+    }>;
+    document?: Document; // Keep document as optional if it's still needed
+  };
   ScanPage: {
     openBottomSheet?: boolean;
     existingPhotos?: Array<{

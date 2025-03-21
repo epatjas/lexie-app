@@ -29,7 +29,7 @@ export default function CreateStudySetBottomSheet({ onClose, visible, existingPh
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (!permissionResult.granted) {
-      alert('Permission to access camera roll is required!');
+      alert('Permission to access camera roll is required.');
       return;
     }
 
@@ -54,11 +54,17 @@ export default function CreateStudySetBottomSheet({ onClose, visible, existingPh
   };
 
   const handleScanPress = () => {
+    console.log('handleScanPress called, navigating to ScanPage');
+    
+    const navigateToScan = () => {
+      navigation.navigate('ScanPage', { 
+        openBottomSheet: false,
+        existingPhotos: existingPhotos 
+      });
+    };
+    
     onClose();
-    navigation.navigate('ScanPage', { 
-      openBottomSheet: false,
-      existingPhotos: existingPhotos 
-    });
+    setTimeout(navigateToScan, 100);
   };
 
   return (
@@ -84,9 +90,9 @@ export default function CreateStudySetBottomSheet({ onClose, visible, existingPh
               <Camera size={24} color={theme.colors.background} />
             </View>
             <View style={styles.textContainer}>
-              <Text style={styles.optionTitle}>Skannaa</Text>
+              <Text style={styles.optionTitle}>Take photo</Text>
               <Text style={styles.optionDescription}>
-                Skannaa kirjasta tai muistiinpanoista
+              Use camera to capture your work
               </Text>
             </View>
           </TouchableOpacity>
@@ -96,9 +102,9 @@ export default function CreateStudySetBottomSheet({ onClose, visible, existingPh
               <ImageIcon size={24} color={theme.colors.background} />
             </View>
             <View style={styles.textContainer}>
-              <Text style={styles.optionTitle}>Lataa kuva</Text>
+              <Text style={styles.optionTitle}>Choose photo</Text>
               <Text style={styles.optionDescription}>
-                Valitse kuva laitteeltasi
+              Pick one from your device
               </Text>
             </View>
           </TouchableOpacity>

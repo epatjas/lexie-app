@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Animated } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ArrowLeft, X, Image as ImageIcon, Camera } from 'lucide-react-native';
+import { ChevronLeft, X, Image as ImageIcon, Camera } from 'lucide-react-native';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
 
@@ -18,10 +18,42 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
   const cameraRef = useRef<any>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isCameraReady, setCameraReady] = useState(false);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
   const progressAnimation = useRef(new Animated.Value(0)).current;
   
   // Get existing photos from route params
   const existingPhotos = route.params?.existingPhotos || [];
+
+  // Add logging to debug camera initialization
+  useEffect(() => {
+    console.log('ScanPageScreen mounted');
+    console.log('Camera permission status:', permission);
+    
+    // Request camera permission if not already granted
+    const checkPermission = async () => {
+      if (!permission?.granted) {
+        console.log('Requesting camera permission...');
+        const result = await requestPermission();
+        console.log('Permission request result:', result);
+        if (!result.granted) {
+          setPermissionError('Camera permission is required to scan photos');
+        }
+      }
+    };
+    
+    checkPermission();
+    
+    return () => {
+      console.log('ScanPageScreen unmounting');
+    };
+  }, [permission, requestPermission]);
+
+  // Add this function to handle camera ready state
+  const onCameraReady = () => {
+    console.log('Camera is ready');
+    setCameraReady(true);
+  };
 
   const startCapture = () => {
     setIsCapturing(true);
@@ -54,11 +86,29 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
     }
   };
 
-  if (!permission?.granted) {
+  // Enhanced permission handling UI
+  if (!permission || permissionError) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          {/* You can optionally show a loading indicator here */}
+          {!permission && <ActivityIndicator size="large" color={theme.colors.primary} />}
+          <Text style={styles.permissionText}>
+            {permissionError || 'Checking camera permission...'}
+          </Text>
+          {permissionError && (
+            <TouchableOpacity 
+              style={styles.permissionButton} 
+              onPress={() => requestPermission()}
+            >
+              <Text style={styles.permissionButtonText}>Grant Permission</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity 
+            style={[styles.permissionButton, {marginTop: 10}]} 
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.permissionButtonText}>Go Back</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -68,20 +118,31 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <ArrowLeft size={24} color={theme.colors.text} />
+          <ChevronLeft size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Skannaa</Text>
+        <Text style={styles.headerTitle}>Take photo</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.cameraContainer}>
-        <CameraView style={styles.camera} ref={cameraRef}>
-          <View style={styles.cornerMarkers}>
-            <View style={[styles.corner, styles.topLeft]} />
-            <View style={[styles.corner, styles.topRight]} />
-            <View style={[styles.corner, styles.bottomLeft]} />
-            <View style={[styles.corner, styles.bottomRight]} />
-          </View>
+        <CameraView 
+          style={styles.camera} 
+          ref={cameraRef}
+          onCameraReady={onCameraReady}
+        >
+          {isCameraReady ? (
+            <View style={styles.cornerMarkers}>
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
+            </View>
+          ) : (
+            <View style={styles.cameraLoadingContainer}>
+              <ActivityIndicator size="large" color="white" />
+              <Text style={styles.cameraLoadingText}>Starting camera...</Text>
+            </View>
+          )}
         </CameraView>
       </View>
 
@@ -130,7 +191,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 16,
     color: theme.colors.text,
     fontFamily: theme.fonts.medium,
   },
@@ -211,5 +272,36 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  permissionText: {
+    marginTop: 20,
+    fontSize: 16,
+    color: theme.colors.text,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  permissionButton: {
+    marginTop: 20,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  permissionButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontFamily: theme.fonts.medium,
+  },
+  cameraLoadingContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  cameraLoadingText: {
+    color: 'white',
+    marginTop: 10,
+    fontSize: 16,
+    fontFamily: theme.fonts.medium,
   },
 });

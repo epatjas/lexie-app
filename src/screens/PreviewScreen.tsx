@@ -103,31 +103,31 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
   const STAGES_COUNT = 5;
   const TIME_PER_STAGE = MAX_PROCESSING_TIME / STAGES_COUNT; // 12 seconds per stage
 
-  const stages: ProcessingStage[] = [
+  const processingScreens = [
     {
-      icon: <Search size={20} color={theme.colors.text} />,
-      message: "Skannataan tekstiä",
-      subMessage: "Tunnistetaan tekstiä kuvista..."
+      title: "Just a moment",
+      message: "Reading your work now. This takes seconds, not minutes.",
+      icon: <Search size={20} color={theme.colors.text} />
     },
     {
-      icon: <FileText size={20} color={theme.colors.text} />,
-      message: "Käsitellään tekstiä",
-      subMessage: "Yhdistetään tekstit kokonaisuudeksi..."
+      title: "Creating your lesson",
+      message: "Text captured. Organizing content.",
+      icon: <FileText size={20} color={theme.colors.text} />
     },
     {
-      icon: <Brain size={20} color={theme.colors.text} />,
-      message: "Luodaan kysymyksiä",
-      subMessage: "Analysoidaan sisältöä..."
+      title: "Creating your lesson",
+      message: "Forming specific questions from your material.",
+      icon: <Brain size={20} color={theme.colors.text} />
     },
     {
-      icon: <ListChecks size={20} color={theme.colors.text} />,
-      message: "Viimeistellään",
-      subMessage: "Tarkistetaan vastausvaihtoehdot..."
+      title: "Creating your lesson",
+      message: "Converting text to spoken audio.",
+      icon: <ListChecks size={20} color={theme.colors.text} />
     },
     {
-      icon: <Sparkles size={20} color={theme.colors.text} />,
-      message: "Tallennetaan",
-      subMessage: "Harjoitussetti on kohta valmis..."
+      title: "Almost ready",
+      message: "Finalizing your practice materials.",
+      icon: <Sparkles size={20} color={theme.colors.text} />
     }
   ];
 
@@ -189,27 +189,27 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       setIsProcessing(false);
       console.error('Error details:', error);
       
-      let errorMessage = 'Kuvien käsittelyssä tapahtui virhe. Yritä uudelleen.';
+      let errorMessage = 'Image processing error. Please try again.';
       
       if (axios.isAxiosError(error)) {
         switch (error.response?.status) {
           case 400:
-            errorMessage = 'Kuvien lähetys epäonnistui. Varmista, että kuvat ovat selkeitä ja yritä uudelleen.';
+            errorMessage = 'Image sending failed. Ensure your images are clear and try again.';
             break;
           case 413:
-            errorMessage = 'Kuvat ovat liian suuria. Yritä ottaa kuvat uudelleen.';
+            errorMessage = 'Images are too large. Try again with smaller images.';
             break;
           case 429:
-            errorMessage = 'Liian monta yritystä. Odota hetki ja yritä uudelleen.';
+            errorMessage = 'Too many attempts. Wait a moment and try again.';
             break;
           case 500:
           case 502:
           case 503:
-            errorMessage = 'Palvelin on hetkellisesti poissa käytöstä. Yritä myöhemmin uudelleen.';
+            errorMessage = 'Server is temporarily unavailable. Try again later.';
             break;
           default:
             if (!navigator.onLine) {
-              errorMessage = 'Tarkista internet-yhteytesi ja yritä uudelleen.';
+              errorMessage = 'Check your internet connection and try again.';
             }
         }
       }
@@ -320,7 +320,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       // Stage transitions every 12 seconds
       const stageInterval = setInterval(() => {
         setProcessingStage(current => 
-          current < stages.length - 1 ? current + 1 : current
+          current < processingScreens.length - 1 ? current + 1 : current
         );
       }, TIME_PER_STAGE);
 
@@ -388,9 +388,6 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
     return () => clearInterval(interval);
   }, [processingId]);
 
-  // Determine if we came from image picker or camera
-  const isFromImagePicker = route.params?.source === 'imagePicker';
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -401,7 +398,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
           <ArrowLeft color={theme.colors.text} size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          Esikatsele
+        Preview
         </Text>
         <Text style={styles.imageCounter}>
           {currentIndex + 1}/{photos.length}
@@ -429,7 +426,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
           disabled={isProcessing}
         >
           <Text style={styles.analyzeButtonText}>
-            Valmis
+            Ready
           </Text>
         </TouchableOpacity>
 
@@ -439,7 +436,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
             onPress={() => navigation.navigate('ScanPage', { existingPhotos: photos })}
             disabled={isProcessing}
           >
-            <Text style={styles.addButtonText}>Skannaa lisää</Text>
+            <Text style={styles.addButtonText}>Take more</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -451,8 +448,8 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
                 
                 if (!permissionResult.granted) {
                   Alert.alert(
-                    'Tarvitaan lupa',
-                    'Lexie tarvitsee luvan käyttää kuvakirjastoa.'
+                    'Permission needed',
+                    'Lexie needs permission to use your photo library.'
                   );
                   return;
                 }
@@ -477,14 +474,14 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
               } catch (error) {
                 console.error('Error picking image:', error);
                 Alert.alert(
-                  'Virhe',
-                  'Kuvien lataaminen epäonnistui. Yritä uudelleen.'
+                  'Error',
+                  'Image loading failed. Try again.'
                 );
               }
             }}
             disabled={isProcessing}
           >
-            <Text style={styles.addButtonText}>Lataa kuvia</Text>
+            <Text style={styles.addButtonText}>Choose more</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -497,7 +494,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
         <View style={styles.processingModal}>
           <ParticleBackground />
           <AnimatedIcon style={iconAnimatedStyle}>
-            {stages[processingStage].icon}
+            {processingScreens[processingStage].icon}
           </AnimatedIcon>
           <View style={styles.progressBarContainer}>
             <Animated.View 
@@ -505,10 +502,10 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
             />
           </View>
           <Text style={styles.processingTitle}>
-            {stages[processingStage].message}
+            {processingScreens[processingStage].title}
           </Text>
           <Text style={styles.processingSubtitle}>
-            {stages[processingStage].subMessage}
+            {processingScreens[processingStage].message}
           </Text>
         </View>
       </Modal>
@@ -535,7 +532,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: theme.colors.text,
-    fontSize: theme.fontSizes.lg,
+    fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.medium,
     flex: 1,
     textAlign: 'center',
