@@ -324,35 +324,90 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     }
   };
 
+  const convertSectionsToMarkdown = (sections: TextSection[]): string => {
+    if (!sections || !Array.isArray(sections)) return '';
+    
+    return sections.map(section => {
+      switch (section.type) {
+        case 'heading':
+          // Add the appropriate number of # characters based on heading level
+          const headingMarker = '#'.repeat(section.level || 1);
+          return `${headingMarker} ${section.raw_text}\n\n`;
+          
+        case 'paragraph':
+          return `${section.raw_text}\n\n`;
+          
+        case 'list':
+          if (!section.items || !Array.isArray(section.items)) return '';
+          
+          if (section.style === 'numbered') {
+            // Clean up any existing numbers from items first
+            const cleanedItems = section.items.map(item => {
+              // Remove any leading numbers and dots (like "1. ", "2. ", etc.)
+              return item.replace(/^\s*\d+\.\s*/, '');
+            });
+            
+            // Now use the cleaned items with our 1. prefix
+            return cleanedItems.map(item => `1. ${item}`).join('\n') + '\n\n';
+          } else {
+            // For bullet lists, also clean up any existing bullets
+            const cleanedItems = section.items.map(item => {
+              // Remove any leading bullets (like "• ", "* ", "- ")
+              return item.replace(/^\s*[•*-]\s*/, '');
+            });
+            
+            return cleanedItems.map(item => `* ${item}`).join('\n') + '\n\n';
+          }
+          
+        case 'definition':
+          return `**${section.raw_text}**\n\n`;
+          
+        case 'quote':
+          return `> ${section.raw_text}\n\n`;
+          
+        default:
+          return `${section.raw_text}\n\n`;
+      }
+    }).join('');
+  };
+
   const renderMarkdownContent = (content: string) => {
+    // Define the text transform as a specific literal type, not a generic string
+    const textTransformValue = fontSettings.isAllCaps ? 'uppercase' as const : 'none' as const;
+    // Also define fontStyle as a specific literal type
+    const italicFontStyle = 'italic' as const; // Type assertion for fontStyle
+    
     const customMarkdownStyles = {
       ...markdownStyles,
       text: {
         ...markdownStyles.text,
         fontFamily: getFontFamily(),
         fontSize: fontSettings.size,
-        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+        textTransform: textTransformValue,
       },
       paragraph: {
         ...markdownStyles.paragraph,
         fontFamily: getFontFamily(),
         fontSize: fontSettings.size,
-        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+        textTransform: textTransformValue,
       },
       heading1: {
         ...markdownStyles.heading1,
         fontFamily: getFontFamily(),
-        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+        fontSize: fontSettings.size + 8,
+        textTransform: textTransformValue,
       },
       heading2: {
         ...markdownStyles.heading2,
         fontFamily: getFontFamily(),
-        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+        fontSize: fontSettings.size + 4,
+        textTransform: textTransformValue,
       },
       heading3: {
         ...markdownStyles.heading3,
         fontFamily: getFontFamily(),
-        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+        fontSize: fontSettings.size + 2,
+        textTransform: textTransformValue,
       },
       bullet_list: {
         ...markdownStyles.bullet_list,
@@ -367,12 +422,43 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         ...markdownStyles.bullet_list_content,
         fontFamily: getFontFamily(),
         fontSize: fontSettings.size,
-        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+        textTransform: textTransformValue,
+      },
+      blockquote: {
+        ...markdownStyles.blockquote,
+      },
+      strong: {
+        ...markdownStyles.strong,
+        fontFamily: getFontFamily(),
+        fontWeight: 'bold',
+      },
+      em: {
+        ...markdownStyles.em,
+        fontFamily: getFontFamily(),
+        fontStyle: italicFontStyle,
+      },
+    };
+
+    // Add all necessary styles with proper type assertions
+    const stylesWithAllProps = {
+      ...customMarkdownStyles,
+      ordered_list_text: {
+        fontFamily: getFontFamily(),
+        fontSize: fontSettings.size,
+        color: theme.colors.text,
+        textTransform: textTransformValue,
+      },
+      blockquote_content: { // This is likely the correct key for blockquote text
+        fontFamily: getFontFamily(),
+        fontSize: fontSettings.size,
+        color: theme.colors.text,
+        fontStyle: italicFontStyle,
+        textTransform: textTransformValue,
       },
     };
 
     return (
-      <Markdown style={customMarkdownStyles}>
+      <Markdown style={stylesWithAllProps}>
         {content}
       </Markdown>
     );
@@ -788,7 +874,8 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
               </TouchableOpacity>
             </View>
             
-            {renderMarkdownContent(studySet.text_content.sections.map(section => section.raw_text).join('\n'))}
+            {/* Use the improved method to convert sections to markdown */}
+            {renderMarkdownContent(convertSectionsToMarkdown(studySet.text_content.sections))}
           </View>
         </View>
       </ScrollView>
