@@ -15,7 +15,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
 import { useStudySetDetails } from '../hooks/useStudySet';
-import { ChevronLeft, Play, Pause, MoreVertical, Plus, X, Rewind, FastForward } from 'lucide-react-native';
+import { ChevronLeft, Play, Pause, MoreVertical, Plus, X, Rewind, FastForward, Volume2, ThumbsUp, ThumbsDown } from 'lucide-react-native';
 import { useFolders } from '../hooks/useFolders';
 import FolderSelectModal from '../components/FolderSelectModal';
 import FolderCreationModal from '../components/FolderCreationModal';
@@ -74,6 +74,8 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('summary');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [showFeedbackToast, setShowFeedbackToast] = useState(false);
 
   // Hooks
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
@@ -637,6 +639,42 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     // You can customize other rules here
   };
 
+  // Add this function for handling feedback
+  const handleFeedback = async (isPositive: boolean) => {
+    if (!content || feedbackSubmitted) return;
+    
+    try {
+      // Store feedback in AsyncStorage
+      const feedbackData = {
+        studySetId: id,
+        contentType: content.contentType,
+        isPositive,
+        timestamp: new Date().toISOString(),
+      };
+      
+      // Get existing feedback data or initialize empty array
+      const existingDataJson = await AsyncStorage.getItem('content_feedback') || '[]';
+      const existingData = JSON.parse(existingDataJson);
+      
+      // Add new feedback and save back to AsyncStorage
+      existingData.push(feedbackData);
+      await AsyncStorage.setItem('content_feedback', JSON.stringify(existingData));
+      
+      // Update state and show toast
+      setFeedbackSubmitted(true);
+      setShowFeedbackToast(true);
+      
+      // Hide toast after 3 seconds
+      setTimeout(() => {
+        setShowFeedbackToast(false);
+      }, 5000); // Keep toast visible a bit longer
+      
+      console.log('Feedback submitted:', feedbackData);
+    } catch (error) {
+      console.error('Error saving feedback:', error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -754,7 +792,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                       isPlaying ? (
                         <Pause color="#FFFFFF" size={16} />
                       ) : (
-                        <Play color="#FFFFFF" size={16} />
+                        <Volume2 color="#FFFFFF" size={16} />
                       )
                     )}
                   </TouchableOpacity>
@@ -776,6 +814,32 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                       {content.homeworkHelp.assignment.objective}
                     </Text>
                   )}
+                </View>
+
+                {/* Feedback section - updated to be left-aligned and closer to content */}
+                <View style={styles.feedbackContainer}>
+                  <View style={styles.feedbackButtons}>
+                    <TouchableOpacity 
+                      style={styles.feedbackButton} 
+                      onPress={() => handleFeedback(true)}
+                      disabled={feedbackSubmitted}
+                    >
+                      <ThumbsUp 
+                        color={theme.colors.textSecondary}
+                        size={20} 
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.feedbackButton} 
+                      onPress={() => handleFeedback(false)}
+                      disabled={feedbackSubmitted}
+                    >
+                      <ThumbsDown 
+                        color={theme.colors.textSecondary}
+                        size={20} 
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </>
             ) : (
@@ -873,7 +937,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                       isPlaying ? (
                         <Pause color="#FFFFFF" size={16} />
                       ) : (
-                        <Play color="#FFFFFF" size={16} />
+                        <Volume2 color="#FFFFFF" size={16} />
                       )
                     )}
                   </TouchableOpacity>
@@ -882,6 +946,32 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                 {/* Content based on selected tab */}
                 <View style={styles.tabContent}>
                   {content && renderContent()}
+                </View>
+
+                {/* Feedback section - updated to be left-aligned and closer to content */}
+                <View style={styles.feedbackContainer}>
+                  <View style={styles.feedbackButtons}>
+                    <TouchableOpacity 
+                      style={styles.feedbackButton} 
+                      onPress={() => handleFeedback(true)}
+                      disabled={feedbackSubmitted}
+                    >
+                      <ThumbsUp 
+                        color={theme.colors.textSecondary}
+                        size={20} 
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.feedbackButton} 
+                      onPress={() => handleFeedback(false)}
+                      disabled={feedbackSubmitted}
+                    >
+                      <ThumbsDown 
+                        color={theme.colors.textSecondary}
+                        size={20} 
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </>
             )}
@@ -901,7 +991,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
               {isPlaying ? (
                 <Pause color="#FFFFFF" size={28} />
               ) : (
-                <Play color="#FFFFFF" size={28} />
+                <Volume2 color="#FFFFFF" size={28} />
               )}
             </TouchableOpacity>
             
@@ -950,6 +1040,24 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         />
       )}
 
+      {/* Toast notification for feedback - updated design */}
+      {showFeedbackToast && (
+        <View style={styles.feedbackToast}>
+          <View style={styles.closeToastButtonContainer}>
+            <TouchableOpacity 
+              style={styles.closeToastButton}
+              onPress={() => setShowFeedbackToast(false)}
+            >
+              <X color="#FFFFFF" size={18} />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.feedbackToastText}>
+            Thank you for your feedback!
+          </Text>
+        </View>
+      )}
+
+      {/* Original toast for other messages */}
       {showToast && (
         <View style={styles.toast}>
           <Text style={styles.toastText}>{toastMessage}</Text>
@@ -1374,6 +1482,8 @@ const styles = StyleSheet.create({
   toast: {
     position: 'absolute',
     top: '10%',
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     paddingVertical: 8,
@@ -1417,5 +1527,65 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.regular,
     color: theme.colors.text,
     marginTop: theme.spacing.sm,
+  },
+  feedbackContainer: {
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    paddingLeft: theme.spacing.xs,
+  },
+  feedbackButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    gap: theme.spacing.md,
+  },
+  feedbackButton: {
+    padding: theme.spacing.xs / 2,
+  },
+  feedbackToast: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 90 : 50,
+    left: theme.spacing.md,
+    right: theme.spacing.md,
+    backgroundColor: 'rgba(30, 30, 30, 0.85)',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1000,
+    borderWidth: 1,
+    borderColor: 'rgba(60, 60, 60, 0.5)',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  feedbackToastText: {
+    color: 'white',
+    fontSize: 16,
+    fontFamily: theme.fonts.regular,
+    flex: 1,
+    textAlign: 'left',
+    paddingLeft: 0,
+    marginRight: 0,
+  },
+  closeToastButtonContainer: {
+    marginRight: 4,
+    marginLeft: -4,
+  },
+  closeToastButton: {
+    padding: 5,
+    backgroundColor: 'rgba(80, 80, 80, 0.5)',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 24,
+    height: 24,
   },
 });
