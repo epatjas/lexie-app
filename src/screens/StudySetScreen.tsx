@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  TextStyle,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
@@ -72,6 +73,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('summary');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Hooks
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
@@ -411,15 +413,15 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
           if (!section.items || !Array.isArray(section.items)) return '';
           
           if (section.style === 'numbered') {
-            const cleanedItems = section.items.map(item => {
-              return item.replace(/^\s*\d+\.\s*/, '');
-            });
-            return cleanedItems.map(item => `1. ${item}`).join('\n') + '\n\n';
+            return section.items.map((item, index) => {
+              const cleanItem = item.replace(/^\s*\d+\.\s*/, '');
+              return `${index + 1}. ${cleanItem}`;
+            }).join('\n') + '\n\n';
           } else {
-            const cleanedItems = section.items.map(item => {
-              return item.replace(/^\s*[•*-]\s*/, '');
-            });
-            return cleanedItems.map(item => `* ${item}`).join('\n') + '\n\n';
+            return section.items.map(item => {
+              const cleanItem = item.replace(/^\s*[•*-]\s*/, '');
+              return `* ${cleanItem}`;
+            }).join('\n') + '\n\n';
           }
           
         case 'definition':
@@ -434,102 +436,111 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     }).join('');
   };
 
-  const renderMarkdownContent = (content: string) => {
-    const textTransformValue = fontSettings.isAllCaps ? 'uppercase' as const : 'none' as const;
-    const italicFontStyle = 'italic' as const;
+  const getMarkdownStyles = (): MarkdownStylesObject => {
+    const fontFamily = getFontFamily();
+    const fontSize = fontSettings.size;
+    const textTransform = fontSettings.isAllCaps ? 'uppercase' : 'none';
     
-    const customMarkdownStyles = {
-      ...markdownStyles,
-      text: {
-        ...markdownStyles.text,
-        fontFamily: getFontFamily(),
-        fontSize: fontSettings.size,
-        textTransform: textTransformValue,
-        lineHeight: 26,
+    return {
+      // Base text style applied to all elements
+      body: {
+        fontSize: fontSize,
+        fontFamily: fontFamily,
+        color: theme.colors.text,
+        lineHeight: fontSize * 1.5,
       },
-      paragraph: {
-        ...markdownStyles.paragraph,
-        fontFamily: getFontFamily(),
-        fontSize: fontSettings.size,
-        textTransform: textTransformValue,
-      },
+      // Headings
       heading1: {
-        ...markdownStyles.heading1,
-        fontFamily: getFontFamily(),
-        fontSize: fontSettings.size + 8,
-        textTransform: textTransformValue,
+        fontSize: fontSize + 6,
+        fontFamily: fontFamily,
+        fontWeight: 'regular',
+        color: theme.colors.primary,
+        marginTop: 24,
+        marginBottom: 8,
+        textTransform: textTransform,
       },
       heading2: {
-        ...markdownStyles.heading2,
-        fontFamily: getFontFamily(),
-        fontSize: fontSettings.size + 4,
-        textTransform: textTransformValue,
+        fontSize: fontSize + 2,
+        fontFamily: fontFamily,
+        fontWeight: 'medium',
+        color: theme.colors.primary,
+        marginTop: 16,
+        marginBottom: 8,
+        textTransform: textTransform,
       },
       heading3: {
-        ...markdownStyles.heading3,
-        fontFamily: getFontFamily(),
-        fontSize: fontSettings.size + 2,
-        textTransform: textTransformValue,
+        fontSize: fontSize + 4,
+        fontFamily: fontFamily,
+        fontWeight: '600',
+        color: theme.colors.text,
+        marginTop: 16,
+        marginBottom: 8,
+        textTransform: textTransform,
       },
-      bullet_list_content: {
-        ...markdownStyles.bullet_list_content,
-        fontFamily: getFontFamily(),
-        fontSize: fontSettings.size,
-        textTransform: textTransformValue,
+      // Paragraphs
+      paragraph: {
+        fontSize: fontSize,
+        fontFamily: fontFamily,
+        color: theme.colors.text,
+        marginBottom: 16,
+        lineHeight: 26,
+        textTransform: textTransform,
       },
+      // Lists
+      bullet_list: {
+        marginBottom: 16,
+      },
+      ordered_list: {
+        marginBottom: 16,
+      },
+      list_item: {
+        fontSize: fontSize,
+        fontFamily: fontFamily,
+        color: theme.colors.text,
+        marginBottom: 8,
+        flexDirection: 'row',
+        textTransform: textTransform,
+      },
+      // Bold text
       strong: {
-        ...markdownStyles.strong,
-        fontFamily: getFontFamily(),
         fontWeight: 'bold',
+        fontFamily: fontFamily,
       },
-      em: {
-        ...markdownStyles.em,
-        fontFamily: getFontFamily(),
-        fontStyle: italicFontStyle,
-      },
-    };
-
-    const stylesWithAllProps = {
-      ...customMarkdownStyles,
-      ordered_list_text: {
-        fontFamily: getFontFamily(),
-        fontSize: fontSettings.size,
-        color: theme.colors.text,
-        textTransform: textTransformValue,
-      },
-      blockquote_content: {
-        fontFamily: getFontFamily(),
-        fontSize: fontSettings.size,
-        color: theme.colors.text,
-        fontStyle: italicFontStyle,
-        textTransform: textTransformValue,
+      // Other elements as needed
+      blockquote: {
+        borderLeftWidth: 4,
+        borderLeftColor: theme.colors.primary,
+        paddingLeft: 16,
+        marginLeft: 0,
+        marginBottom: 16,
       },
     };
+  };
 
-    return (
-      <Markdown 
-        style={stylesWithAllProps}
-        rules={{
-          bullet_list_item: (node, children, parent, styles) => {
-            return (
-              <View key={node.key} style={styles.list_item}>
-                <View style={{
-                  width: 4,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: theme.colors.text,
-                  marginTop: 10,
-                  marginRight: 6,
-                }} />
-                <View style={styles.bullet_list_content}>{children}</View>
-              </View>
-            );
-          }
-        }}
-      >
-        {content}
-      </Markdown>
-    );
+  const renderContent = () => {
+    if (!content) return null;
+    
+    const markdownStyles = getMarkdownStyles();
+    
+    if (activeTab === 'summary' && hasSummary(content)) {
+      const summary = getSummary(content);
+      console.log('Rendering summary markdown with proper component');
+      
+      return (
+        <Markdown style={markdownStyles}>
+          {summary}
+        </Markdown>
+      );
+    } else {
+      const originalText = convertSectionsToMarkdown(content.text_content.sections);
+      console.log('Rendering original text markdown with proper component');
+      
+      return (
+        <Markdown style={markdownStyles}>
+          {originalText}
+        </Markdown>
+      );
+    }
   };
   
   // Determine card count using our helper function
@@ -540,22 +551,6 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const contentIsStudySet = content ? isStudySet(content) : false;
 
   const currentFolder = content ? folders.find(f => f.id === content.folder_id) : undefined;
-
-  // Fix the summary rendering with proper type guards and add markdown support
-  const renderContent = () => {
-    if (!content) return null;
-    
-    if (activeTab === 'summary' && hasSummary(content)) {
-      const summary = getSummary(content);
-      
-      // Instead of manually handling paragraphs, use the Markdown renderer
-      return renderMarkdownContent(summary);
-    } else {
-      return <View>
-        {renderMarkdownContent(convertSectionsToMarkdown(content.text_content.sections))}
-      </View>;
-    }
-  };
 
   // Add this diagnostic function
   const checkNavigator = () => {
@@ -594,6 +589,52 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         fontSettings.size,
       textTransform: textTransformValue,
     };
+  };
+
+  // Near the top of your component 
+  const listStyles = {
+    bullet: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: theme.colors.primary,
+      marginTop: 10,
+      marginRight: 8,
+    },
+    number: {
+      color: theme.colors.primary,
+      fontWeight: 'bold',
+      marginRight: 8,
+      marginTop: 2,
+    },
+    spacing: {
+      item: theme.spacing.sm,  // Space between list items
+    }
+  };
+
+  // Add this near your other configuration
+  const markdownRules = {
+    bullet_list: {
+      marginLeft: 16,
+    },
+    ordered_list: {
+      marginLeft: 16,
+    },
+    bullet_list_icon: () => {
+      return (
+        <View
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: 3,
+            backgroundColor: theme.colors.primary,
+            marginTop: 10,
+            marginRight: 10,
+          }}
+        />
+      );
+    },
+    // You can customize other rules here
   };
 
   return (
@@ -945,10 +986,6 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         isAllCaps={fontSettings.isAllCaps}
         onFontChange={handleFontChange}
       />
-
-      <TouchableOpacity onPress={testNavigation}>
-        <Text>Test Navigation</Text>
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -1382,83 +1419,3 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
   },
 });
-
-// Markdown styles
-const markdownStyles: MarkdownStylesObject = {
-  heading1: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginTop: theme.spacing.lg,
-    marginBottom: theme.spacing.md,
-    letterSpacing: -0.5,
-  },
-  heading2: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
-    letterSpacing: -0.3,
-  },
-  heading3: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.xs,
-  },
-  paragraph: {
-    fontSize: 16,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.text,
-    marginBottom: 24,
-    lineHeight: 27,
-  },
-  strong: {
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  em: {
-    fontFamily: theme.fonts.regular,
-    fontStyle: 'italic',
-    color: theme.colors.text,
-  },
-  text: {
-    color: theme.colors.text,
-    fontSize: theme.fontSizes.md,
-    lineHeight: 24,
-  },
-  blockquote: {
-    backgroundColor: theme.colors.background01,
-    marginVertical: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.primary,
-  },
-  bullet_list: {
-    paddingLeft: 0,
-    marginVertical: theme.spacing.sm,
-  },
-  bullet_list_icon: {
-    marginRight: 10,
-    marginTop: 10,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.text,
-  },
-  bullet_list_content: {
-    flex: 1,
-    marginLeft: 0,
-  },
-  ordered_list: {
-    paddingTop: theme.spacing.md,
-  },
-  list_item: {
-    flexDirection: 'row',
-    marginBottom: theme.spacing.xs,
-  },
-};

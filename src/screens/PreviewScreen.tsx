@@ -116,7 +116,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
     },
     {
       title: "Creating your lesson",
-      message: "Forming specific questions from your material.",
+      message: "Forming questions from your material.",
       icon: <Brain size={20} color={theme.colors.text} />
     },
     {
