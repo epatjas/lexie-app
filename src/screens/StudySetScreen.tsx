@@ -445,6 +445,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         fontFamily: getFontFamily(),
         fontSize: fontSettings.size,
         textTransform: textTransformValue,
+        lineHeight: 26,
       },
       paragraph: {
         ...markdownStyles.paragraph,
@@ -540,12 +541,15 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
   const currentFolder = content ? folders.find(f => f.id === content.folder_id) : undefined;
 
-  // Fix the summary rendering with proper type guards
+  // Fix the summary rendering with proper type guards and add markdown support
   const renderContent = () => {
     if (!content) return null;
     
     if (activeTab === 'summary' && hasSummary(content)) {
-      return <Text style={styles.summaryText}>{getSummary(content)}</Text>;
+      const summary = getSummary(content);
+      
+      // Instead of manually handling paragraphs, use the Markdown renderer
+      return renderMarkdownContent(summary);
     } else {
       return <View>
         {renderMarkdownContent(convertSectionsToMarkdown(content.text_content.sections))}
@@ -1025,6 +1029,7 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.regular,
     color: theme.colors.text,
+    lineHeight: 26,
   },
   rawContentText: {
     fontSize: theme.fontSizes.md,
@@ -1349,10 +1354,10 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.medium,
     color: theme.colors.text,
     marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
   },
   homeworkContent: {
-    padding: theme.spacing.md,
+    padding: theme.spacing.xs,
   },
   factItem: {
     flexDirection: 'row',
@@ -1360,13 +1365,13 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xs,
   },
   bulletPoint: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: theme.fonts.regular,
     color: theme.colors.text,
     marginRight: theme.spacing.xs,
   },
   factText: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: theme.fonts.regular,
     color: theme.colors.text,
   },
