@@ -350,3 +350,71 @@ export const getAdditionalHint = async (homeworkHelpId: string, cardNumber: numb
     throw error;
   }
 };
+
+// Fix the getAudioContent implementation
+export const getAudioContent = async (
+  content: StudyMaterials,
+  selectedTab: string = 'summary'
+): Promise<ArrayBuffer> => {
+  let textToSpeak = '';
+  let language = 'en'; // Default language
+  
+  // Determine which text to speak based on content type and tab
+  if (content.contentType === 'study-set') {
+    // For study sets, use different text based on selected tab
+    if (selectedTab === 'summary') {
+      textToSpeak = content.summary || '';
+      console.log('[Client] Playing summary audio');
+    } else if (selectedTab === 'original') {
+      textToSpeak = content.text_content.raw_text || '';
+      console.log('[Client] Playing transcription audio');
+    }
+  } else if (content.contentType === 'homework-help') {
+    // Check if content is Finnish
+    const isFinnish = content.text_content.raw_text.match(/[äöåÄÖÅ]/) || 
+        content.homeworkHelp?.language === 'fi' || 
+        content.homeworkHelp?.subject_area?.toLowerCase().includes('suomi');
+    
+    if (isFinnish) {
+      language = 'fi';
+      console.log('[Client] Detected Finnish homework content');
+      
+      // For Finnish, create a natural-sounding narrative by combining facts and objective
+      // Since the prompt now ensures everything is in Finnish, we don't need to filter
+      const facts = content.homeworkHelp?.assignment?.facts || [];
+      const objective = content.homeworkHelp?.assignment?.objective || '';
+      
+      // Create a more natural sounding narrative in Finnish
+      textToSpeak = facts.join('. ');
+      
+      // Add objective if it's available
+      if (objective) {
+        textToSpeak += '. ' + objective;
+      }
+    } else {
+      // For English content, previous format is fine
+      const facts = content.homeworkHelp?.assignment?.facts || [];
+      const objective = content.homeworkHelp?.assignment?.objective || '';
+      
+      // Build a string with all the facts and objective
+      textToSpeak = [...facts, objective].filter(Boolean).join('. ');
+    }
+  }
+  
+  // Call the TTS endpoint
+  try {
+    const response = await axios.post(
+      `${API_URL}/tts`,
+      { 
+        text: textToSpeak,
+        language: language 
+      },
+      { responseType: 'arraybuffer' }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error('[Client] Failed to get audio content:', error);
+    throw error;
+  }
+}

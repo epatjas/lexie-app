@@ -31,6 +31,9 @@ import { StudySet, HomeworkHelp } from '../types/types';
 import { getStudySet } from '../services/Database';
 import { isStudySet, isHomeworkHelp, getCardCountText, hasSummary, getSummary } from '../utils/contentTypeHelpers';
 import * as NavigationService from '../navigation/NavigationService';
+import { useAudio } from '../hooks/useAudio';
+import AudioPlayer from '../components/AudioPlayer';
+import { AntDesign } from '@expo/vector-icons';
 
 type StudySetScreenProps = NativeStackScreenProps<RootStackParamList, 'StudySet'>;
 type ContentType = 'study-set' | 'homework-help';
@@ -76,6 +79,8 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const [refreshKey, setRefreshKey] = useState(0);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [showFeedbackToast, setShowFeedbackToast] = useState(false);
+  const [selectedTab, setSelectedTab] = useState('summary');
+  const { playAudio, pauseAudio, isPlaying, isLoading: audioIsLoading } = useAudio();
 
   // Hooks
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
@@ -132,7 +137,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     return audioText;
   };
   
-  const { isPlaying, currentTime, togglePlayback, error: audioError, isLoading: audioIsLoading, progress, seek } = useAudioPlayback({
+  const { currentTime, seek } = useAudioPlayback({
     text: studySet ? constructAudioText(studySet) : '',
   });
   
@@ -279,13 +284,17 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     );
   };
 
-  const handleListenPress = async () => {
-    try {
+  const handleListenPress = () => {
+    if (content) {
       setShowAudioPlayer(true);
-      await togglePlayback();
-    } catch (err) {
-      Alert.alert('Error', 'Failed to play audio');
+    } else {
+      // Maybe show an error message
+      Alert.alert('Error', 'No content available to play');
     }
+  };
+
+  const handleCloseAudio = () => {
+    setShowAudioPlayer(false);
   };
   
   const navigateToCards = () => {
@@ -524,7 +533,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     
     const markdownStyles = getMarkdownStyles();
     
-    if (activeTab === 'summary' && hasSummary(content)) {
+    if (selectedTab === 'summary' && hasSummary(content)) {
       const summary = getSummary(content);
       console.log('Rendering summary markdown with proper component');
       
@@ -908,19 +917,19 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                 }}>
                   <View style={styles.tabContainer}>
                     <TouchableOpacity 
-                      style={[styles.tab, activeTab === 'summary' && styles.activeTab]}
-                      onPress={() => setActiveTab('summary')}
+                      style={[styles.tab, selectedTab === 'summary' && styles.activeTab]}
+                      onPress={() => setSelectedTab('summary')}
                     >
-                      <Text style={[styles.tabText, activeTab === 'summary' && styles.activeTabText]}>
+                      <Text style={[styles.tabText, selectedTab === 'summary' && styles.activeTabText]}>
                         Summary
                       </Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
-                      style={[styles.tab, activeTab === 'original' && styles.activeTab]}
-                      onPress={() => setActiveTab('original')}
+                      style={[styles.tab, selectedTab === 'original' && styles.activeTab]}
+                      onPress={() => setSelectedTab('original')}
                     >
-                      <Text style={[styles.tabText, activeTab === 'original' && styles.activeTabText]}>
+                      <Text style={[styles.tabText, selectedTab === 'original' && styles.activeTabText]}>
                         Original text
                       </Text>
                     </TouchableOpacity>
@@ -984,39 +993,12 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       )}
 
       {/* Audio player overlay */}
-      {showAudioPlayer && (
-        <View style={styles.audioPlayerOverlay}>
-          <View style={styles.audioPlayerControls}>
-            <TouchableOpacity style={styles.playButton} onPress={togglePlayback}>
-              {isPlaying ? (
-                <Pause color="#FFFFFF" size={28} />
-              ) : (
-                <Volume2 color="#FFFFFF" size={28} />
-              )}
-            </TouchableOpacity>
-            
-            <Text style={styles.audioTimer}>
-              {String(Math.floor(currentTime / 60)).padStart(2, '0')}:{String(Math.floor(currentTime % 60)).padStart(2, '0')}
-            </Text>
-          </View>
-          
-          <View style={styles.audioRightControls}>
-            <TouchableOpacity style={styles.skipButton} onPress={skipBackward}>
-              <Rewind color="#FFFFFF" size={20} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.skipButton} onPress={skipForward}>
-              <FastForward color="#FFFFFF" size={20} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.closeButton} onPress={() => {
-              if (isPlaying) togglePlayback();
-              setShowAudioPlayer(false);
-            }}>
-              <X color="#FFFFFF" size={24} />
-            </TouchableOpacity>
-          </View>
-        </View>
+      {showAudioPlayer && content && (
+        <AudioPlayer 
+          content={content}
+          selectedTab={selectedTab}
+          onClose={handleCloseAudio}
+        />
       )}
 
       {/* Modals and other elements */}
