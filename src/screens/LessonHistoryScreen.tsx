@@ -12,7 +12,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
-import { StudySet, Profile } from '../types/types';
+import { Profile } from '../types/types';
 import { useStudySets } from '../hooks/useStudySet';
 import { useFolders } from '../hooks/useFolders';
 import ParticleBackground from '../components/ParticleBackground';
@@ -25,13 +25,22 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Plus, ChevronLeft } from 'lucide-react-native';
+import SettingsScreen from './SettingsScreen';
+import ProfileBadge from '../components/ProfileBadge';
 
 
 type LessonHistoryScreenProps = NativeStackScreenProps<RootStackParamList, 'LessonHistory'>;
 
+interface LocalStudySet {
+  id: string;
+  title: string;
+  created_at: string | number;
+  subject?: string;
+}
+
 type TimeSection = {
   title: string;
-  data: StudySet[];
+  data: LocalStudySet[];
 };
 
 export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenProps) {
@@ -40,6 +49,7 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
   const [sections, setSections] = useState<TimeSection[]>([]);
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const progress = useSharedValue(0);
 
   const overlayStyle = useAnimatedStyle(() => ({
@@ -89,7 +99,7 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
   }, [studySets]);
 
   useEffect(() => {
-    if (isBottomSheetVisible) {
+    if (isBottomSheetVisible || isSettingsVisible) {
       progress.value = withTiming(1, {
         duration: 300,
       });
@@ -98,34 +108,59 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
         duration: 300,
       });
     }
-  }, [isBottomSheetVisible]);
+  }, [isBottomSheetVisible, isSettingsVisible]);
 
   const organizeSections = () => {
+    // Get today at midnight
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const oneWeekAgo = new Date(today);
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    // Find the start of this week (Sunday or Monday depending on your preference)
+    const startOfThisWeek = new Date(today);
+    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    // If you want weeks to start on Monday, use:
+    startOfThisWeek.setDate(today.getDate() - currentDay + (currentDay === 0 ? -6 : 1));
+    // If you want weeks to start on Sunday, use:
+    // startOfThisWeek.setDate(today.getDate() - currentDay);
+    startOfThisWeek.setHours(0, 0, 0, 0);
     
-    const oneMonthAgo = new Date(today);
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
-    const todaySets: StudySet[] = [];
-    const lastWeekSets: StudySet[] = [];
-    const lastMonthSets: StudySet[] = [];
-    const olderSets: StudySet[] = [];
+    // Find the start of last week
+    const startOfLastWeek = new Date(startOfThisWeek);
+    startOfLastWeek.setDate(startOfThisWeek.getDate() - 7);
+    
+    // Find the start of last month
+    const startOfLastMonth = new Date(today);
+    startOfLastMonth.setMonth(today.getMonth() - 1);
+    startOfLastMonth.setHours(0, 0, 0, 0);
+    
+    const todaySets: LocalStudySet[] = [];
+    const thisWeekSets: LocalStudySet[] = [];
+    const lastWeekSets: LocalStudySet[] = [];
+    const lastMonthSets: LocalStudySet[] = [];
+    const olderSets: LocalStudySet[] = [];
 
     studySets.forEach(set => {
-      const createdAt = new Date(set.created_at);
+      if (!set.id) return;
+      
+      const localSet: LocalStudySet = {
+        id: set.id,
+        title: set.title || '',
+        created_at: set.created_at || Date.now(),
+        subject: set.hasOwnProperty('subject') ? (set as any).subject : undefined
+      };
+      
+      const createdAt = set.created_at ? new Date(set.created_at) : new Date();
       
       if (createdAt >= today) {
-        todaySets.push(set);
-      } else if (createdAt >= oneWeekAgo) {
-        lastWeekSets.push(set);
-      } else if (createdAt >= oneMonthAgo) {
-        lastMonthSets.push(set);
+        todaySets.push(localSet);
+      } else if (createdAt >= startOfThisWeek) {
+        thisWeekSets.push(localSet);
+      } else if (createdAt >= startOfLastWeek) {
+        lastWeekSets.push(localSet);
+      } else if (createdAt >= startOfLastMonth) {
+        lastMonthSets.push(localSet);
       } else {
-        olderSets.push(set);
+        olderSets.push(localSet);
       }
     });
 
@@ -133,6 +168,10 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
     
     if (todaySets.length > 0) {
       newSections.push({ title: 'Today', data: todaySets });
+    }
+    
+    if (thisWeekSets.length > 0) {
+      newSections.push({ title: 'This week', data: thisWeekSets });
     }
     
     if (lastWeekSets.length > 0) {
@@ -272,10 +311,10 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
     return folderMap[studySetId] || 'General';
   };
 
-  const renderItem = ({ item }: { item: StudySet }) => {
-    const folderInfo = getFolderInfo(item.id);
+  const renderItem = ({ item }: { item: LocalStudySet }) => {
+    const folderInfo = item.id ? getFolderInfo(item.id) : null;
     
-    // Assign blue color for Biology/Science subjects if they don't have a folder color
+    // Fix subject color with safe access
     const subjectColor = 
       item.subject && 
       (item.subject.toLowerCase() === 'biology' || 
@@ -287,7 +326,7 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
     return (
       <TouchableOpacity
         style={styles.lessonItem}
-        onPress={() => navigation.navigate('StudySet', { id: item.id })}
+        onPress={() => item.id && navigation.navigate('StudySet', { id: item.id })}
       >
         <View>
           <Text style={styles.lessonTitle}>{item.title}</Text>
@@ -385,7 +424,7 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
         <Text style={styles.headerTitle}>Lessons with Lexie</Text>
         <TouchableOpacity
           style={styles.profileButton}
-          onPress={() => navigation.navigate('ProfileSelection')}
+          onPress={() => setIsSettingsVisible(true)}
         >
           <Image
             source={getProfileImage(activeProfile?.avatarId)}
@@ -403,7 +442,10 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
           data={sections}
           renderItem={renderSection}
           keyExtractor={item => item.title}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[
+            styles.listContainer,
+            sections.length === 0 ? { flex: 1 } : null
+          ]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
@@ -419,7 +461,7 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
         onPress={handleCreatePress}
       >
         <Plus 
-          size={24}
+          size={20}
           color={theme.colors.background}
         />
         <Text style={styles.newLessonButtonText}>New lesson</Text>
@@ -442,6 +484,21 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
           </SafeAreaView>
         </Animated.View>
       </Modal>
+
+      {isSettingsVisible && (
+        <SettingsScreen 
+          visible={isSettingsVisible}
+          navigation={navigation}
+          onClose={() => setIsSettingsVisible(false)}
+          onProfileDeleted={() => {
+            setIsSettingsVisible(false);
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'ProfileSelection' }],
+            });
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -478,7 +535,8 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: 100, // Extra space for the new lesson button
+    paddingBottom: 100,
+    flexGrow: 1,
   },
   section: {
     marginBottom: 24,
@@ -522,12 +580,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 100,
   },
   emptyText: {
     fontSize: 16,
     fontFamily: theme.fonts.medium,
-    color: theme.colors.textSecondary,
+    color: theme.colors.text,
     textAlign: 'center',
   },
   newLessonButton: {

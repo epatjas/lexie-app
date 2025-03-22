@@ -194,7 +194,17 @@ export default function SettingsScreen({
               justifyContent: 'space-between',
               alignItems: 'center'
             }}
-            onPress={() => navigation.navigate('ProfileSelection')}
+            onPress={() => {
+              // First close the settings modal
+              handleClose();
+              
+              // Then navigate to profile selection with switching mode
+              setTimeout(() => {
+                navigation.navigate('ProfileSelection', { 
+                  switchProfile: true  // This tells the profile screen to stay open
+                });
+              }, 100); // Small delay to ensure modal closes first
+            }}
           >
             <View>
               <Text style={{color: theme.colors.text, opacity: 0.7, fontSize: 14}}>Profile</Text>

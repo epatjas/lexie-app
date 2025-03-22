@@ -27,6 +27,14 @@ const ProfileSelectionScreen: React.FC<ProfileSelectionScreenProps> = ({ navigat
   useEffect(() => {
     const checkProfilesAndNavigate = async () => {
       try {
+        // Check if we're in profile switching mode (via route params)
+        const routeParams = navigation.getState().routes.find(
+          route => route.name === 'ProfileSelection'
+        )?.params as { switchProfile?: boolean } | undefined;
+        
+        // If we're in switch mode, just show the screen without auto-navigation
+        const isSwitchingProfile = routeParams?.switchProfile === true;
+        
         // Load all profiles
         const savedProfiles = await getUserProfiles();
         setProfiles(savedProfiles || []);
@@ -37,24 +45,27 @@ const ProfileSelectionScreen: React.FC<ProfileSelectionScreenProps> = ({ navigat
           return;
         }
         
-        // If there are profiles, check if there's an active one
-        const activeProfileId = await AsyncStorage.getItem('@active_profile');
-        
-        if (activeProfileId) {
-          // We have an active profile, go directly to Home
-          navigation.replace('Home');
-          return;
-        } else if (savedProfiles.length === 1) {
-          // We only have one profile, make it active and go to Home
-          const newActiveProfileId = savedProfiles[0].id;
-          await AsyncStorage.setItem('@active_profile', newActiveProfileId);
-          await AsyncStorage.setItem('@active_profile_data', JSON.stringify(savedProfiles[0]));
-          navigation.replace('Home');
-          return;
+        // ONLY perform auto-navigation if we're NOT in profile switching mode
+        if (!isSwitchingProfile) {
+          // If there are profiles, check if there's an active one
+          const activeProfileId = await AsyncStorage.getItem('@active_profile');
+          
+          if (activeProfileId) {
+            // We have an active profile, go directly to Home
+            navigation.replace('Home');
+            return;
+          } else if (savedProfiles.length === 1) {
+            // We only have one profile, make it active and go to Home
+            const newActiveProfileId = savedProfiles[0].id;
+            await AsyncStorage.setItem('@active_profile', newActiveProfileId);
+            await AsyncStorage.setItem('@active_profile_data', JSON.stringify(savedProfiles[0]));
+            navigation.replace('Home');
+            return;
+          }
         }
         
-        // If we reach here, we have multiple profiles but none active
-        // Now we should show the profile selection screen
+        // If we reach here, either we're in switching mode OR
+        // we have multiple profiles but none active
         setShouldShowScreen(true);
         setIsLoading(false);
       } catch (error) {
@@ -68,7 +79,7 @@ const ProfileSelectionScreen: React.FC<ProfileSelectionScreenProps> = ({ navigat
   }, [navigation]);
 
   const handleAddProfile = () => {
-    navigation.navigate('NameInput');
+    navigation.navigate('NameInput', {});  // Empty object for optional params
   };
 
   const handleSelectProfile = async (profile: Profile) => {
@@ -106,7 +117,13 @@ const ProfileSelectionScreen: React.FC<ProfileSelectionScreenProps> = ({ navigat
     <SafeAreaView style={styles.container}>
       <ParticleBackground />
       <View style={styles.content}>
-        <Text style={styles.title}>Valitse profiili</Text>
+        <Text style={styles.title}>
+          {(navigation.getState().routes.find(r => 
+            r.name === 'ProfileSelection'
+          )?.params as any)?.switchProfile 
+            ? 'Switch profile' 
+            : 'Valitse profiili'}
+        </Text>
 
         <View style={styles.profilesContainer}>
           {profiles.map(profile => (
@@ -130,7 +147,7 @@ const ProfileSelectionScreen: React.FC<ProfileSelectionScreenProps> = ({ navigat
             <View style={styles.plusIconContainer}>
               <Plus size={24} color="rgba(255, 255, 255, 0.5)" />
             </View>
-            <Text style={styles.addProfileText}>Lisää uusi</Text>
+            <Text style={styles.addProfileText}>Add new</Text>
           </TouchableOpacity>
         </View>
       </View>

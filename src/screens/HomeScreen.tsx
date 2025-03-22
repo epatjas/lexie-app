@@ -205,6 +205,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         <TouchableOpacity 
           style={styles.backButton} 
           onPress={() => {
+            console.log('Navigating to Lesson History');
             navigation.navigate('LessonHistory');
           }}
         >

@@ -14,9 +14,9 @@ export type RootStackParamList = {
     }>;
   } | undefined;
   Welcome: undefined;
-  NameInput: { profileId: string };
+  NameInput: { profileId?: string };
   ProfileImage: { profileId: string };
-  ProfileSelection: undefined;
+  ProfileSelection: { switchProfile?: boolean };
   StudySet: { 
     id: string; 
     contentType?: 'study-set' | 'homework-help';
