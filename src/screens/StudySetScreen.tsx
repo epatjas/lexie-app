@@ -78,21 +78,52 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const { studySet, refreshStudySet, loading, deleteStudySet } = useStudySetDetails(id);
   
   const constructAudioText = (studySet: any): string => {
-    if (!studySet.text_content?.sections) return '';
+    if (!studySet) return '';
     
     let audioText = `${studySet.title}, , , \u2003 \u2003 \u2003`;
     
-    studySet.text_content.sections.forEach((section: any) => {
-      if (section.type === 'heading') {
-        audioText += `\u2003 \u2003 \u2003 ${section.raw_text}, , , \u2003 \u2003 \u2003`;
-      } else if (section.type === 'paragraph' || section.type === 'definition') {
-        audioText += `${section.raw_text}, , \u2003 \u2003`;
-      } else if (section.type === 'list' && Array.isArray(section.items)) {
-        audioText += section.items.map((item: string): string => 
-          `${item}, \u2003`
-        ).join('') + ', \u2003 \u2003';
+    // Handle study set content
+    if (studySet.text_content?.sections) {
+      studySet.text_content.sections.forEach((section: any) => {
+        if (section.type === 'heading') {
+          audioText += `\u2003 \u2003 \u2003 ${section.raw_text}, , , \u2003 \u2003 \u2003`;
+        } else if (section.type === 'paragraph' || section.type === 'definition') {
+          audioText += `${section.raw_text}, , \u2003 \u2003`;
+        } else if (section.type === 'list' && Array.isArray(section.items)) {
+          audioText += section.items.map((item: string): string => 
+            `${item}, \u2003`
+          ).join('') + ', \u2003 \u2003';
+        }
+      });
+    }
+    
+    // Handle homework help content
+    if (isHomeworkHelp(studySet) && studySet.homeworkHelp) {
+      // Add assignment information if available
+      if (studySet.homeworkHelp.assignment) {
+        if (studySet.homeworkHelp.assignment.objective) {
+          audioText += `Objective: ${studySet.homeworkHelp.assignment.objective}, , , \u2003 \u2003 \u2003`;
+        }
+        
+        if (Array.isArray(studySet.homeworkHelp.assignment.facts)) {
+          audioText += `Important facts: \u2003 \u2003`;
+          studySet.homeworkHelp.assignment.facts.forEach((fact: string) => {
+            audioText += `${fact}, \u2003 \u2003`;
+          });
+        }
       }
-    });
+      
+      // Add concept cards content if available
+      if (Array.isArray(studySet.homeworkHelp.concept_cards) && studySet.homeworkHelp.concept_cards.length > 0) {
+        audioText += `Concept cards: \u2003 \u2003 \u2003`;
+        studySet.homeworkHelp.concept_cards.forEach((card: any, index: number) => {
+          audioText += `Card ${index + 1}: ${card.title}, , \u2003`;
+          if (card.explanation) {
+            audioText += `${card.explanation}, \u2003 \u2003`;
+          }
+        });
+      }
+    }
 
     return audioText;
   };
@@ -649,8 +680,32 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                   </TouchableOpacity>
                 </View>
 
-                {/* Assignment section - NO TABS */}
-                <Text style={styles.assignmentTitle}>Assignment</Text>
+                {/* Assignment section with audio button */}
+                <View style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginVertical: theme.spacing.md,
+                }}>
+                  <Text style={styles.assignmentTitle}>Assignment</Text>
+                  
+                  {/* Add the audio button here */}
+                  <TouchableOpacity 
+                    style={styles.listenCircleButton}
+                    onPress={handleListenPress}
+                    disabled={audioIsLoading}
+                  >
+                    {audioIsLoading ? (
+                      <ActivityIndicator size="small" color={theme.colors.text} />
+                    ) : (
+                      isPlaying ? (
+                        <Pause color="#FFFFFF" size={16} />
+                      ) : (
+                        <Play color="#FFFFFF" size={16} />
+                      )
+                    )}
+                  </TouchableOpacity>
+                </View>
                 
                 {/* Display homework help content */}
                 <View style={styles.homeworkContent}>
