@@ -2,7 +2,10 @@ import 'react-native/Libraries/Image/AssetRegistry';
 import React, { useEffect, useState } from 'react';
 import { AppState, AppStateStatus, View, StyleSheet, LogBox, Text, Alert, Button } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ProfileProvider } from './src/contexts/ProfileContext';
+import AppNavigator from './src/navigation/AppNavigator';
+import { navigationRef, processNavigationQueue } from './src/navigation/NavigationService';
 import { closeDatabase, initDatabase, clearDatabase } from './src/services/Database';
 import { RootStackParamList } from './src/types/navigation';
 import HomeScreen from './src/screens/HomeScreen';
@@ -15,7 +18,6 @@ import PreviewScreen from './src/screens/PreviewScreen';
 import ScanPageScreen from './src/screens/ScanPageScreen';
 import FolderScreen from './src/screens/FolderScreen';
 import theme from './src/styles/theme';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import { checkFirstTimeUser, getUserProfiles } from './src/utils/storage';
 import NameInputScreen from './src/screens/NameInputScreen';
@@ -33,8 +35,6 @@ import {
 import {
   IBMPlexMono_400Regular
 } from '@expo-google-fonts/ibm-plex-mono';
-
-const Stack = createNativeStackNavigator<RootStackParamList>();
 
 LogBox.ignoreLogs([
   "It looks like you might be using shared value's .value inside reanimated inline style"
@@ -183,74 +183,25 @@ export default function App() {
   console.log("Rendering main navigation, isFirstTime:", isFirstTime);
   
   return (
-    <View style={styles.container}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <NavigationContainer>
-          <Stack.Navigator
-            initialRouteName={isFirstTime ? "Welcome" : "ProfileSelection"}
-            screenOptions={{
-              headerShown: false,
-              gestureEnabled: false
+    <ProfileProvider>
+      <View style={{ flex: 1 }}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <NavigationContainer 
+            ref={navigationRef}
+            onReady={() => {
+              console.log('[App] NavigationContainer READY');
+              processNavigationQueue();
+            }}
+            onStateChange={(state) => {
+              console.log('[App] Navigation state changed:', 
+                state?.routes?.map(r => r.name) || 'No routes');
             }}
           >
-            <Stack.Screen 
-              name="Welcome" 
-              component={WelcomeScreen}
-              options={{ gestureEnabled: false }}
-            />
-            <Stack.Screen 
-              name="NameInput" 
-              component={NameInputScreen}
-              options={{ gestureEnabled: false }}
-            />
-            <Stack.Screen 
-              name="ProfileImage"
-              component={ProfileImageScreen}
-              options={{ gestureEnabled: false }}
-            />
-            <Stack.Screen 
-              name="ProfileSelection"
-              component={ProfileSelectionScreen}
-              options={{ gestureEnabled: false }}
-            />
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen
-              name="StudySet"
-              component={StudySetScreen}
-              options={{ headerShown: false }}
-              getId={({ params }) => params?.id}
-            />
-            <Stack.Screen name="Flashcards" component={FlashcardsScreen} />
-            <Stack.Screen name="FlashcardResults" component={FlashcardResultsScreen} />
-            <Stack.Screen name="Quiz" component={QuizScreen} />
-            <Stack.Screen name="QuizComplete" component={QuizCompleteScreen} />
-            <Stack.Screen name="Preview" component={PreviewScreen} />
-            <Stack.Screen name="ScanPage" component={ScanPageScreen} />
-            <Stack.Screen name="Folder" component={FolderScreen} />
-            <Stack.Screen 
-              name="Settings" 
-              options={{ headerShown: false }}
-            >
-              {(props) => (
-                <SettingsScreen 
-                  {...props} 
-                  onClose={() => props.navigation.goBack()} 
-                  onProfileDeleted={() => {
-                    props.navigation.navigate("ProfileSelection");
-                  }} 
-                />
-              )}
-            </Stack.Screen>
-            <Stack.Screen name="LessonHistory" component={LessonHistoryScreen} />
-            <Stack.Screen 
-              name="ProfileSettings" 
-              component={ProfileSettingsScreen} 
-              options={{ headerShown: false }}
-            />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </GestureHandlerRootView>
-    </View>
+            <AppNavigator initialRouteName={isFirstTime ? "Welcome" : "ProfileSelection"} />
+          </NavigationContainer>
+        </GestureHandlerRootView>
+      </View>
+    </ProfileProvider>
   );
 }
 

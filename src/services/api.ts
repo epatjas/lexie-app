@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { StudyMaterials } from '../types/types';
+import { StudyMaterials, StudySet, HomeworkHelp } from '../types/types';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
 // Server configuration
@@ -114,10 +114,14 @@ const compressImage = async (base64Image: string): Promise<string> => {
 };
 
 /**
- * Main function to process and analyze images
- * Handles compression, validation, and server communication
+ * Public API function to analyze images
+ * Returns study materials or homework help based on content
  */
-const processImages = async (images: Array<{ uri: string; base64?: string }>) => {
+export const analyzeImages = async (
+  images: Array<{ uri: string; base64?: string }>
+): Promise<StudyMaterials> => {
+  console.log('[Client] Starting image analysis at', new Date().toISOString());
+  
   try {
     console.log('[Client] Processing images:', images.length);
     
@@ -126,7 +130,139 @@ const processImages = async (images: Array<{ uri: string; base64?: string }>) =>
       throw new Error('No images provided');
     }
 
-    // Process each image in parallel
+    // Process and compress images
+    const processedImages = await Promise.all(images.map(async (image, index) => {
+      if (!image.base64) {
+        console.warn(`[Client] No base64 data for image ${index + 1}`);
+        return null;
+      }
+
+      try {
+        const compressedBase64 = await compressImage(image.base64);
+        console.log(`[Client] Image ${index + 1} compressed successfully`);
+        return compressedBase64;
+      } catch (err) {
+        console.error(`[Client] Failed to process image ${index + 1}:`, err);
+        return null;
+      }
+    }));
+
+    // Filter out any failed compressions
+    const validImages = processedImages.filter(img => img !== null);
+    
+    if (validImages.length === 0) {
+      throw new Error('No valid images after processing');
+    }
+
+    // Send to server for analysis
+    const response = await axios.post(`${API_URL}/analyze`, {
+      images: validImages
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 120000, // 2 minute timeout
+      onUploadProgress: (progressEvent) => {
+        console.log('[Client] Upload progress:', {
+          loaded: progressEvent.loaded,
+          total: progressEvent.total,
+          progress: progressEvent.total ? (progressEvent.loaded / progressEvent.total) * 100 : 0
+        });
+      }
+    });
+
+    console.log('[Client] Server response received, content type:', response.data.contentType);
+    
+    // Ensure proper type discrimination with contentType
+    if (response.data.contentType === 'study-set') {
+      const studyMaterials: StudySet = {
+        title: response.data.title,
+        text_content: response.data.text_content,
+        contentType: 'study-set' as const,
+        introduction: response.data.introduction || '',
+        summary: response.data.summary || '',
+        flashcards: response.data.flashcards || [],
+        quiz: response.data.quiz || [],
+        created_at: response.data.created_at,
+        updated_at: response.data.updated_at,
+        processingId: response.data.processingId
+      };
+      
+      return studyMaterials;
+    } else if (response.data.contentType === 'homework-help') {
+      const homeworkHelp: HomeworkHelp = {
+        title: response.data.title,
+        text_content: response.data.text_content,
+        contentType: 'homework-help' as const,
+        introduction: response.data.introduction || '',
+        homeworkHelp: response.data.homeworkHelp,
+        created_at: response.data.created_at,
+        updated_at: response.data.updated_at,
+        processingId: response.data.processingId
+      };
+      
+      // Log to verify correct content type is being returned
+      console.log('[Client] Returning homework help with content type:', homeworkHelp.contentType);
+      
+      return homeworkHelp;
+    }
+    
+    // Default fallback
+    return response.data;
+  } catch (error) {
+    // Enhanced error logging
+    if (axios.isAxiosError(error)) {
+      console.error('[Client] API Error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+    } else {
+      console.error('[Client] Non-Axios error:', error);
+    }
+    throw error;
+  }
+};
+
+/**
+ * Tests basic server connectivity
+ * Useful for debugging connection issues
+ */
+export const testServerConnection = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/ping`);
+    console.log('[Client] Server test response:', response.data);
+    return true;
+  } catch (error) {
+    console.error('[Client] Server test failed:', error);
+    return false;
+  }
+};
+
+export const getProcessingStatus = async (processingId: string) => {
+  const response = await fetch(`${API_URL}/processing-status/${processingId}`);
+  return response.json();
+};
+
+/**
+ * Processes images for homework help
+ * Uses the same image processing pipeline as analyzeImages
+ */
+export const getHomeworkHelp = async (
+  images: Array<{ uri: string; base64?: string }>
+): Promise<HomeworkHelp> => {
+  console.log('[Client] Starting homework help at', new Date().toISOString());
+  
+  try {
+    console.log('[Client] Processing images:', images.length);
+    
+    // Input validation
+    if (!images || images.length === 0) {
+      throw new Error('No images provided');
+    }
+
+    // Process each image in parallel - reuse existing compression function
     const processedImages = await Promise.all(images.map(async (image, index) => {
       console.log(`[Client] Processing image ${index + 1}/${images.length}`);
       
@@ -152,10 +288,10 @@ const processImages = async (images: Array<{ uri: string; base64?: string }>) =>
       throw new Error('No valid images after processing');
     }
 
-    console.log(`[Client] Sending ${validImages.length} processed images to server`);
+    console.log(`[Client] Sending ${validImages.length} processed images to server for homework help`);
     
-    // Send to server for analysis
-    const response = await axios.post(`${API_URL}/analyze`, {
+    // Send to server for homework help analysis - note the different endpoint
+    const response = await axios.post(`${API_URL}/homework-help`, {
       images: validImages
     }, {
       headers: {
@@ -171,7 +307,7 @@ const processImages = async (images: Array<{ uri: string; base64?: string }>) =>
       }
     });
 
-    console.log('[Client] Server response received');
+    console.log('[Client] Server response received for homework help');
     return response.data;
 
   } catch (error) {
@@ -190,33 +326,27 @@ const processImages = async (images: Array<{ uri: string; base64?: string }>) =>
   }
 };
 
-/**
- * Public API function to analyze images
- * Returns study materials generated from the images
- */
-export const analyzeImages = async (
-  images: Array<{ uri: string; base64?: string }>
-): Promise<StudyMaterials> => {
-  console.log('[Client] Starting image analysis at', new Date().toISOString());
-  return processImages(images);
-};
-
-/**
- * Tests basic server connectivity
- * Useful for debugging connection issues
- */
-export const testServerConnection = async () => {
+// Add a helper method to get the next concept card (for progressive revelation)
+export const getNextConceptCard = async (homeworkHelpId: string, currentCardNumber: number) => {
   try {
-    const response = await axios.get(`${API_URL}/ping`);
-    console.log('[Client] Server test response:', response.data);
-    return true;
+    const response = await axios.get(`${API_URL}/next-concept-card/${homeworkHelpId}/${currentCardNumber}`);
+    return response.data;
   } catch (error) {
-    console.error('[Client] Server test failed:', error);
-    return false;
+    console.error('[Client] Failed to get next concept card:', error);
+    throw error;
   }
 };
 
-export const getProcessingStatus = async (processingId: string) => {
-  const response = await fetch(`${API_URL}/processing-status/${processingId}`);
-  return response.json();
+// Add a method to request a hint for a specific concept
+export const getAdditionalHint = async (homeworkHelpId: string, cardNumber: number) => {
+  try {
+    const response = await axios.post(`${API_URL}/additional-hint`, {
+      homeworkHelpId,
+      cardNumber
+    });
+    return response.data;
+  } catch (error) {
+    console.error('[Client] Failed to get additional hint:', error);
+    throw error;
+  }
 };

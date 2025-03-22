@@ -1,5 +1,8 @@
-import { QuizQuestion, QuizResult } from './types';
+import { QuizQuestion, QuizResult, Flashcard } from './types';
 import { NavigationProp, RouteProp } from '@react-navigation/native';
+import { FontSettings } from '../types/fontSettings';
+
+console.log('[navigation.ts] Loading navigation type definitions');
 
 export type RootStackParamList = {
   Home: {
@@ -14,10 +17,16 @@ export type RootStackParamList = {
   NameInput: { profileId: string };
   ProfileImage: { profileId: string };
   ProfileSelection: undefined;
-  StudySet: { id: string; fontSettings?: FontSettings };
+  StudySet: { 
+    id: string; 
+    contentType?: 'study-set' | 'homework-help';
+    fontSettings?: FontSettings 
+  };
   Flashcards: { 
     studySetId: string; 
-    filterIndices?: number[]; // Optional param to filter cards
+    title?: string;                // Make title optional
+    flashcards?: Flashcard[];      // Make flashcards optional
+    filterIndices?: number[];      // Keep filterIndices optional
   };
   Quiz: {
     quiz?: QuizQuestion[];
@@ -57,7 +66,31 @@ export type RootStackParamList = {
   };
   ProfileSettings: undefined;
   FontSelection: undefined;
+  ConceptCardScreen: {
+    homeworkHelpId: string;
+    title: string;
+    cards: Array<{
+      card_number: number;
+      title: string;
+      explanation: string;
+      hint: string;
+    }>;
+  };
+  FlashcardScreen: {
+    studySetId: string;
+    title: string;
+    flashcards: Flashcard[];
+  };
+  ContentNavigator: {
+    id: string;
+    contentType?: string;
+  };
 };
+
+console.log('[navigation.ts] RootStackParamList defined with these screens:', 
+  Object.keys({}as RootStackParamList).join(', '));
+console.log('[navigation.ts] ConceptCardScreen params defined:', 
+  'ConceptCardScreen' in ({} as RootStackParamList));
 
 export type SettingsScreenProps = {
   navigation: NavigationProp<RootStackParamList, 'Settings'>;

@@ -165,26 +165,54 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       // Database timing
       console.log('[Timing] Creating study set in database...');
       const dbStartTime = Date.now();
-      const studySet = await createStudySet({
+      console.log('[Debug] API result content type:', result.contentType);
+      
+      // Create content data based on type - using type-safety
+      let studySetData: any = {
         title: result.title,
         text_content: result.text_content,
-        flashcards: result.flashcards,
-        quiz: result.quiz,
+        contentType: result.contentType,
         profile_id: activeProfile.id
-      });
+      };
+      
+      // TypeScript discriminated union based on contentType
+      if (result.contentType === 'study-set') {
+        // It's a study set - TypeScript knows it's a StudySet
+        studySetData.flashcards = result.flashcards || [];
+        studySetData.quiz = result.quiz || [];
+        studySetData.introduction = result.introduction || '';
+        studySetData.summary = result.summary || '';
+      } else if (result.contentType === 'homework-help') {
+        // It's homework help - TypeScript knows it's a HomeworkHelp
+        studySetData.homeworkHelp = result.homeworkHelp;
+      }
+      
+      const studySet = await createStudySet(studySetData);
       const dbEndTime = Date.now();
+      
+      // Add post-creation log to verify content type was saved
+      console.log('[Debug] Created study set with content type:', studySet.contentType);
       
       // Final timing summary
       console.log('[Timing] Process completed. Full breakdown:', {
         totalTime: dbEndTime - startTime,
-        imageFormatting: formatStartTime - startTime,
         serverProcessing: analysisEndTime - analysisStartTime,
         databaseOperation: dbEndTime - dbStartTime,
-        resultSize: JSON.stringify(studySet).length
       });
 
       setIsProcessing(false);
-      navigation.navigate('StudySet', { id: studySet.id });
+
+      // Fix: Check if ID exists before navigating
+      if (studySet.id) {
+        navigation.navigate('StudySet', { id: studySet.id });
+      } else {
+        // Handle the case where id is undefined
+        console.error('Created study set has no ID');
+        Alert.alert(
+          'Error',
+          'Failed to create study materials properly. Please try again.'
+        );
+      }
     } catch (error) {
       setIsProcessing(false);
       console.error('Error details:', error);

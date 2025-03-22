@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { CreateStudySetInput, StudySet, Flashcard, QuizQuestion, Folder } from '../types/types';
+import { CreateStudySetInput, StudySet, Flashcard, QuizQuestion, Folder, HomeworkHelp, StudyMaterials } from '../types/types';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -39,7 +39,7 @@ const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
   try {
     console.log('Verifying database schema...');
     
-    // Check if study_sets table exists before querying its structure
+    // Check if study_sets table exists
     const tableExists = await db.getFirstAsync<{count: number}>(
       "SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name='study_sets'"
     );
@@ -53,23 +53,42 @@ const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
     const studySetsInfo = await db.getAllAsync<TableColumn>(
       "PRAGMA table_info('study_sets')"
     );
-    console.log('Study sets table structure:', studySetsInfo);
     
-    const hasFolder = studySetsInfo.some(column => column.name === 'folder_id');
+    const hasHomeworkHelp = studySetsInfo.some(column => column.name === 'homework_help');
+    const hasContentType = studySetsInfo.some(column => column.name === 'content_type');
+    const hasIntroduction = studySetsInfo.some(column => column.name === 'introduction');
     
-    if (!hasFolder) {
-      console.log('Adding folder_id column to study_sets table...');
+    // Add homework_help column if missing
+    if (!hasHomeworkHelp) {
+      console.log('Adding homework_help column to study_sets table...');
       await db.execAsync(`
         ALTER TABLE study_sets
-        ADD COLUMN folder_id TEXT
-        REFERENCES folders(id);
+        ADD COLUMN homework_help TEXT DEFAULT NULL;
       `);
-      console.log('Added folder_id column successfully');
+      console.log('Added homework_help column successfully');
+    }
+    
+    // Add content_type column if missing
+    if (!hasContentType) {
+      console.log('Adding content_type column to study_sets table...');
+      await db.execAsync(`
+        ALTER TABLE study_sets
+        ADD COLUMN content_type TEXT DEFAULT 'study-set';
+      `);
+      console.log('Added content_type column successfully');
+    }
+    
+    // Add introduction column if missing
+    if (!hasIntroduction) {
+      console.log('Adding introduction column to study_sets table...');
+      await db.execAsync(`
+        ALTER TABLE study_sets
+        ADD COLUMN introduction TEXT DEFAULT '';
+      `);
+      console.log('Added introduction column successfully');
     }
   } catch (error) {
     console.error('Schema verification failed:', error);
-    // Don't throw here, just log the error and continue
-    // This prevents schema verification from blocking table creation
   }
 };
 
@@ -116,19 +135,80 @@ export const initDatabase = async (): Promise<void> => {
   }
 };
 
+// This function attaches custom methods to the database object
+const attachDatabaseMethods = (database: SQLite.SQLiteDatabase) => {
+  // Add the getStudySet method
+  database.getStudySet = async (id: string): Promise<StudySet> => {
+    const rawStudySet = await database.getFirstAsync<StudySet & { text_content: string }>(
+      'SELECT * FROM study_sets WHERE id = ?',
+      [id]
+    );
+    
+    if (!rawStudySet) {
+      throw new Error(`Study set with id ${id} not found`);
+    }
+
+    // Parse the text_content JSON string back to object
+    const studySet: StudySet = {
+      ...rawStudySet,
+      text_content: JSON.parse(rawStudySet.text_content)
+    };
+    
+    return studySet;
+  };
+
+  // Add the getHomeworkHelp method
+  database.getHomeworkHelp = async (id: string): Promise<HomeworkHelp | null> => {
+    const rawHelp = await database.getFirstAsync<{
+      id: string;
+      title: string;
+      type: string;
+      text_content: string;
+      help_content: string;
+      content_type: string;
+      created_at: number | string;
+      updated_at: number | string;
+      profile_id: string;
+    }>('SELECT * FROM homework_help WHERE id = ?', [id]);
+    
+    if (!rawHelp) return null;
+    
+    // Parse JSON strings back to objects
+    return {
+      id: rawHelp.id,
+      title: rawHelp.title,
+      contentType: 'homework-help' as const,
+      text_content: JSON.parse(rawHelp.text_content),
+      homeworkHelp: JSON.parse(rawHelp.help_content),
+      created_at: rawHelp.created_at,
+      updated_at: rawHelp.updated_at,
+      profile_id: rawHelp.profile_id
+    };
+  };
+};
+
+// Update the getDatabase function to attach methods
 export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
-  if (db) return db;
+  if (db) {
+    // Make sure methods are attached even if using cached instance
+    attachDatabaseMethods(db);
+    return db;
+  }
   
   // If initialization is in progress, wait for it to complete
   if (initializationPromise) {
     await initializationPromise;
-    if (db) return db;
+    if (db) {
+      attachDatabaseMethods(db);
+      return db;
+    }
   }
 
   // If no initialization is in progress, start a new one
   if (!isInitializing) {
     db = await SQLite.openDatabaseAsync('studysets.db');
     await initTables(db);
+    attachDatabaseMethods(db); // Attach methods to the new instance
     return db;
   }
 
@@ -158,7 +238,8 @@ const initTables = async (database: SQLite.SQLiteDatabase) => {
         text_content TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        profile_id TEXT NOT NULL DEFAULT ''
+        profile_id TEXT NOT NULL DEFAULT '',
+        content_type TEXT DEFAULT 'study-set'
       );
       
       CREATE TABLE IF NOT EXISTS flashcards (
@@ -174,6 +255,18 @@ const initTables = async (database: SQLite.SQLiteDatabase) => {
         question TEXT NOT NULL,
         options TEXT NOT NULL,
         correct TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS homework_help (
+        id TEXT PRIMARY KEY NOT NULL,
+        title TEXT NOT NULL,
+        type TEXT NOT NULL,
+        text_content TEXT,
+        help_content TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        profile_id TEXT NOT NULL DEFAULT '',
+        content_type TEXT DEFAULT 'homework-help'
       );
     `);
     
@@ -204,99 +297,186 @@ export const closeDatabase = async () => {
 };
 
 /**
- * Retrieves a specific study set by ID.
- * @param id - The unique identifier of the study set
- * @returns Promise<StudySet> - The study set if found, null otherwise
+ * Retrieves a specific study set by ID, handling both content types.
+ * @param id - The unique identifier of the content
+ * @returns Promise<StudyMaterials> - The content if found
  */
-export const getStudySet = async (id: string): Promise<StudySet> => {
+export const getStudySet = async (id: string): Promise<StudyMaterials> => {
   try {
     const db = await getDatabase();
-    console.log('Fetching study set with id:', id);
+    console.log('Fetching content with id:', id);
     
-    const rawStudySet = await db.getFirstAsync<StudySet & { text_content: string }>(
+    const rawContent = await db.getFirstAsync<any>(
       'SELECT * FROM study_sets WHERE id = ?',
       [id]
     );
     
-    if (!rawStudySet) {
-      throw new Error(`Study set with id ${id} not found`);
+    if (!rawContent) {
+      throw new Error(`Content with id ${id} not found`);
     }
 
-    // Parse the text_content JSON string back to object
-    const studySet: StudySet = {
-      ...rawStudySet,
-      text_content: JSON.parse(rawStudySet.text_content)
-    };
+    // Parse the text_content JSON string
+    const textContent = JSON.parse(rawContent.text_content);
     
-    console.log('Retrieved study set:', studySet);
-    return studySet;
+    // Handle content based on its type
+    if (rawContent.content_type === 'homework-help') {
+      // This is homework help content
+      let homeworkHelp;
+      
+      try {
+        // Try to parse homeworkHelp data if it exists
+        homeworkHelp = rawContent.homework_help ? JSON.parse(rawContent.homework_help) : {};
+      } catch (parseError) {
+        console.error('Failed to parse homework help data:', parseError);
+        homeworkHelp = {}; // Fallback
+      }
+      
+      // Return properly typed HomeworkHelp content
+      const content: HomeworkHelp = {
+        id: rawContent.id,
+        title: rawContent.title,
+        contentType: 'homework-help' as const,
+        text_content: textContent,
+        homeworkHelp: homeworkHelp,
+        created_at: rawContent.created_at,
+        updated_at: rawContent.updated_at,
+        profile_id: rawContent.profile_id,
+        folder_id: rawContent.folder_id
+      };
+      
+      return content;
+    } else {
+      // This is study set content
+      // Get flashcards and quiz questions
+      const flashcards = await db.getAllAsync<any>(
+        'SELECT * FROM flashcards WHERE study_set_id = ?',
+        [id]
+      );
+      
+      const quizQuestions = await db.getAllAsync<any>(
+        'SELECT * FROM quiz_questions WHERE study_set_id = ?',
+        [id]
+      );
+      
+      // Parse the options JSON for quiz questions
+      const parsedQuizQuestions = quizQuestions.map(q => ({
+        ...q,
+        options: JSON.parse(q.options)
+      }));
+      
+      // Return properly typed StudySet content
+      const content: StudySet = {
+        id: rawContent.id,
+        title: rawContent.title,
+        contentType: 'study-set' as const,
+        text_content: textContent,
+        introduction: rawContent.introduction || '',
+        summary: rawContent.summary || '',
+        flashcards: flashcards || [],
+        quiz: parsedQuizQuestions || [],
+        created_at: rawContent.created_at,
+        updated_at: rawContent.updated_at,
+        profile_id: rawContent.profile_id,
+        folder_id: rawContent.folder_id
+      };
+      
+      return content;
+    }
   } catch (error) {
-    console.error('Failed to get study set:', error);
+    console.error('Failed to get content:', error);
     throw error;
   }
 };
 
 /**
  * Creates a new study set in the database.
- * @param input - The study set data to insert (title, description, etc.)
- * @returns Promise<StudySet> - The created study set with generated ID and timestamps
+ * @param input - The content data to insert (title, flashcards, etc.)
+ * @returns Promise<StudyMaterials> - The created content with generated ID and timestamps
  */
-export const createStudySet = async (input: CreateStudySetInput): Promise<StudySet> => {
+export const createStudySet = async (input: any): Promise<StudyMaterials & { id: string }> => {
   try {
     const db = await getDatabase();
-    console.log('=== Starting Study Set Creation ===');
-    console.log('Input:', JSON.stringify(input, null, 2));
+    console.log('=== Starting Content Creation ===');
+    console.log('Content Type from input:', input.contentType);
 
     const now = Date.now();
     const id = uuidv4();
     console.log('Generated ID:', id);
-
-    // Log the exact SQL and parameters being used
-    const sql = `INSERT INTO study_sets (id, title, text_content, created_at, updated_at, profile_id) 
-                 VALUES (?, ?, ?, ?, ?, ?)`;
-    const params = [id, input.title, JSON.stringify(input.text_content), now, now, input.profile_id];
     
-    console.log('Executing SQL:', sql);
-    console.log('With parameters:', params);
+    // SQL parameters array
+    const sqlParams = [
+      id, 
+      input.title,
+      input.introduction || '', 
+      input.summary || '',
+      JSON.stringify(input.text_content),
+      input.contentType, // Always use the provided content type
+      now,
+      now,
+      input.profile_id || ''
+    ];
+    
+    // Insert into study_sets table
+    await db.runAsync(`
+      INSERT INTO study_sets (
+        id, title, introduction, summary, text_content, content_type, created_at, updated_at, profile_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, sqlParams);
+    
+    console.log('Added base content record');
 
-    await db.runAsync(sql, params);
-    console.log('Study set inserted successfully');
+    // Handle specific content type data
+    if (input.contentType === 'study-set') {
+      // Create flashcards if they exist
+      if (input.flashcards && input.flashcards.length > 0) {
+        await createFlashcards(id, input.flashcards);
+        console.log('Added flashcards');
+      }
 
-    // Verify the insertion
-    const inserted = await db.getFirstAsync('SELECT * FROM study_sets WHERE id = ?', [id]);
-    console.log('Verification query result:', inserted);
-
-    // Create flashcards if they exist
-    if (input.flashcards && input.flashcards.length > 0) {
-      await createFlashcards(id, input.flashcards);
-    }
-
-    // Create quiz questions if they exist from OpenAI response
-    if (input.quiz && input.quiz.length > 0) {
-      // Convert the input.quiz items to full QuizQuestion objects with IDs
-      const quizWithIds = input.quiz.map(q => ({
-        id: uuidv4(),
-        study_set_id: id,
-        question: q.question,
-        options: q.options,
-        correct: q.correct
-      }));
+      // Create quiz questions if they exist
+      if (input.quiz && input.quiz.length > 0) {
+        const quizWithIds = input.quiz.map(q => ({
+          id: uuidv4(),
+          study_set_id: id,
+          question: q.question,
+          options: q.options,
+          correct: q.correct
+        }));
+        
+        await createQuiz(id, quizWithIds);
+        console.log('Added quiz questions');
+      }
+    } else if (input.contentType === 'homework-help' && input.homeworkHelp) {
+      // Add introduction if it's not explicitly included
+      const introduction = input.introduction || 
+        `I analyzed this ${input.homeworkHelp.subject_area || 'problem'}. Here's some help to guide you.`;
       
-      await createQuiz(id, quizWithIds);
-      console.log('Created quiz questions from OpenAI response');
+      await db.runAsync(`
+        UPDATE study_sets 
+        SET homework_help = ?, introduction = ?
+        WHERE id = ?
+      `, [JSON.stringify(input.homeworkHelp), introduction, id]);
+      
+      console.log('Added homework help data with introduction');
+      console.log('Added homework help data with', 
+        input.homeworkHelp.concept_cards ? 
+        `${input.homeworkHelp.concept_cards.length} concept cards` : 
+        'no concept cards');
     }
 
-    const createdSet = await getCompleteStudySet(id);
-    if (!createdSet) {
-      throw new Error('Failed to retrieve created study set');
-    }
-
-    return createdSet;
+    // Get the complete content record
+    const result = await getStudySet(id);
+    console.log('Retrieved created content with type:', result.contentType);
+    
+    return {
+      ...result,
+      id
+    };
   } catch (error) {
-    console.error('Detailed error in createStudySet:', error);
+    console.error('Failed to create content:', error);
     throw error;
   }
-};
+}
 
 /**
  * Utility function to execute raw SQL queries.
@@ -923,5 +1103,210 @@ export const forceInitDatabase = async (): Promise<void> => {
     "SELECT name FROM sqlite_master WHERE type='table'"
   );
   console.log('Tables after initialization:', tables.map(t => t.name));
+};
+
+// Update saveHomeworkHelp to handle the new structure
+export const saveHomeworkHelp = async (homeworkHelp: HomeworkHelp): Promise<string> => {
+  try {
+    const db = await getDatabase();
+    console.log('=== Saving Homework Help ===');
+    
+    const now = Date.now();
+    const id = uuidv4();
+    
+    // Convert objects to JSON strings for storage
+    const textContent = JSON.stringify(homeworkHelp.text_content);
+    const helpContent = JSON.stringify(homeworkHelp.homeworkHelp);
+    
+    await db.runAsync(
+      `INSERT INTO homework_help (
+        id, title, type, text_content, help_content, content_type, created_at, updated_at, profile_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id, 
+        homeworkHelp.title, 
+        // Add a fallback string value to ensure we never pass undefined
+        homeworkHelp.homeworkHelp.type || homeworkHelp.homeworkHelp.subject_area || "UNKNOWN",
+        textContent,
+        helpContent,
+        homeworkHelp.contentType || 'homework-help', // Save the contentType
+        now, 
+        now, 
+        homeworkHelp.profile_id || ''
+      ]
+    );
+    
+    console.log('Homework help saved with ID:', id);
+    return id;
+  } catch (error) {
+    console.error('Failed to save homework help:', error);
+    throw error;
+  }
+};
+
+// Update the raw interfaces to include all needed properties
+interface RawHomeworkHelp {
+  id: string;
+  title: string;
+  type: string;
+  text_content: string;
+  help_content: string;
+  content_type: string;
+  introduction?: string; // Add these missing fields
+  folder_id?: string;  
+  processing_id?: string;
+  created_at: number | string;
+  updated_at: number | string;
+  profile_id: string;
+}
+
+// Fix the getHomeworkHelp method
+export const getHomeworkHelp = async (id: string): Promise<HomeworkHelp | null> => {
+  try {
+    const db = await getDatabase();
+    console.log('Fetching homework help with ID:', id);
+    
+    // Add fields to query result type
+    const rawHelp = await db.getFirstAsync<RawHomeworkHelp>(
+      'SELECT * FROM homework_help WHERE id = ?', 
+      [id]
+    );
+    
+    if (!rawHelp) {
+      console.log('No homework help found with ID:', id);
+      return null;
+    }
+    
+    // Parse JSON and create properly typed object
+    try {
+      const content: HomeworkHelp = {
+        id: rawHelp.id,
+        title: rawHelp.title,
+        contentType: 'homework-help' as const, // Fix the literal type issue
+        introduction: rawHelp.introduction || '',
+        text_content: JSON.parse(rawHelp.text_content),
+        homeworkHelp: JSON.parse(rawHelp.help_content),
+        created_at: rawHelp.created_at,
+        updated_at: rawHelp.updated_at,
+        profile_id: rawHelp.profile_id,
+        folder_id: rawHelp.folder_id,
+        processingId: rawHelp.processing_id
+      };
+      return content;
+    } catch (error) {
+      console.error('Error parsing homework help data:', error);
+      return null;
+    }
+  } catch (error) {
+    console.error('Failed to get homework help:', error);
+    throw error;
+  }
+};
+
+// Fix the getAllHomeworkHelp method
+export const getAllHomeworkHelp = async (profileId: string): Promise<HomeworkHelp[]> => {
+  try {
+    const db = await getDatabase();
+    
+    const results = await db.getAllAsync<RawHomeworkHelp>(
+      'SELECT * FROM homework_help WHERE profile_id = ? ORDER BY created_at DESC',
+      [profileId]
+    );
+    
+    return results.map(item => ({
+      id: item.id,
+      title: item.title,
+      contentType: 'homework-help' as const, // Fix with const assertion
+      introduction: item.introduction || '',
+      text_content: JSON.parse(item.text_content),
+      homeworkHelp: JSON.parse(item.help_content),
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      profile_id: item.profile_id,
+      folder_id: item.folder_id,
+      processingId: item.processing_id
+    }));
+  } catch (error) {
+    console.error('Failed to get all homework help:', error);
+    throw error;
+  }
+};
+
+// Update the type declaration at the bottom of Database.ts
+declare module 'expo-sqlite' {
+  interface SQLiteDatabase {
+    getStudySet(id: string): Promise<StudySet>;
+    getHomeworkHelp(id: string): Promise<HomeworkHelp | null>; // Allow null return
+    // Add other methods as needed
+  }
+}
+
+// Add a function to detect what type of content we're saving and route it appropriately
+export const saveContent = async (content: StudyMaterials | HomeworkHelp): Promise<string> => {
+  try {
+    console.log('Saving content with type:', content.contentType);
+    
+    if (content.contentType === 'homework-help') {
+      // This is homework help, save it as such
+      return await saveHomeworkHelp(content as HomeworkHelp);
+    } else {
+      // This is a study set, save it normally
+      const studySet = await createStudySet(content as unknown as CreateStudySetInput);
+      return studySet.id;
+    }
+  } catch (error) {
+    console.error('Failed to save content:', error);
+    throw error;
+  }
+};
+
+// Add this function to fix existing records with wrong content type
+export const fixRecordContentType = async (id: string): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    
+    // First, check if this looks like a homework help record
+    const record = await db.getFirstAsync<{ text_content: string, id: string }>(
+      'SELECT * FROM study_sets WHERE id = ?', 
+      [id]
+    );
+    
+    if (!record) {
+      console.error('Record not found:', id);
+      return;
+    }
+    
+    // Check content to detect homework-help content
+    try {
+      const textContent = JSON.parse(record.text_content);
+      
+      // Patterns that suggest this is homework help
+      const isLikelyHomework = 
+        textContent.raw_text.includes('PiiX-alus') || // Your specific problem
+        textContent.raw_text.includes('Mikä on PiiX-aluksen nopeus?') || 
+        (textContent.sections && 
+         textContent.sections.some(s => 
+           s.type === 'list' && 
+           s.items && 
+           s.items.some(i => i.includes('PiiX-alus'))
+         ));
+      
+      if (isLikelyHomework) {
+        console.log('This appears to be homework help, updating content_type...');
+        
+        // Update the content_type to homework-help
+        await db.runAsync(
+          'UPDATE study_sets SET content_type = ? WHERE id = ?',
+          ['homework-help', id]
+        );
+        
+        console.log('Updated content type to homework-help for:', id);
+      }
+    } catch (e) {
+      console.error('Error parsing record content:', e);
+    }
+  } catch (error) {
+    console.error('Failed to fix record content type:', error);
+  }
 };
 

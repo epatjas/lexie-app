@@ -9,6 +9,9 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 
+// DIAGNOSTIC: Log all available screens at startup
+console.log('[AppNavigator] Starting import of screens');
+
 // Import all screens - make sure EVERY screen is here
 import HomeScreen from '../screens/HomeScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -26,17 +29,29 @@ import ProfileImageScreen from '../screens/ProfileImageScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LessonHistoryScreen from '../screens/LessonHistoryScreen';
 import FlashcardResultsScreen from '../screens/FlashcardResultsScreen';
-import FontSelectionScreen from '../screens/FontSelectionScreen';
+import ConceptCardScreen from '../screens/ConceptCardScreen';
+
+// Log import status
+console.log('[AppNavigator] All screens imported');
+console.log('[AppNavigator] ConceptCardScreen imported:', !!ConceptCardScreen);
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const AppNavigator = () => {
+type AppNavigatorProps = {
+  initialRouteName?: keyof RootStackParamList;
+};
+
+const AppNavigator = ({ initialRouteName = "Home" as keyof RootStackParamList }: AppNavigatorProps) => {
+  console.log('[AppNavigator] Rendering navigator component');
+  console.log('[AppNavigator] ConceptCardScreen available:', !!ConceptCardScreen);
+  console.log('[AppNavigator] About to create navigation stack');
+  
   return (
     <Stack.Navigator
-      initialRouteName="Home"
+      initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
-        gestureEnabled: false
+        gestureEnabled: true,
       }}
     >
       {/* Core app screens */}
@@ -58,8 +73,8 @@ const AppNavigator = () => {
       <Stack.Screen name="Quiz" component={QuizScreen} />
       <Stack.Screen name="QuizComplete" component={QuizCompleteScreen} />
       
-      {/* Font Selection */}
-      <Stack.Screen name="FontSelection" component={FontSelectionScreen} />
+      {/* Concept Cards and Flashcards */}
+      <Stack.Screen name="ConceptCardScreen" component={ConceptCardScreen} />
       
       {/* Document handling */}
       <Stack.Screen name="Preview" component={PreviewScreen} />
