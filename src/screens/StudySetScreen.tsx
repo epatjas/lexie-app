@@ -287,16 +287,15 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const navigateToCards = () => {
     console.log('[StudySetScreen] navigateToCards called');
     
-    // Type-safe content check
     if (!content) {
       console.log('[StudySetScreen] Content is null');
       return;
     }
     
-    // Now we're sure content isn't null
-    console.log('[StudySetScreen] Content type:',
-      isHomeworkHelp(content) ? 'homework-help' : 
-      isStudySet(content) ? 'study-set' : 'unknown type');
+    // Store font settings in AsyncStorage right before navigation 
+    // This will be available to any screen that needs it
+    AsyncStorage.setItem(FONT_SETTINGS_KEY, JSON.stringify(fontSettings))
+      .catch(err => console.error('Failed to store font settings:', err));
     
     if (isHomeworkHelp(content)) {
       console.log('[StudySetScreen] HomeworkHelp content details:');
@@ -319,21 +318,16 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         return;
       }
       
-      // Create params
-      const params = { 
+      // Navigate with only the allowed parameters for ConceptCardScreen
+      navigation.navigate('ConceptCardScreen', {
         homeworkHelpId: id, 
         title: content.title,
         cards: content.homeworkHelp.concept_cards || []
-      };
-      
-      // Add this debug log
-      console.log('[StudySetScreen] Available routes on direct navigation:', 
-        navigation.getState()?.routeNames || []);
-      
-      // Try direct navigation, which should work after we fix AppNavigator
-      navigation.navigate('ConceptCardScreen', params);
+      });
     } else if (content && isStudySet(content)) {
       console.log('[StudySetScreen] Navigating to Flashcards with studySetId:', id);
+      
+      // Type-safe navigation for Flashcards
       navigation.navigate('Flashcards', {
         studySetId: id,
         title: content.title,

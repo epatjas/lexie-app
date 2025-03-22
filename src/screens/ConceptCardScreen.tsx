@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { ChevronLeft, StepForward, Volume2 as VolumeIcon, Brain } from 'lucide-react-native';
 import theme from '../styles/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FontSettings } from '../types/fontSettings';
 
 type ConceptCardScreenProps = NativeStackScreenProps<RootStackParamList, 'ConceptCardScreen'>;
 
@@ -14,11 +16,63 @@ type ConceptCard = {
   hint: string;
 };
 
+const FONT_SETTINGS_KEY = 'global_font_settings';
+
 export default function ConceptCardScreen({ route, navigation }: ConceptCardScreenProps) {
   console.log('[ConceptCardScreen] Component rendering');
   
   const { cards, title } = route.params;
   const [currentIndex, setCurrentIndex] = React.useState(0);
+  
+  // Add font settings state
+  const [fontSettings, setFontSettings] = useState<FontSettings>({
+    font: 'Standard',
+    size: 16,
+    isAllCaps: false
+  });
+  
+  // Load font settings when component mounts
+  useEffect(() => {
+    const loadFontSettings = async () => {
+      try {
+        const storedSettings = await AsyncStorage.getItem(FONT_SETTINGS_KEY);
+        if (storedSettings) {
+          const parsedSettings = JSON.parse(storedSettings);
+          console.log('Loaded font settings:', parsedSettings);
+          setFontSettings(parsedSettings);
+        }
+      } catch (error) {
+        console.error('[ConceptCardScreen] Error loading font settings:', error);
+      }
+    };
+    
+    loadFontSettings();
+  }, []);
+  
+  // Helper function to get the font family based on settings
+  const getFontFamily = () => {
+    switch (fontSettings.font) {
+      case 'Reading': return 'Georgia';
+      case 'Dyslexia-friendly': return 'OpenDyslexic';
+      case 'High-visibility': return 'AtkinsonHyperlegible';
+      case 'Monospaced': return 'IBMPlexMono';
+      default: return theme.fonts.regular;
+    }
+  };
+  
+  // Helper function to apply font settings to text styles
+  const getTextStyle = (baseStyle: any) => {
+    const textTransformValue = fontSettings.isAllCaps ? 'uppercase' as const : 'none' as const;
+    
+    return {
+      ...baseStyle,
+      fontFamily: getFontFamily(),
+      fontSize: baseStyle.fontSize ? 
+        (baseStyle.fontSize - theme.fontSizes.md) + fontSettings.size : 
+        fontSettings.size,
+      textTransform: textTransformValue,
+    };
+  };
   
   // Guard against empty cards array
   if (!cards || cards.length === 0) {
@@ -52,38 +106,45 @@ export default function ConceptCardScreen({ route, navigation }: ConceptCardScre
     }
   };
   
+  useEffect(() => {
+    console.log('[ConceptCardScreen] Current font settings:', fontSettings);
+  }, [fontSettings]);
+  
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header - centered title with back button */}
+      {/* Header - with ORIGINAL styling */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <ChevronLeft color={theme.colors.text} size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerText}>Learn</Text>
+        <Text style={styles.headerText}>{title}</Text>
         <View style={styles.placeholderRight} />
       </View>
       
       {/* Card Content */}
       <View style={styles.cardContainer}>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{currentCard.title}</Text>
-          <Text style={styles.cardSubtitle}>{currentCard.explanation}</Text>
+          {/* Apply custom styling ONLY to content elements */}
+          <Text style={getTextStyle(styles.cardTitle)}>{currentCard.title}</Text>
+          <Text style={getTextStyle(styles.cardSubtitle)}>{currentCard.explanation}</Text>
           
           {/* Main content area */}
           <View style={styles.cardContent}>
             {/* Content goes here if needed */}
           </View>
           
-          {/* Hint Section */}
+          {/* Hint Section - with mixed styling */}
           <View style={styles.hintContainer}>
             <View style={styles.hintHeader}>
+              {/* Keep the label as UI element with original styling */}
               <Text style={styles.hintLabel}>Hint</Text>
               <Brain color={theme.colors.textSecondary} size={16} />
             </View>
-            <Text style={styles.hintText}>{currentCard.hint}</Text>
+            {/* Apply custom styling to hint content */}
+            <Text style={getTextStyle(styles.hintText)}>{currentCard.hint}</Text>
           </View>
           
-          {/* Card Navigation */}
+          {/* Card Navigation - with ORIGINAL styling */}
           <View style={styles.cardNavigation}>
             <Text style={styles.paginationText}>
               {currentIndex + 1} / {cards.length}
@@ -95,11 +156,19 @@ export default function ConceptCardScreen({ route, navigation }: ConceptCardScre
         </View>
       </View>
       
-      {/* Next Button */}
+      {/* Next Button - with ORIGINAL styling but centered */}
       <View style={styles.buttonContainer}>
-        <TouchableOpacity onPress={goToNextCard} style={styles.nextButton}>
-          <StepForward color="#FFFFFF" size={20} />
-        </TouchableOpacity>
+        {currentIndex > 0 && (
+          <TouchableOpacity onPress={goToPreviousCard} style={[styles.circleButton, {marginRight: 16}]}>
+            <StepForward color="white" size={24} style={{ transform: [{ rotate: '180deg' }] }} />
+          </TouchableOpacity>
+        )}
+        
+        {currentIndex < cards.length - 1 && (
+          <TouchableOpacity onPress={goToNextCard} style={styles.circleButton}>
+            <StepForward color="white" size={20} />
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -192,16 +261,22 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   buttonContainer: {
-    alignItems: 'center',
-    paddingBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    padding: 16,
   },
-  nextButton: {
+  circleButton: {
     width: 96,
     height: 96,
     borderRadius: 64,
     backgroundColor: '#1C1C1E',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   emptyContainer: {
     flex: 1,
