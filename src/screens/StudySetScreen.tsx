@@ -584,6 +584,20 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     });
   };
 
+  // Add this helper function near your other style helper functions
+  const getTextStyle = (baseStyle: any) => {
+    const textTransformValue = fontSettings.isAllCaps ? 'uppercase' as const : 'none' as const;
+    
+    return {
+      ...baseStyle,
+      fontFamily: getFontFamily(),
+      fontSize: baseStyle.fontSize ? 
+        (baseStyle.fontSize - theme.fontSizes.md) + fontSettings.size : 
+        fontSettings.size,
+      textTransform: textTransformValue,
+    };
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -687,7 +701,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                   alignItems: 'center',
                   marginVertical: theme.spacing.md,
                 }}>
-                  <Text style={styles.assignmentTitle}>Assignment</Text>
+                  <Text style={getTextStyle(styles.assignmentTitle)}>Assignment</Text>
                   
                   {/* Add the audio button here */}
                   <TouchableOpacity 
@@ -707,19 +721,19 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                   </TouchableOpacity>
                 </View>
                 
-                {/* Display homework help content */}
+                {/* Display homework help content with applied font settings */}
                 <View style={styles.homeworkContent}>
-                  {/* Only render if this is homework help content and homeworkHelp exists */}
+                  {/* Facts list with applied font settings */}
                   {content && isHomeworkHelp(content) && content.homeworkHelp?.assignment?.facts?.map((fact, index) => (
                     <View key={index} style={styles.factItem}>
-                      <Text style={styles.bulletPoint}>•</Text>
-                      <Text style={styles.factText}>{fact}</Text>
+                      <Text style={getTextStyle(styles.bulletPoint)}>•</Text>
+                      <Text style={getTextStyle(styles.factText)}>{fact}</Text>
                     </View>
                   ))}
                   
-                  {/* Only show the objective if it exists */}
+                  {/* Objective with applied font settings */}
                   {content && isHomeworkHelp(content) && content.homeworkHelp?.assignment?.objective && (
-                    <Text style={styles.objectiveText}>
+                    <Text style={getTextStyle(styles.objectiveText)}>
                       {content.homeworkHelp.assignment.objective}
                     </Text>
                   )}
