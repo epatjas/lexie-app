@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Animated, ActivityIndicator, Platform } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ChevronLeft, X, Image as ImageIcon, Camera } from 'lucide-react-native';
@@ -20,7 +20,9 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
   const [isCapturing, setIsCapturing] = useState(false);
   const [isCameraReady, setCameraReady] = useState(false);
   const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const progressAnimation = useRef(new Animated.Value(0)).current;
+  const cameraInitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Get existing photos from route params
   const existingPhotos = route.params?.existingPhotos || [];
@@ -44,8 +46,19 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
     
     checkPermission();
     
+    // Set a timeout to detect camera initialization problems
+    cameraInitTimeoutRef.current = setTimeout(() => {
+      if (!isCameraReady) {
+        console.log('Camera initialization timeout - camera not ready after 10 seconds');
+        setCameraError('Camera initialization failed. Please try again.');
+      }
+    }, 10000); // 10 second timeout
+    
     return () => {
       console.log('ScanPageScreen unmounting');
+      if (cameraInitTimeoutRef.current) {
+        clearTimeout(cameraInitTimeoutRef.current);
+      }
     };
   }, [permission, requestPermission]);
 
@@ -53,9 +66,23 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
   const onCameraReady = () => {
     console.log('Camera is ready');
     setCameraReady(true);
+    if (cameraInitTimeoutRef.current) {
+      clearTimeout(cameraInitTimeoutRef.current);
+    }
+  };
+
+  // Add this function to handle camera errors
+  const onCameraError = (error: any) => {
+    console.error('Camera error:', error);
+    setCameraError(`Camera error: ${error.message || 'Unknown error'}`);
   };
 
   const startCapture = () => {
+    if (!isCameraReady) {
+      console.log('Cannot capture - camera not ready');
+      return;
+    }
+    
     setIsCapturing(true);
     Animated.timing(progressAnimation, {
       toValue: 1,
@@ -69,7 +96,7 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
   };
 
   const takePicture = async () => {
-    if (cameraRef.current) {
+    if (cameraRef.current && isCameraReady) {
       try {
         const photo = await cameraRef.current.takePictureAsync({
           quality: 1,
@@ -82,9 +109,20 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
         }
       } catch (error) {
         console.error('Error taking picture:', error);
+        Alert.alert('Error', 'Failed to take picture. Please try again.');
       }
     }
   };
+
+  const resetCamera = () => {
+    setCameraError(null);
+    setCameraReady(false);
+    // Force re-render by adding a key to the CameraView
+    setForceReset(prev => prev + 1);
+  };
+
+  // Add this state to force camera component re-mount when needed
+  const [forceReset, setForceReset] = useState(0);
 
   // Enhanced permission handling UI
   if (!permission || permissionError) {
@@ -114,6 +152,37 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
     );
   }
 
+  // Show error state if camera fails to initialize
+  if (cameraError) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <ChevronLeft size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Camera Error</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        
+        <View style={styles.loadingContainer}>
+          <Text style={styles.permissionText}>{cameraError}</Text>
+          <TouchableOpacity 
+            style={styles.permissionButton} 
+            onPress={resetCamera}
+          >
+            <Text style={styles.permissionButtonText}>Try Again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.permissionButton, {marginTop: 10, backgroundColor: theme.colors.background02}]} 
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.permissionButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -129,6 +198,10 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
           style={styles.camera} 
           ref={cameraRef}
           onCameraReady={onCameraReady}
+          onMountError={onCameraError}
+          key={`camera-${forceReset}`} // Force remount when needed
+          enableTorch={false} // Disable torch by default
+          facing="back" // Explicitly set the default camera
         >
           {isCameraReady ? (
             <View style={styles.cornerMarkers}>
@@ -149,9 +222,9 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
       <View style={styles.bottomBar}>
         <View style={styles.controls}>
           <TouchableOpacity 
-            style={styles.captureButton} 
+            style={[styles.captureButton, !isCameraReady && styles.disabledButton]} 
             onPress={startCapture}
-            disabled={isCapturing}
+            disabled={isCapturing || !isCameraReady}
           >
             <View style={styles.captureButtonOuterRing}>
               <Camera size={24} color={theme.colors.text} />
@@ -303,5 +376,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     fontFamily: theme.fonts.medium,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 });

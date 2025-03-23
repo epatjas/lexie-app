@@ -30,11 +30,8 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
         <View style={styles.buttonWrapper}>
           <TouchableOpacity 
             style={styles.button}
-            onPress={() => navigation.navigate({
-              key: 'NameInput',
-              params: {
-                // Include any params you need here
-              }
+            onPress={() => navigation.navigate('NameInput', { 
+              // Include any params you need here
             })}
           >
             <Text style={styles.buttonText}>Let's start</Text>

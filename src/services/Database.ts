@@ -57,6 +57,7 @@ const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
     const hasHomeworkHelp = studySetsInfo.some(column => column.name === 'homework_help');
     const hasContentType = studySetsInfo.some(column => column.name === 'content_type');
     const hasIntroduction = studySetsInfo.some(column => column.name === 'introduction');
+    const hasSummary = studySetsInfo.some(column => column.name === 'summary');
     
     // Add homework_help column if missing
     if (!hasHomeworkHelp) {
@@ -86,6 +87,16 @@ const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
         ADD COLUMN introduction TEXT DEFAULT '';
       `);
       console.log('Added introduction column successfully');
+    }
+    
+    // Add summary column if missing
+    if (!hasSummary) {
+      console.log('Adding summary column to study_sets table...');
+      await db.execAsync(`
+        ALTER TABLE study_sets
+        ADD COLUMN summary TEXT DEFAULT '';
+      `);
+      console.log('Added summary column successfully');
     }
   } catch (error) {
     console.error('Schema verification failed:', error);
@@ -239,7 +250,8 @@ const initTables = async (database: SQLite.SQLiteDatabase) => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         profile_id TEXT NOT NULL DEFAULT '',
-        content_type TEXT DEFAULT 'study-set'
+        content_type TEXT DEFAULT 'study-set',
+        summary TEXT
       );
       
       CREATE TABLE IF NOT EXISTS flashcards (

@@ -60,11 +60,8 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
 
     try {
       await saveUserName(name.trim());
-      navigation.navigate({
-        key: 'ProfileImage',
-        params: {
-          // Include any params you need here
-        }
+      navigation.navigate('ProfileImage', {
+        profileId: 'some-profile-id'  // You need to provide a valid profileId here
       });
     } catch (error) {
       console.error('Error saving name:', error);
@@ -114,7 +111,7 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
           style={styles.button}
           onPress={handleContinue}
         >
-          <Text style={styles.buttonText}>Jatka</Text>
+          <Text style={styles.buttonText}>Continue</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
     </View>
