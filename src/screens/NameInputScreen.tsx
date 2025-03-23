@@ -60,7 +60,12 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
 
     try {
       await saveUserName(name.trim());
-      navigation.navigate('ProfileImage');
+      navigation.navigate({
+        key: 'ProfileImage',
+        params: {
+          // Include any params you need here
+        }
+      });
     } catch (error) {
       console.error('Error saving name:', error);
     }
@@ -74,8 +79,8 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
         style={styles.content}
       >
         <View style={styles.textContainer}>
-          <Text style={styles.title}>Hei 👋🏻</Text>
-          <Text style={styles.title}>Millä nimellä voisin kutsua sinua?</Text>
+          <Text style={styles.title}>Hi 👋🏻</Text>
+          <Text style={styles.title}>What should I call you?</Text>
         </View>
 
         <View style={styles.inputContainer}>
@@ -83,7 +88,7 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
             <TextInput
               ref={textInputRef}
               style={styles.input}
-              placeholder="Kirjoita nimesi tähän"
+              placeholder="Write your name here"
               placeholderTextColor="rgba(255, 255, 255, 0.3)"
               value={name}
               onChangeText={setName}

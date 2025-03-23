@@ -79,7 +79,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
     <SafeAreaView style={styles.container}>
       <ParticleBackground />
       <View style={styles.content}>
-        <Text style={styles.title}>Valitse profiilikuva</Text>
+        <Text style={styles.title}>Select profile picture</Text>
 
         <FlatList
           data={PROFILE_IMAGES}
@@ -94,7 +94,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
           style={styles.button}
           onPress={handleContinue}
         >
-          <Text style={styles.buttonText}>Jatka</Text>
+          <Text style={styles.buttonText}>Continue</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     paddingTop: '20%',
   },
   title: {
-    fontSize: theme.fontSizes.xxl,
+    fontSize: theme.fontSizes.xl,
     color: theme.colors.text,
     textAlign: 'center',
     marginBottom: theme.spacing.xl,

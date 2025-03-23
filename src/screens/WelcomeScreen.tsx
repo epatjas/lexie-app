@@ -21,7 +21,8 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
             />
             <Text style={styles.welcomeText}>LexieLearn</Text>
             <Text style={styles.descriptionText}>
-              Parempi tapa harjoitella. Ota kuva, Lexie hoitaa loput.
+            Take a photo of study material and Lexie turns it into quizzes, flashcards, and audio. 
+            Practice when you need to, how you need to.
             </Text>
           </View>
         </View>
@@ -29,9 +30,14 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
         <View style={styles.buttonWrapper}>
           <TouchableOpacity 
             style={styles.button}
-            onPress={() => navigation.navigate('NameInput')}
+            onPress={() => navigation.navigate({
+              key: 'NameInput',
+              params: {
+                // Include any params you need here
+              }
+            })}
           >
-            <Text style={styles.buttonText}>Aloita</Text>
+            <Text style={styles.buttonText}>Let's start</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -77,12 +83,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   descriptionText: {
-    fontSize: 24,
+    fontSize: 18,
     color: theme.colors.text,
     textAlign: 'center',
     fontFamily: theme.fonts.regular,
     marginBottom: 48,
-    lineHeight: 32,
+    lineHeight: 24,
   },
   button: {
     backgroundColor: theme.colors.text,

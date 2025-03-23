@@ -92,7 +92,7 @@ export default function CreateStudySetBottomSheet({ onClose, visible, existingPh
             <View style={styles.textContainer}>
               <Text style={styles.optionTitle}>Take photo</Text>
               <Text style={styles.optionDescription}>
-              Use camera to capture your work
+              Use camera to capture the content
               </Text>
             </View>
           </TouchableOpacity>

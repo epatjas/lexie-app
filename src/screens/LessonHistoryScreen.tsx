@@ -448,9 +448,9 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
           ]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                No lessons found. Start your first lesson!
-              </Text>
+              <Text style={styles.emptyText}>No lessons found.</Text>
+              <View style={{height: 2}} />
+              <Text style={styles.emptyText}>Start your first lesson.</Text>
             </View>
           }
         />

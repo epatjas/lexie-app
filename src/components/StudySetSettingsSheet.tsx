@@ -78,10 +78,7 @@ const StudySetSettingsSheet: React.FC<StudySetSettingsSheetProps> = ({
         >
           <View style={styles.handle} />
 
-          <TouchableOpacity 
-            style={styles.languageSection} 
-            onPress={onLanguagePress || onTranslatePress}
-          >
+          <View style={styles.languageSection}>
             <Text style={styles.languageLabel}>
               Study set language
             </Text>
@@ -89,9 +86,11 @@ const StudySetSettingsSheet: React.FC<StudySetSettingsSheetProps> = ({
               <Text style={styles.languageValue}>
                 {language}
               </Text>
-              <ChevronRight color={theme.colors.textSecondary} size={20} />
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>Coming soon</Text>
+              </View>
             </View>
-          </TouchableOpacity>
+          </View>
 
           <TouchableOpacity style={styles.option} onPress={onFolderPress}>
             <Folder color={theme.colors.text} size={20} />

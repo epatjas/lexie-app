@@ -11,7 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import theme from '../styles/theme';
-import { ChevronRight, Heart, FileText, AlertTriangle, X, ChevronLeft, UserCog, Sparkles, LogOut } from 'lucide-react-native';
+import { ChevronRight, Heart, FileText, AlertTriangle, X, ChevronLeft, UserCog, Sparkles } from 'lucide-react-native';
 import Animated, { 
   useAnimatedStyle,
   withTiming,
@@ -214,7 +214,7 @@ export default function SettingsScreen({
           </TouchableOpacity>
 
           {/* Language Section */}
-          <TouchableOpacity 
+          <View 
             style={{
               backgroundColor: 'transparent', 
               borderWidth: 1,
@@ -226,14 +226,24 @@ export default function SettingsScreen({
               justifyContent: 'space-between',
               alignItems: 'center'
             }}
-            onPress={() => navigation.navigate('LanguageSelect')}
           >
             <View>
               <Text style={{color: theme.colors.text, opacity: 0.7, fontSize: 14}}>Language</Text>
               <Text style={{color: theme.colors.text, fontSize: 16}}>English</Text>
             </View>
-            <ChevronRight color={theme.colors.text} size={20} />
-          </TouchableOpacity>
+            <View style={{
+              backgroundColor: theme.colors.background02,
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 12,
+            }}>
+              <Text style={{
+                fontSize: 12,
+                color: theme.colors.textSecondary,
+                fontFamily: theme.fonts.regular,
+              }}>Coming soon</Text>
+            </View>
+          </View>
 
           {/* Profile Settings Option */}
           <TouchableOpacity 
@@ -282,21 +292,6 @@ export default function SettingsScreen({
             <Text style={{flex: 1, color: 'white', fontSize: 16}}>Give feedback</Text>
             <ChevronRight color={theme.colors.text} size={16} />
           </TouchableOpacity>
-
-          {/* Log Out */}
-          <TouchableOpacity 
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              marginBottom: 8
-            }}
-            onPress={handleLogout}
-          >
-            <LogOut size={20} color={theme.colors.text} style={{marginRight: 12}} />
-            <Text style={{flex: 1, color: 'white', fontSize: 16}}>Log out</Text>
-          </TouchableOpacity>
           
           <View style={{
             marginTop: 'auto', 
@@ -304,6 +299,7 @@ export default function SettingsScreen({
             marginBottom: 10
           }}>
             <Text style={{color: theme.colors.text, fontSize: 14}}>Thank you for choosing LexieLearn.</Text>
+            <View style={{height: 8}} />
             <Text style={{color: theme.colors.text, fontSize: 14}}>We love you.</Text>
           </View>
         </View>
