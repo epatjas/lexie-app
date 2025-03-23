@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { CreateStudySetInput, StudySet, Flashcard, QuizQuestion, Folder, HomeworkHelp, StudyMaterials } from '../types/types';
+import { CreateStudySetInput, StudySet, Flashcard, QuizQuestion, Folder, HomeworkHelp, StudyMaterials, RawHomeworkHelp } from '../types/types';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -1105,11 +1105,20 @@ export const forceInitDatabase = async (): Promise<void> => {
   console.log('Tables after initialization:', tables.map(t => t.name));
 };
 
-// Update saveHomeworkHelp to handle the new structure
+// Update saveHomeworkHelp to handle both old and new formats
 export const saveHomeworkHelp = async (homeworkHelp: HomeworkHelp): Promise<string> => {
   try {
     const db = await getDatabase();
     console.log('=== Saving Homework Help ===');
+    
+    // Add this debug log to check problem_summary field
+    if (homeworkHelp.homeworkHelp?.problem_summary) {
+      console.log('Problem summary length:', 
+        homeworkHelp.homeworkHelp.problem_summary.length,
+        'First 100 chars:', 
+        homeworkHelp.homeworkHelp.problem_summary.substring(0, 100)
+      );
+    }
     
     const now = Date.now();
     const id = uuidv4();
@@ -1118,6 +1127,16 @@ export const saveHomeworkHelp = async (homeworkHelp: HomeworkHelp): Promise<stri
     const textContent = JSON.stringify(homeworkHelp.text_content);
     const helpContent = JSON.stringify(homeworkHelp.homeworkHelp);
     
+    // Determine content type
+    const contentType = homeworkHelp.contentType || 'homework-help';
+    
+    // Determine 'type' field for categorization
+    const typeField = 
+      homeworkHelp.homeworkHelp.problem_type || 
+      homeworkHelp.homeworkHelp.type || 
+      homeworkHelp.homeworkHelp.subject_area || 
+      (homeworkHelp.homeworkHelp.language === 'fi' ? 'Suomenkielinen' : 'English');
+    
     await db.runAsync(
       `INSERT INTO homework_help (
         id, title, type, text_content, help_content, content_type, created_at, updated_at, profile_id
@@ -1125,11 +1144,10 @@ export const saveHomeworkHelp = async (homeworkHelp: HomeworkHelp): Promise<stri
       [
         id, 
         homeworkHelp.title, 
-        // Add a fallback string value to ensure we never pass undefined
-        homeworkHelp.homeworkHelp.type || homeworkHelp.homeworkHelp.subject_area || "UNKNOWN",
+        typeField,
         textContent,
         helpContent,
-        homeworkHelp.contentType || 'homework-help', // Save the contentType
+        contentType,
         now, 
         now, 
         homeworkHelp.profile_id || ''
@@ -1137,6 +1155,15 @@ export const saveHomeworkHelp = async (homeworkHelp: HomeworkHelp): Promise<stri
     );
     
     console.log('Homework help saved with ID:', id);
+    console.log('Homework help fields:', {
+      id,
+      title: homeworkHelp.title,
+      type: typeField,
+      contentType,
+      hasNewFormat: !!homeworkHelp.homeworkHelp.problem_summary,
+      cardCount: homeworkHelp.homeworkHelp.concept_cards?.length || 0
+    });
+    
     return id;
   } catch (error) {
     console.error('Failed to save homework help:', error);
@@ -1144,23 +1171,7 @@ export const saveHomeworkHelp = async (homeworkHelp: HomeworkHelp): Promise<stri
   }
 };
 
-// Update the raw interfaces to include all needed properties
-interface RawHomeworkHelp {
-  id: string;
-  title: string;
-  type: string;
-  text_content: string;
-  help_content: string;
-  content_type: string;
-  introduction?: string; // Add these missing fields
-  folder_id?: string;  
-  processing_id?: string;
-  created_at: number | string;
-  updated_at: number | string;
-  profile_id: string;
-}
-
-// Fix the getHomeworkHelp method
+// Fix the getHomeworkHelp method to handle new format
 export const getHomeworkHelp = async (id: string): Promise<HomeworkHelp | null> => {
   try {
     const db = await getDatabase();
@@ -1182,7 +1193,7 @@ export const getHomeworkHelp = async (id: string): Promise<HomeworkHelp | null> 
       const content: HomeworkHelp = {
         id: rawHelp.id,
         title: rawHelp.title,
-        contentType: 'homework-help' as const, // Fix the literal type issue
+        contentType: 'homework-help' as const,
         introduction: rawHelp.introduction || '',
         text_content: JSON.parse(rawHelp.text_content),
         homeworkHelp: JSON.parse(rawHelp.help_content),
@@ -1192,6 +1203,14 @@ export const getHomeworkHelp = async (id: string): Promise<HomeworkHelp | null> 
         folder_id: rawHelp.folder_id,
         processingId: rawHelp.processing_id
       };
+      
+      // Log format type for debugging
+      const isNewFormat = !!content.homeworkHelp.problem_summary;
+      console.log('Homework help format:', isNewFormat ? 'NEW' : 'OLD', {
+        hasCards: !!content.homeworkHelp.concept_cards,
+        cardCount: content.homeworkHelp.concept_cards?.length || 0
+      });
+      
       return content;
     } catch (error) {
       console.error('Error parsing homework help data:', error);

@@ -54,6 +54,16 @@ interface TextSection {
 
 const FONT_SETTINGS_KEY = 'global_font_settings';
 
+// Add these helper functions near the top of the file
+// This helps us identify what format the homework help is in
+const isNewFormat = (content: HomeworkHelp): boolean => {
+  return !!content?.homeworkHelp?.problem_summary;
+};
+
+const hasProblemSummary = (content: HomeworkHelp): boolean => {
+  return !!content?.homeworkHelp?.problem_summary;
+};
+
 export default function StudySetScreen({ route, navigation }: StudySetScreenProps): React.JSX.Element {
   const { id, contentType = 'study-set' } = route.params;
   const navigationNative = useNavigation<NavigationProp<RootStackParamList>>();
@@ -108,29 +118,51 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     
     // Handle homework help content
     if (isHomeworkHelp(studySet) && studySet.homeworkHelp) {
-      // Add assignment information if available
-      if (studySet.homeworkHelp.assignment) {
-        if (studySet.homeworkHelp.assignment.objective) {
-          audioText += `Objective: ${studySet.homeworkHelp.assignment.objective}, , , \u2003 \u2003 \u2003`;
+      // Support both formats
+      if (studySet.homeworkHelp.problem_summary) {
+        // New format
+        audioText += `${studySet.homeworkHelp.problem_summary}, , , \u2003 \u2003 \u2003`;
+        
+        // Add approach guidance if available
+        if (studySet.homeworkHelp.approach_guidance) {
+          audioText += `How to approach: ${studySet.homeworkHelp.approach_guidance}, , , \u2003 \u2003 \u2003`;
         }
         
-        if (Array.isArray(studySet.homeworkHelp.assignment.facts)) {
-          audioText += `Important facts: \u2003 \u2003`;
-          studySet.homeworkHelp.assignment.facts.forEach((fact: string) => {
-            audioText += `${fact}, \u2003 \u2003`;
+        // Add concept cards
+        if (Array.isArray(studySet.homeworkHelp.concept_cards) && studySet.homeworkHelp.concept_cards.length > 0) {
+          audioText += `Concept cards: \u2003 \u2003 \u2003`;
+          studySet.homeworkHelp.concept_cards.forEach((card: any, index: number) => {
+            audioText += `Card ${index + 1}: ${card.title}, , \u2003`;
+            if (card.explanation) {
+              audioText += `${card.explanation}, \u2003 \u2003`;
+            }
           });
         }
-      }
-      
-      // Add concept cards content if available
-      if (Array.isArray(studySet.homeworkHelp.concept_cards) && studySet.homeworkHelp.concept_cards.length > 0) {
-        audioText += `Concept cards: \u2003 \u2003 \u2003`;
-        studySet.homeworkHelp.concept_cards.forEach((card: any, index: number) => {
-          audioText += `Card ${index + 1}: ${card.title}, , \u2003`;
-          if (card.explanation) {
-            audioText += `${card.explanation}, \u2003 \u2003`;
+      } else {
+        // Old format
+        if (studySet.homeworkHelp?.assignment) {
+          if (studySet.homeworkHelp?.assignment?.objective) {
+            audioText += `Objective: ${studySet.homeworkHelp.assignment.objective}, , , \u2003 \u2003 \u2003`;
           }
-        });
+          
+          if (Array.isArray(studySet.homeworkHelp?.assignment?.facts)) {
+            audioText += `Important facts: \u2003 \u2003`;
+            studySet.homeworkHelp.assignment.facts.forEach((fact: string) => {
+              audioText += `${fact}, \u2003 \u2003`;
+            });
+          }
+        }
+        
+        // Old format concept cards
+        if (Array.isArray(studySet.homeworkHelp.concept_cards) && studySet.homeworkHelp.concept_cards.length > 0) {
+          audioText += `Concept cards: \u2003 \u2003 \u2003`;
+          studySet.homeworkHelp.concept_cards.forEach((card: any, index: number) => {
+            audioText += `Card ${index + 1}: ${card.title}, , \u2003`;
+            if (card.explanation) {
+              audioText += `${card.explanation}, \u2003 \u2003`;
+            }
+          });
+        }
       }
     }
 
@@ -163,6 +195,27 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     try {
       const studySet = await getStudySet(id);
       setContent(studySet);
+      
+      // Add detailed logging for homework help content
+      if (studySet.contentType === 'homework-help') {
+        const homeworkHelp = studySet as HomeworkHelp;
+        console.log('Loaded HomeworkHelp data:', {
+          id: homeworkHelp.id,
+          title: homeworkHelp.title,
+          format: homeworkHelp.homeworkHelp?.problem_summary ? 'NEW' : 'OLD',
+          problemSummaryLength: homeworkHelp.homeworkHelp?.problem_summary?.length || 0,
+          concept_cards: homeworkHelp.homeworkHelp?.concept_cards?.length || 0
+        });
+        
+        // Log the first 200 characters of problem_summary if available
+        if (homeworkHelp.homeworkHelp?.problem_summary) {
+          console.log('Problem Summary (first 200 chars):',
+            homeworkHelp.homeworkHelp.problem_summary.substring(0, 200) + 
+            (homeworkHelp.homeworkHelp.problem_summary.length > 200 ? '...' : '')
+          );
+        }
+      }
+      
       console.log('Content type from database:', studySet.contentType || 'study-set');
     } catch (error) {
       console.error('Failed to load study set:', error);
@@ -200,13 +253,74 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   
   useEffect(() => {
     if (content && isHomeworkHelp(content)) {
-      console.log('Loaded homework help with', 
-        content.homeworkHelp.concept_cards ? 
-        `${content.homeworkHelp.concept_cards.length} concept cards` : 
-        'no concept cards');
+      console.log('------------------------');
+      console.log('[HomeworkHelp] Content loaded:', {
+        id: content.id,
+        title: content.title,
+        contentType: content.contentType,
+        isNewFormat: isNewFormat(content),
+        hasCards: !!content.homeworkHelp.concept_cards,
+        cardCount: content.homeworkHelp.concept_cards?.length || 0
+      });
       
+      // Log format-specific data
+      if (isNewFormat(content)) {
+        console.log('[HomeworkHelp] NEW FORMAT DATA:', {
+          problem_type: content.homeworkHelp.problem_type,
+          problem_summary: content.homeworkHelp.problem_summary,
+          approach_guidance: content.homeworkHelp.approach_guidance,
+          language: content.homeworkHelp.language
+        });
+      } else {
+        console.log('[HomeworkHelp] OLD FORMAT DATA:', {
+          type: content.homeworkHelp.type,
+          subject_area: content.homeworkHelp.subject_area,
+          assignmentFacts: content.homeworkHelp.assignment?.facts,
+          objective: content.homeworkHelp.assignment?.objective
+        });
+      }
+      
+      // Log concept cards sample
       if (content.homeworkHelp.concept_cards?.length > 0) {
-        console.log('First concept card:', content.homeworkHelp.concept_cards[0]);
+        console.log('[HomeworkHelp] First concept card:', {
+          ...content.homeworkHelp.concept_cards[0],
+          hintLength: content.homeworkHelp.concept_cards[0].hint.length
+        });
+        
+        if (content.homeworkHelp.concept_cards.length > 1) {
+          console.log('[HomeworkHelp] Second concept card:', {
+            ...content.homeworkHelp.concept_cards[1],
+            hintLength: content.homeworkHelp.concept_cards[1].hint.length
+          });
+        }
+      }
+      console.log('------------------------');
+    }
+  }, [content]);
+  
+  // Add this to useEffect to specifically log the three key fields we want to display
+  useEffect(() => {
+    if (content && isHomeworkHelp(content)) {
+      // Check if all three main components are present
+      console.log('[HomeworkHelp] Component Check:', {
+        hasIntroduction: !!content.introduction,
+        introductionLength: content.introduction?.length || 0,
+        hasProblemSummary: !!content.homeworkHelp.problem_summary,
+        problemSummaryLength: content.homeworkHelp.problem_summary?.length || 0, 
+        hasApproachGuidance: !!content.homeworkHelp.approach_guidance,
+        approachGuidanceLength: content.homeworkHelp.approach_guidance?.length || 0,
+        conceptCardCount: content.homeworkHelp.concept_cards?.length || 0
+      });
+      
+      // Show first bit of each
+      if (content.introduction) {
+        console.log('Introduction (first 50 chars):', content.introduction.substring(0, 50) + '...');
+      }
+      if (content.homeworkHelp.problem_summary) {
+        console.log('Problem Summary (first 50 chars):', content.homeworkHelp.problem_summary.substring(0, 50) + '...');
+      }
+      if (content.homeworkHelp.approach_guidance) {
+        console.log('Approach Guidance (first 50 chars):', content.homeworkHelp.approach_guidance.substring(0, 50) + '...');
       }
     }
   }, [content]);
@@ -528,6 +642,110 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     };
   };
 
+  const getProblemSummaryMarkdownStyles = () => {
+    const fontFamily = getFontFamily();
+    const fontSize = fontSettings.size;
+    const textTransform = fontSettings.isAllCaps ? 'uppercase' : 'none';
+    
+    return {
+      body: {
+        color: theme.colors.text,
+        fontFamily: fontFamily,
+        fontSize: fontSize,
+      },
+      paragraph: {
+        marginBottom: 16,
+        color: theme.colors.text,
+        fontFamily: fontFamily,
+        fontSize: fontSize,
+        lineHeight: Math.round(fontSize * 1.5),
+        textTransform: textTransform,
+      },
+      bullet_list: {
+        marginBottom: 16,
+      },
+      ordered_list: {
+        marginBottom: 16,
+      },
+      bullet_list_item: {
+        marginBottom: 8,
+      },
+      ordered_list_item: {
+        marginBottom: 8,
+      },
+      bullet_list_icon: {
+        marginRight: 8,
+      },
+      // ... can include other styles as needed
+    };
+  };
+
+  // Enhance the renderMarkdownProblemSummary function to be reusable
+  const renderMarkdownContent = (text: string | undefined, styleOverrides: any = {}) => {
+    if (!text) return null;
+    
+    // Convert basic newlines to markdown line breaks for better compatibility
+    const formattedText = text
+      // Add a blank line after each newline for proper paragraph breaks
+      .replace(/\n/g, '\n\n')
+      // Convert standalone bullet markers to proper markdown bullets
+      .replace(/^[•-]\s/gm, '* ')
+      // Ensure proper spacing for existing markdown bullets
+      .replace(/^\*/gm, '* ')
+      // Ensure proper spacing for numbered lists
+      .replace(/^(\d+)[.)] /gm, '$1. ');
+    
+    // Merge base styles with any overrides
+    const combinedStyles = {
+      ...getProblemSummaryMarkdownStyles(),
+      ...styleOverrides
+    };
+    
+    return (
+      <Markdown style={combinedStyles}>
+        {formattedText}
+      </Markdown>
+    );
+  };
+
+  // Update the approach guidance styles
+  const getApproachGuidanceMarkdownStyles = () => {
+    const fontFamily = getFontFamily();
+    const fontSize = fontSettings.size;
+    const textTransform = fontSettings.isAllCaps ? 'uppercase' : 'none';
+    
+    return {
+      // Override specific styles for approach guidance
+      paragraph: {
+        marginBottom: 12,
+        color: theme.colors.text,
+        fontFamily: fontFamily,
+        fontSize: fontSize,
+        lineHeight: Math.round(fontSize * 1.5),
+        textTransform: textTransform,
+      },
+      strong: {
+        fontWeight: 'bold',
+        color: theme.colors.text,
+        fontFamily: fontFamily,
+      },
+      emphasis: {
+        fontStyle: 'italic',
+        color: theme.colors.text,
+      },
+      bullet_list_icon: {
+        marginRight: 8,
+        marginTop: 6,
+      },
+      bullet_list_item: {
+        marginBottom: 8,
+      },
+      bullet_list_content: {
+        flex: 1,
+      }
+    };
+  };
+
   const renderContent = () => {
     if (!content) return null;
     
@@ -684,6 +902,67 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     }
   };
 
+  const logRenderedContent = () => {
+    if (content && isHomeworkHelp(content)) {
+      console.log('[HomeworkHelp] Rendering:', {
+        format: isNewFormat(content) ? 'NEW' : 'OLD',
+        showingSummary: isNewFormat(content),
+        showingFacts: !isNewFormat(content) && !!content.homeworkHelp.assignment?.facts?.length,
+        showingObjective: !isNewFormat(content) && !!content.homeworkHelp.assignment?.objective,
+        cardCount: content.homeworkHelp.concept_cards?.length || 0
+      });
+    }
+  }
+
+  // Add this useEffect hook before the return statement
+  useEffect(() => {
+    if (content && isHomeworkHelp(content)) {
+      logRenderedContent();
+    }
+  }, [content]);
+
+  // Add at the beginning of the render function after const declarations
+  // (just before the return statement)
+  useEffect(() => {
+    if (content && isHomeworkHelp(content) && isNewFormat(content)) {
+      console.log('Homework Help Content Details:', {
+        hasProblemSummary: !!content.homeworkHelp.problem_summary,
+        problemSummaryLength: content.homeworkHelp.problem_summary?.length || 0,
+        hasApproachGuidance: !!content.homeworkHelp.approach_guidance,
+        approachGuidanceLength: content.homeworkHelp.approach_guidance?.length || 0,
+        firstFewChars: content.homeworkHelp.problem_summary?.substring(0, 50) + '...'
+      });
+    }
+  }, [content]);
+
+  // Add this function to further improve paragraph spacing
+  const formatProblemText = (text: string | undefined): React.ReactNode[] => {
+    if (!text) return [];
+    
+    // Split text by double newlines (paragraphs)
+    return text.split('\n\n').map((paragraph, paragraphIndex) => {
+      // For each paragraph, handle single newlines for line breaks
+      const lines = paragraph.split('\n').map((line, lineIndex, linesArray) => (
+        <React.Fragment key={`line-${paragraphIndex}-${lineIndex}`}>
+          {line}
+          {lineIndex < linesArray.length - 1 && <Text>{'\n'}</Text>}
+        </React.Fragment>
+      ));
+      
+      return (
+        <Text 
+          key={`paragraph-${paragraphIndex}`} 
+          style={[
+            getTextStyle(styles.problemSummaryText),
+            paragraphIndex < text.split('\n\n').length - 1 && styles.paragraphMargin
+          ]}
+        >
+          {lines}
+        </Text>
+      );
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -744,52 +1023,62 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
           scrollEnabled={true}
           onScrollBeginDrag={() => setShowMoreOptions(false)}
         >
-          <View style={{padding: theme.spacing.md}}>
-            {/* Introduction - use type guard for proper access */}
-            <Text style={styles.introText}>
-              {content.introduction || "I analyzed your content. Here's some material to help you master this subject."}
-            </Text>
+          <View style={{padding: 16}}>
+            {/* Introduction with language-appropriate fallback */}
+            {isHomeworkHelp(content) && (
+              <View style={styles.introductionContainer}>
+                <Text style={getTextStyle(styles.introText)}>
+                  {content.introduction || (content.homeworkHelp?.language === 'fi' 
+                    ? "Kävin tehtäväsi läpi. Näistä ohjeista voisi olla hyötyä sinulle ongelman ratkaisemiseen."
+                    : "I've reviewed your content. Here's some guidance to help you solve this problem.")}
+                </Text>
+              </View>
+            )}
 
             {/* Conditional rendering based on content type */}
             {contentIsHomeworkHelp ? (
               // HOMEWORK HELP UI
               <>
-                {/* Just the Learn card */}
-                <View style={{
-                  flexDirection: 'row',
-                  marginVertical: theme.spacing.md,
-                  position: 'relative',
-                }}>
-                  <TouchableOpacity
-                    style={[styles.card, {flex: 1}]}
-                    onPress={navigateToCards}
-                  >
-                    <Text style={styles.cardTitle}>Learn</Text>
-                    <View style={styles.cardContent}>
-                      <Text style={styles.cardCount}>
-                        {content && isHomeworkHelp(content) && content.homeworkHelp?.concept_cards?.length > 0 
-                          ? `${content.homeworkHelp.concept_cards.length} cards` 
-                          : 'No cards'}
-                      </Text>
-                    </View>
-                    <View style={styles.stackedCardsContainer}>
-                      <View style={[styles.stackedCard, styles.cardWhite]} />
-                      <View style={[styles.stackedCard, styles.cardYellow]} />
-                      <View style={[styles.stackedCard, styles.cardBlue]} />
-                    </View>
-                  </TouchableOpacity>
-                </View>
+                {/* Learn card - fixed 50% width */}
+                <TouchableOpacity
+                  style={[styles.card, {
+                    width: '50%',
+                    alignSelf: 'flex-start',
+                    flex: 0,
+                  }]}
+                  onPress={navigateToCards}
+                >
+                  <Text style={styles.cardTitle}>Learn</Text>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardCount}>
+                      {content && isHomeworkHelp(content) && content.homeworkHelp?.concept_cards?.length > 0 
+                        ? `${content.homeworkHelp.concept_cards.length} cards` 
+                        : 'No cards'}
+                    </Text>
+                  </View>
+                  <View style={styles.stackedCardsContainer}>
+                    <View style={[styles.stackedCard, styles.cardWhite]} />
+                    <View style={[styles.stackedCard, styles.cardYellow]} />
+                    <View style={[styles.stackedCard, styles.cardBlue]} />
+                  </View>
+                </TouchableOpacity>
 
                 {/* Assignment section with audio button */}
                 <View style={{
                   flexDirection: 'row',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginVertical: theme.spacing.md,
+                  marginVertical: theme.spacing.sm,
                 }}>
-                  <Text style={getTextStyle(styles.assignmentTitle)}>Assignment</Text>
+                  <Text style={getTextStyle(styles.assignmentTitle)}>
+                    {isHomeworkHelp(content) && isNewFormat(content as HomeworkHelp) && content.homeworkHelp.language === 'fi' 
+                      ? 'Tehtävänanto' 
+                      : isNewFormat(content as HomeworkHelp) 
+                        ? 'Problem' 
+                        : 'Assignment'}
+                  </Text>
                   
-                  {/* Add the audio button here */}
+                  {/* Audio button */}
                   <TouchableOpacity 
                     style={styles.listenCircleButton}
                     onPress={handleListenPress}
@@ -809,18 +1098,41 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                 
                 {/* Display homework help content with applied font settings */}
                 <View style={styles.homeworkContent}>
-                  {/* Facts list with applied font settings */}
-                  {content && isHomeworkHelp(content) && content.homeworkHelp?.assignment?.facts?.map((fact, index) => (
+                  {/* NEW FORMAT: Problem Summary with better formatting using helper function */}
+                  {isHomeworkHelp(content) && isNewFormat(content as HomeworkHelp) && content.homeworkHelp.problem_summary && (
+                    <View style={styles.problemSummaryContainer}>
+                      {renderMarkdownContent(content.homeworkHelp.problem_summary)}
+                    </View>
+                  )}
+
+                  {/* NEW FORMAT: Approach Guidance - Updated style to match screenshot */}
+                  {isHomeworkHelp(content) && isNewFormat(content as HomeworkHelp) && (content as HomeworkHelp).homeworkHelp.approach_guidance && (
+                    <View style={styles.approachGuidanceContainer}>
+                      <Text style={getTextStyle(styles.approachGuidanceTitle)}>
+                        {content.homeworkHelp.language === 'fi' ? 'Tee näin' : 'How to approach'}
+                      </Text>
+                      {/* Replace plain Text with Markdown */}
+                      {renderMarkdownContent(
+                        (content as HomeworkHelp).homeworkHelp.approach_guidance,
+                        getApproachGuidanceMarkdownStyles()
+                      )}
+                    </View>
+                  )}
+
+                  {/* OLD FORMAT: Facts list with applied font settings */}
+                  {!isNewFormat(content as HomeworkHelp) && 
+                    (content as HomeworkHelp).homeworkHelp?.assignment?.facts?.map((fact, index) => (
                     <View key={index} style={styles.factItem}>
                       <Text style={getTextStyle(styles.bulletPoint)}>•</Text>
                       <Text style={getTextStyle(styles.factText)}>{fact}</Text>
                     </View>
                   ))}
                   
-                  {/* Objective with applied font settings */}
-                  {content && isHomeworkHelp(content) && content.homeworkHelp?.assignment?.objective && (
+                  {/* OLD FORMAT: Objective with applied font settings */}
+                  {isHomeworkHelp(content) && !isNewFormat(content as HomeworkHelp) && 
+                    (content as HomeworkHelp).homeworkHelp?.assignment?.objective && (
                     <Text style={getTextStyle(styles.objectiveText)}>
-                      {content.homeworkHelp.assignment.objective}
+                      {(content as HomeworkHelp).homeworkHelp?.assignment?.objective}
                     </Text>
                   )}
                 </View>
@@ -858,7 +1170,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                 <View style={{
                   flexDirection: 'row',
                   justifyContent: 'space-between',
-                  marginVertical: theme.spacing.md,
+                  marginVertical: theme.spacing.sm,
                   gap: theme.spacing.sm,
                   position: 'relative',
                 }}>
@@ -913,7 +1225,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                   flexDirection: 'row',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginVertical: theme.spacing.md,
+                  marginVertical: theme.spacing.sm,
                 }}>
                   <View style={styles.tabContainer}>
                     <TouchableOpacity 
@@ -1082,7 +1394,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
 // Consolidated styles
 const styles = StyleSheet.create({
-  // Layout
+  // ==================== LAYOUT & CONTAINERS ====================
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -1098,13 +1410,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: theme.spacing.md,
   },
+  homeworkContent: {
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: 8,
+  },
   
-  // Header
+  // ==================== HEADER COMPONENTS ====================
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.stroke,
@@ -1143,45 +1459,106 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: theme.colors.stroke,
-    marginLeft: theme.spacing.xs,
+    marginLeft: theme.spacing.sm,
   },
   
-  // Content Text
+  // ==================== HOMEWORK HELP SECTIONS ====================
+  // Introduction
+  introductionContainer: {
+    marginBottom: theme.spacing.sm,
+    paddingBottom: 4,
+  },
   introText: {
     fontSize: theme.fontSizes.sm,
     fontFamily: theme.fonts.regular,
     color: theme.colors.textSecondary,
+    lineHeight: 20,
   },
-  summaryText: {
+  
+  // Assignment/Problem
+  assignmentTitle: {
+    fontSize: theme.fontSizes.lg,
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.text,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  problemSummaryContainer: {
+    marginBottom: theme.spacing.md,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    backgroundColor: 'transparent',
+    borderLeftWidth: 0,
+  },
+  problemSummaryText: {
     fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.regular,
     color: theme.colors.text,
     lineHeight: 26,
+    textAlign: 'left',
+    marginBottom: theme.spacing.xs,
   },
-  rawContentText: {
+  paragraphMargin: {
+    marginBottom: 16,
+  },
+  
+  // Facts in old format
+  factItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  bulletPoint: {
+    fontSize: 16,
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.text,
+    marginRight: theme.spacing.xs,
+  },
+  factText: {
+    fontSize: 16,
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.text,
+    lineHeight: 24,
+  },
+  objectiveText: {
     fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.regular,
     color: theme.colors.text,
-  },
-  loadingText: {
-    fontSize: theme.fontSizes.lg,
-    color: theme.colors.text,
-    textAlign: 'center',
-  },
-  errorText: {
-    color: 'red',
-    fontSize: 14,
-    fontFamily: theme.fonts.medium,
     marginTop: theme.spacing.sm,
+    lineHeight: 26,
   },
   
-  // Cards
+  // Approach Guidance
+  approachGuidanceContainer: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    padding: theme.spacing.md,
+    paddingHorizontal: 16,
+    backgroundColor: '#1C1C1E',
+    borderRadius: 8,
+    borderLeftWidth: 0,
+  },
+  approachGuidanceTitle: {
+    fontSize: theme.fontSizes.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
+  approachGuidanceText: {
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.text,
+    lineHeight: 26,
+    textAlign: 'left',
+  },
+  
+  // ==================== CARD COMPONENTS ====================
+  // Base card style
   card: {
     flex: 1,
     backgroundColor: '#1F1F1F',
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.sm,
-    minHeight: 120,
+    minHeight: 100,
     justifyContent: 'space-between',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -1190,11 +1567,11 @@ const styles = StyleSheet.create({
     elevation: 2,
     position: 'relative',
     overflow: 'hidden',
+    marginBottom: theme.spacing.sm,
   },
   cardTitle: {
     fontSize: 14,
-    fontFamily: theme.fonts.regular,
-    fontWeight: '600',
+    fontFamily: theme.fonts.medium,
     color: theme.colors.text,
     marginLeft: theme.spacing.xs,
     paddingTop: theme.spacing.xs,
@@ -1202,19 +1579,20 @@ const styles = StyleSheet.create({
   cardContent: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     width: '100%',
+    position: 'absolute',
+    bottom: 10,
+    left: 12,
   },
   cardCount: {
     fontSize: 14,
-    fontFamily: theme.fonts.regular,
+    fontWeight: 'medium',
     color: theme.colors.text,
-    opacity: 0.8,
-    marginLeft: theme.spacing.xs,
-    marginBottom: theme.spacing.xs,
+    opacity: 0.9,
   },
   
-  // Card decorations
+  // Card decorations - Learn card
   stackedCardsContainer: {
     position: 'absolute',
     bottom: -3,
@@ -1257,7 +1635,7 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   
-  // Practice card styles
+  // Card decorations - Practice card
   practiceCardsContainer: {
     position: 'absolute',
     top: '30%',
@@ -1346,7 +1724,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   
-  // Tabs
+  // ==================== TABS ====================
   tabContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
@@ -1381,7 +1759,32 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   
-  // Listen button
+  // ==================== STUDY SET CONTENT ====================
+  summaryText: {
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.text,
+    lineHeight: 26,
+  },
+  rawContentText: {
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.text,
+  },
+  
+  // ==================== UI ELEMENTS ====================
+  // Buttons
+  retryButton: {
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+    marginTop: theme.spacing.sm,
+  },
+  retryButtonText: {
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.medium,
+    color: 'white',
+  },
   listenCircleButton: {
     width: 40,
     height: 40,
@@ -1393,7 +1796,101 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   
-  // Audio player overlay
+  // Loading/Error text
+  loadingText: {
+    fontSize: theme.fontSizes.lg,
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 14,
+    fontFamily: theme.fonts.medium,
+    marginTop: theme.spacing.sm,
+  },
+  
+  // ==================== FEEDBACK SECTION ====================
+  feedbackContainer: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    paddingLeft: theme.spacing.xs,
+  },
+  feedbackButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    gap: theme.spacing.md,
+  },
+  feedbackButton: {
+    padding: theme.spacing.xs / 2,
+  },
+  
+  // ==================== TOASTS & OVERLAYS ====================
+  toast: {
+    position: 'absolute',
+    top: '10%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    zIndex: 1000,
+  },
+  toastText: {
+    color: 'white',
+    fontSize: 14,
+    fontFamily: theme.fonts.medium,
+  },
+  feedbackToast: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 90 : 50,
+    left: theme.spacing.md,
+    right: theme.spacing.md,
+    backgroundColor: 'rgba(30, 30, 30, 0.85)',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1000,
+    borderWidth: 1,
+    borderColor: 'rgba(60, 60, 60, 0.5)',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  feedbackToastText: {
+    color: 'white',
+    fontSize: 16,
+    fontFamily: theme.fonts.regular,
+    flex: 1,
+    textAlign: 'left',
+    paddingLeft: 0,
+    marginRight: 0,
+  },
+  closeToastButtonContainer: {
+    marginRight: 4,
+    marginLeft: -4,
+  },
+  closeToastButton: {
+    padding: 5,
+    backgroundColor: 'rgba(80, 80, 80, 0.5)',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 24,
+    height: 24,
+  },
+  
+  // ==================== AUDIO PLAYER ====================
   audioPlayerOverlay: {
     position: 'absolute',
     top: 0,
@@ -1447,127 +1944,5 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  
-  // Misc UI elements
-  retryButton: {
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
-    marginTop: theme.spacing.sm,
-  },
-  retryButtonText: {
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.medium,
-    color: 'white',
-  },
-  toast: {
-    position: 'absolute',
-    top: '10%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    zIndex: 1000,
-  },
-  toastText: {
-    color: 'white',
-    fontSize: 14,
-    fontFamily: theme.fonts.medium,
-  },
-  assignmentTitle: {
-    fontSize: theme.fontSizes.lg,
-    fontFamily: theme.fonts.medium,
-    color: theme.colors.text,
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.xs,
-  },
-  homeworkContent: {
-    padding: theme.spacing.xs,
-  },
-  factItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.xs,
-  },
-  bulletPoint: {
-    fontSize: 16,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.text,
-    marginRight: theme.spacing.xs,
-  },
-  factText: {
-    fontSize: 16,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.text,
-  },
-  objectiveText: {
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.text,
-    marginTop: theme.spacing.sm,
-  },
-  feedbackContainer: {
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    paddingLeft: theme.spacing.xs,
-  },
-  feedbackButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    gap: theme.spacing.md,
-  },
-  feedbackButton: {
-    padding: theme.spacing.xs / 2,
-  },
-  feedbackToast: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 90 : 50,
-    left: theme.spacing.md,
-    right: theme.spacing.md,
-    backgroundColor: 'rgba(30, 30, 30, 0.85)',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    zIndex: 1000,
-    borderWidth: 1,
-    borderColor: 'rgba(60, 60, 60, 0.5)',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  feedbackToastText: {
-    color: 'white',
-    fontSize: 16,
-    fontFamily: theme.fonts.regular,
-    flex: 1,
-    textAlign: 'left',
-    paddingLeft: 0,
-    marginRight: 0,
-  },
-  closeToastButtonContainer: {
-    marginRight: 4,
-    marginLeft: -4,
-  },
-  closeToastButton: {
-    padding: 5,
-    backgroundColor: 'rgba(80, 80, 80, 0.5)',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 24,
-    height: 24,
   },
 });

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, Animated, PanResponder } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { ChevronLeft, StepForward, Volume2 as VolumeIcon, Brain } from 'lucide-react-native';
 import theme from '../styles/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontSettings } from '../types/fontSettings';
+import Markdown from 'react-native-markdown-display';
 
 type ConceptCardScreenProps = NativeStackScreenProps<RootStackParamList, 'ConceptCardScreen'>;
 
@@ -17,12 +18,18 @@ type ConceptCard = {
 };
 
 const FONT_SETTINGS_KEY = 'global_font_settings';
+const { width } = Dimensions.get('window');
+const cardWidth = width - 48; // 24px padding on each side
 
 export default function ConceptCardScreen({ route, navigation }: ConceptCardScreenProps) {
   console.log('[ConceptCardScreen] Component rendering');
   
   const { cards, title } = route.params;
-  const [currentIndex, setCurrentIndex] = React.useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const currentIndexRef = useRef(0);
+  
+  // Animation value for swipe functionality
+  const pan = useRef(new Animated.Value(0)).current;
   
   // Add font settings state
   const [fontSettings, setFontSettings] = useState<FontSettings>({
@@ -30,6 +37,11 @@ export default function ConceptCardScreen({ route, navigation }: ConceptCardScre
     size: 16,
     isAllCaps: false
   });
+  
+  // Update ref when currentIndex changes
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
   
   // Load font settings when component mounts
   useEffect(() => {
@@ -74,6 +86,186 @@ export default function ConceptCardScreen({ route, navigation }: ConceptCardScre
     };
   };
   
+  // Function to handle index changes
+  const handleIndexChange = (newIndex: number) => {
+    setCurrentIndex(newIndex);
+  };
+  
+  // Add these animation helper functions near the top of your component
+  // Add animation helper functions to reduce duplicate code
+  const animateCardSwipe = (direction: 'left' | 'right', callback?: () => void) => {
+    // Direction is 'left' for next card, 'right' for previous card
+    const toValue = direction === 'left' ? -cardWidth : cardWidth;
+    
+    Animated.timing(pan, {
+      toValue,
+      duration: 180,
+      useNativeDriver: true, // Using native driver for better performance
+    }).start(() => {
+      pan.setValue(0); // Reset
+      if (callback) callback();
+    });
+  };
+
+  const animateCardReset = () => {
+    Animated.spring(pan, {
+      toValue: 0,
+      tension: 40,     // Consistent tension value
+      friction: 7,     // Keeps animation bouncy
+      useNativeDriver: true, // Using native driver for better performance
+    }).start();
+  };
+
+  // Update goToNextCard and goToPreviousCard to use the helper functions
+  const goToNextCard = () => {
+    if (currentIndex < cards.length - 1) {
+      animateCardSwipe('left', () => handleIndexChange(currentIndex + 1));
+    }
+  };
+
+  const goToPreviousCard = () => {
+    if (currentIndex > 0) {
+      animateCardSwipe('right', () => handleIndexChange(currentIndex - 1));
+    }
+  };
+
+  // Then update the PanResponder to use these functions
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) => {
+        // Only respond to horizontal gestures that are significant
+        return Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy);
+      },
+      onPanResponderGrant: () => {
+        pan.setValue(0);
+      },
+      onPanResponderMove: (_, gesture) => {
+        // Add resistance as we move further - this makes it feel more natural
+        const dx = gesture.dx;
+        // Add resistance as we move further from center
+        const resistanceFactor = Math.min(1, Math.abs(dx) / (cardWidth * 0.5));
+        pan.setValue(dx * resistanceFactor);
+      },
+      onPanResponderRelease: (_, gesture) => {
+        const currentIdx = currentIndexRef.current;
+        const swipeThreshold = 80; // Slightly reduced threshold for easier swiping
+        
+        if (gesture.dx > swipeThreshold && currentIdx > 0) {
+          // Right swipe - previous card
+          animateCardSwipe('right', () => handleIndexChange(currentIdx - 1));
+        } else if (gesture.dx < -swipeThreshold && currentIdx < cards.length - 1) {
+          // Left swipe - next card
+          animateCardSwipe('left', () => handleIndexChange(currentIdx + 1));
+        } else {
+          // Not a significant swipe, bounce back to center
+          animateCardReset();
+        }
+      },
+      onPanResponderTerminate: () => {
+        // Reset animation if gesture is terminated
+        animateCardReset();
+      },
+    })
+  ).current;
+  
+  // Create markdown styles based on font settings
+  const getMarkdownStyles = () => {
+    return {
+      body: {
+        color: theme.colors.text,
+        fontSize: fontSettings.size,
+        fontFamily: getFontFamily(),
+        lineHeight: Math.round(fontSettings.size * 1.5), // Proportional line height
+      },
+      paragraph: {
+        marginBottom: 16,
+        color: theme.colors.text,
+        fontSize: fontSettings.size,
+        fontFamily: getFontFamily(),
+        lineHeight: Math.round(fontSettings.size * 1.5),
+        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+      },
+      bullet_list: {
+        marginBottom: 16,
+      },
+      ordered_list: {
+        marginBottom: 16,
+      },
+      bullet_list_item: {
+        marginBottom: 8,
+      },
+      ordered_list_item: {
+        marginBottom: 8,
+      },
+      bullet_list_icon: {
+        marginRight: 8,
+      },
+      heading1: {
+        fontSize: fontSettings.size + 6,
+        fontWeight: 'bold',
+        marginBottom: 16,
+        color: theme.colors.text,
+        fontFamily: getFontFamily(),
+        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+      },
+      heading2: {
+        fontSize: fontSettings.size + 4,
+        fontWeight: 'bold',
+        marginBottom: 12,
+        color: theme.colors.text,
+        fontFamily: getFontFamily(),
+        textTransform: fontSettings.isAllCaps ? 'uppercase' : 'none',
+      },
+      code_block: {
+        backgroundColor: '#2C2C2E',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+      },
+      code_inline: {
+        backgroundColor: '#2C2C2E',
+        paddingHorizontal: 4,
+        paddingVertical: 2,
+        borderRadius: 4,
+      },
+      fence: {
+        backgroundColor: '#2C2C2E',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+      },
+      blockquote: {
+        borderLeftWidth: 4,
+        borderLeftColor: '#3A3A3C',
+        paddingLeft: 12,
+        marginLeft: 0,
+        marginBottom: 16,
+      }
+    };
+  };
+  
+  // Replace the existing renderParagraphs with a markdown renderer
+  const renderMarkdownContent = (text: string) => {
+    if (!text) return null;
+    
+    // Convert basic newlines to markdown line breaks for better compatibility
+    const formattedText = text
+      // Add a blank line after each newline for proper paragraph breaks
+      .replace(/\n/g, '\n\n')
+      // Convert standalone bullet markers to proper markdown bullets
+      .replace(/^[•-]\s/gm, '* ')
+      // Ensure proper spacing for existing markdown bullets
+      .replace(/^\*/gm, '* ')
+      // Ensure proper spacing for numbered lists
+      .replace(/^(\d+)[.)] /gm, '$1. ');
+      
+    return (
+      <Markdown style={getMarkdownStyles()}>
+        {formattedText}
+      </Markdown>
+    );
+  };
+  
   // Guard against empty cards array
   if (!cards || cards.length === 0) {
     return (
@@ -94,81 +286,94 @@ export default function ConceptCardScreen({ route, navigation }: ConceptCardScre
   
   const currentCard: ConceptCard = cards[currentIndex];
   
-  const goToNextCard = () => {
-    if (currentIndex < cards.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    }
-  };
-  
-  const goToPreviousCard = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    }
-  };
-  
-  useEffect(() => {
-    console.log('[ConceptCardScreen] Current font settings:', fontSettings);
-  }, [fontSettings]);
+  // Calculate rotation based on swipe position
+  const rotationInterpolation = pan.interpolate({
+    inputRange: [-width / 2, 0, width / 2],
+    outputRange: ['-3deg', '0deg', '3deg'],
+    extrapolate: 'clamp',
+  });
   
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header - with ORIGINAL styling */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <ChevronLeft color={theme.colors.text} size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerText}>{title}</Text>
+        <Text style={styles.headerText}>Learn</Text>
         <View style={styles.placeholderRight} />
       </View>
       
-      {/* Card Content */}
+      {/* Card Content with swipe functionality */}
       <View style={styles.cardContainer}>
-        <View style={styles.card}>
-          {/* Apply custom styling ONLY to content elements */}
-          <Text style={getTextStyle(styles.cardTitle)}>{currentCard.title}</Text>
-          <Text style={getTextStyle(styles.cardSubtitle)}>{currentCard.explanation}</Text>
-          
-          {/* Main content area */}
+        {/* Swipeable card */}
+        <Animated.View 
+          {...panResponder.panHandlers}
+          style={[
+            styles.card,
+            {
+              transform: [
+                { translateX: pan },
+                { rotate: rotationInterpolation }
+              ]
+            }
+          ]}
+        >
           <View style={styles.cardContent}>
-            {/* Content goes here if needed */}
-          </View>
-          
-          {/* Hint Section - with mixed styling */}
-          <View style={styles.hintContainer}>
-            <View style={styles.hintHeader}>
-              {/* Keep the label as UI element with original styling */}
-              <Text style={styles.hintLabel}>Hint</Text>
-              <Brain color={theme.colors.textSecondary} size={16} />
+            <Text style={getTextStyle(styles.cardTitle)}>{currentCard.title}</Text>
+            
+            {/* Replace paragraph rendering with markdown */}
+            <View style={styles.explanationContainer}>
+              {renderMarkdownContent(currentCard.explanation)}
             </View>
-            {/* Apply custom styling to hint content */}
-            <Text style={getTextStyle(styles.hintText)}>{currentCard.hint}</Text>
+            
+            {/* Main content area */}
+            <View style={styles.cardMainContent}>
+              {/* Content goes here if needed */}
+            </View>
+            
+            {/* Hint Section */}
+            <View style={styles.hintContainer}>
+              <View style={styles.hintHeader}>
+                <Text style={styles.hintLabel}>Hint</Text>
+                <Brain color={theme.colors.textSecondary} size={16} />
+              </View>
+              {/* Also use markdown for the hint */}
+              {renderMarkdownContent(currentCard.hint)}
+            </View>
+            
+            {/* Card Navigation */}
+            <View style={styles.cardNavigation}>
+              <Text style={styles.paginationText}>
+                {currentIndex + 1} / {cards.length}
+              </Text>
+              <TouchableOpacity>
+                <VolumeIcon color={theme.colors.text} size={20} />
+              </TouchableOpacity>
+            </View>
           </View>
-          
-          {/* Card Navigation - with ORIGINAL styling */}
-          <View style={styles.cardNavigation}>
-            <Text style={styles.paginationText}>
-              {currentIndex + 1} / {cards.length}
-            </Text>
-            <TouchableOpacity onPress={() => {/* Sound function */}}>
-              <VolumeIcon color={theme.colors.text} size={20} />
-            </TouchableOpacity>
-          </View>
-        </View>
+        </Animated.View>
       </View>
       
-      {/* Next Button - with ORIGINAL styling but centered */}
+      {/* Navigation Buttons - Ensuring proper alignment */}
       <View style={styles.buttonContainer}>
-        {currentIndex > 0 && (
-          <TouchableOpacity onPress={goToPreviousCard} style={[styles.circleButton, {marginRight: 16}]}>
-            <StepForward color="white" size={24} style={{ transform: [{ rotate: '180deg' }] }} />
-          </TouchableOpacity>
-        )}
+        {/* This View ensures the space for the prev button exists even when button is hidden */}
+        <View style={styles.buttonSlot}>
+          {currentIndex > 0 && (
+            <TouchableOpacity onPress={goToPreviousCard} style={styles.circleButton}>
+              <StepForward color="white" size={20} style={{ transform: [{ rotate: '180deg' }] }} />
+            </TouchableOpacity>
+          )}
+        </View>
         
-        {currentIndex < cards.length - 1 && (
-          <TouchableOpacity onPress={goToNextCard} style={styles.circleButton}>
-            <StepForward color="white" size={20} />
-          </TouchableOpacity>
-        )}
+        {/* This View ensures the next button always stays on the right */}
+        <View style={styles.buttonSlot}>
+          {currentIndex < cards.length - 1 && (
+            <TouchableOpacity onPress={goToNextCard} style={styles.circleButton}>
+              <StepForward color="white" size={20} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -198,24 +403,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   placeholderRight: {
-    width: 40, // Match width of back button for proper centering
+    width: 40, 
   },
   cardContainer: {
     flex: 1,
     padding: 16,
     paddingTop: 0,
+    position: 'relative',
   },
   card: {
     flex: 1,
     backgroundColor: '#1C1C1E',
     borderRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  cardContent: {
+    flex: 1,
+    padding: 24,
     paddingTop: 48,
-    paddingHorizontal: 24,
-    paddingBottom: 24,
+  },
+  cardMainContent: {
+    flex: 1,
   },
   cardTitle: {
-    fontSize: 20,
-    fontFamily: theme.fonts.medium,
+    fontSize: 18,
+    fontWeight: '500',
     color: theme.colors.text,
     marginBottom: 8,
   },
@@ -224,9 +440,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     marginBottom: 24,
     lineHeight: 22,
-  },
-  cardContent: {
-    flex: 1,
   },
   hintContainer: {
     borderWidth: 1,
@@ -246,9 +459,9 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   hintText: {
-    fontSize: 14,
+    fontSize: 16,
     color: theme.colors.text,
-    lineHeight: 22,
+    lineHeight: 24,
   },
   cardNavigation: {
     flexDirection: 'row',
@@ -262,13 +475,22 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    paddingTop: 8,
+    width: '100%',
+  },
+  buttonSlot: {
+    width: 60,
+    height: 60,
+    alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
   },
   circleButton: {
-    width: 96,
-    height: 96,
-    borderRadius: 64,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#1C1C1E',
     justifyContent: 'center',
     alignItems: 'center',
@@ -288,5 +510,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.textSecondary,
     textAlign: 'center',
+  },
+  explanationContainer: {
+    marginBottom: 24,
+  },
+  paragraphSpacing: {
+    marginBottom: 16,
+  },
+  bulletPoint: {
+    paddingLeft: 8,
   },
 }); 

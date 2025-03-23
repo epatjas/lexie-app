@@ -35,10 +35,13 @@ export interface HomeworkHelp extends BaseContent {
     classification?: string;
     subject_area?: string;
     language?: string;
-    assignment: {
+    assignment?: {
       facts: string[];
       objective: string;
     };
+    problem_type?: string;
+    problem_summary?: string;
+    approach_guidance?: string;
     concept_cards: Array<{
       card_number: number;
       title: string;
@@ -163,4 +166,20 @@ export interface ConceptCard {
   title: string;
   explanation: string;
   hint: string;
+}
+
+// Also define the RawHomeworkHelp interface for database operations
+export interface RawHomeworkHelp {
+  id: string;
+  title: string;
+  type: string;
+  text_content: string;  // JSON string in database
+  help_content: string;  // JSON string in database
+  content_type: string;
+  introduction?: string; 
+  folder_id?: string;
+  processing_id?: string;
+  created_at: number | string;
+  updated_at: number | string;
+  profile_id: string;
 }

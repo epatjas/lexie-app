@@ -351,7 +351,7 @@ export const getAdditionalHint = async (homeworkHelpId: string, cardNumber: numb
   }
 };
 
-// Fix the getAudioContent implementation
+// Function to get audio content - update to handle new format
 export const getAudioContent = async (
   content: StudyMaterials,
   selectedTab: string = 'summary'
@@ -379,25 +379,53 @@ export const getAudioContent = async (
       language = 'fi';
       console.log('[Client] Detected Finnish homework content');
       
-      // For Finnish, create a natural-sounding narrative by combining facts and objective
-      // Since the prompt now ensures everything is in Finnish, we don't need to filter
-      const facts = content.homeworkHelp?.assignment?.facts || [];
-      const objective = content.homeworkHelp?.assignment?.objective || '';
-      
-      // Create a more natural sounding narrative in Finnish
-      textToSpeak = facts.join('. ');
-      
-      // Add objective if it's available
-      if (objective) {
-        textToSpeak += '. ' + objective;
+      // Support both new and old formats
+      if (content.homeworkHelp?.problem_summary) {
+        // New format - using full problem summary
+        textToSpeak = content.homeworkHelp.problem_summary;
+        
+        // Add debug log to check what's being used for TTS
+        console.log('[Client] Using problem_summary for TTS, length:', 
+          textToSpeak.length, 
+          'First 50 chars:', 
+          textToSpeak.substring(0, 50)
+        );
+        
+        // Add concept card titles if available
+        if (content.homeworkHelp.concept_cards && content.homeworkHelp.concept_cards.length > 0) {
+          textToSpeak += '. Apukortit: ';
+          content.homeworkHelp.concept_cards.forEach((card, index) => {
+            textToSpeak += `${index + 1}. ${card.title}. `;
+          });
+        }
+      } else {
+        // Old format
+        const facts = content.homeworkHelp?.assignment?.facts || [];
+        const objective = content.homeworkHelp?.assignment?.objective || '';
+        textToSpeak = facts.join('. ');
+        if (objective) {
+          textToSpeak += '. ' + objective;
+        }
       }
     } else {
-      // For English content, previous format is fine
-      const facts = content.homeworkHelp?.assignment?.facts || [];
-      const objective = content.homeworkHelp?.assignment?.objective || '';
-      
-      // Build a string with all the facts and objective
-      textToSpeak = [...facts, objective].filter(Boolean).join('. ');
+      // For English content
+      if (content.homeworkHelp?.problem_summary) {
+        // New format
+        textToSpeak = content.homeworkHelp.problem_summary;
+        
+        // Add concept card titles if available
+        if (content.homeworkHelp.concept_cards && content.homeworkHelp.concept_cards.length > 0) {
+          textToSpeak += '. Concept cards: ';
+          content.homeworkHelp.concept_cards.forEach((card, index) => {
+            textToSpeak += `${index + 1}. ${card.title}. `;
+          });
+        }
+      } else {
+        // Old format
+        const facts = content.homeworkHelp?.assignment?.facts || [];
+        const objective = content.homeworkHelp?.assignment?.objective || '';
+        textToSpeak = [...facts, objective].filter(Boolean).join('. ');
+      }
     }
   }
   
