@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { StudyMaterials, StudySet, HomeworkHelp } from '../types/types';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { getDatabase } from '../services/Database';
 
 // Server configuration
 const DEV_API_URL = 'http://192.168.178.27:3000';
@@ -446,3 +447,54 @@ export const getAudioContent = async (
     throw error;
   }
 }
+
+/**
+ * Sends a chat message to the server and gets a response
+ */
+export const sendChatMessage = async (
+  message: string,
+  sessionId: string,
+  contentId: string,
+  contentType: 'study-set' | 'homework-help',
+  contentContext: StudySet | HomeworkHelp,
+  messageHistory: Array<{ role: 'user' | 'assistant', content: string }> = []
+): Promise<{response: string}> => {
+  try {
+    console.log('[API] Sending chat message:', {
+      messagePreview: message.substring(0, 50),
+      contentType,
+      contentId,
+      hasContext: !!contentContext,
+      messageCount: messageHistory.length
+    });
+
+    const response = await axios.post(`${API_URL}/chat`, {
+      message,
+      sessionId,
+      contentId,
+      contentType,
+      contentContext,
+      messageHistory
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 30000,
+    });
+
+    console.log('[API] Chat response received');
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error('[API] Chat API Error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+    } else {
+      console.error('[API] Non-Axios error:', error);
+    }
+    throw error;
+  }
+};

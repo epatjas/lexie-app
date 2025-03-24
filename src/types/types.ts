@@ -183,3 +183,30 @@ export interface RawHomeworkHelp {
   updated_at: number | string;
   profile_id: string;
 }
+
+// Chat session related types
+export interface ChatSession {
+  id: string;
+  content_id: string;  // ID of the associated study set or homework help
+  content_type: 'study-set' | 'homework-help';
+  title: string;
+  created_at: string | number;
+  updated_at: string | number;
+  profile_id: string;
+}
+
+export type MessageRole = 'user' | 'assistant' | 'system';
+
+export interface ChatMessage {
+  id: string;
+  session_id: string;
+  role: MessageRole;
+  content: string;
+  timestamp: string | number;
+}
+
+// Type guard for checking content type
+export const isChatSession = (obj: any): obj is ChatSession => {
+  return obj && typeof obj.id === 'string' && 
+    (obj.content_type === 'study-set' || obj.content_type === 'homework-help');
+};

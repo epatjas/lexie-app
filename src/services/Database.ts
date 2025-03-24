@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { CreateStudySetInput, StudySet, Flashcard, QuizQuestion, Folder, HomeworkHelp, StudyMaterials, RawHomeworkHelp } from '../types/types';
+import { CreateStudySetInput, StudySet, Flashcard, QuizQuestion, Folder, HomeworkHelp, StudyMaterials, RawHomeworkHelp, ChatSession, MessageRole, ChatMessage } from '../types/types';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -231,7 +231,7 @@ const initTables = async (database: SQLite.SQLiteDatabase) => {
   try {
     console.log('Creating database tables if they don\'t exist...');
     
-    // Create tables first
+    // Create existing tables first
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS folders (
         id TEXT PRIMARY KEY NOT NULL,
@@ -279,6 +279,27 @@ const initTables = async (database: SQLite.SQLiteDatabase) => {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         profile_id TEXT NOT NULL DEFAULT '',
         content_type TEXT DEFAULT 'homework-help'
+      );
+    `);
+    
+    // Create chat tables separately (without comment lines in SQL)
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS chat_sessions (
+        id TEXT PRIMARY KEY NOT NULL,
+        content_id TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        profile_id TEXT NOT NULL DEFAULT ''
+      );
+      
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id TEXT PRIMARY KEY NOT NULL,
+        session_id TEXT NOT NULL REFERENCES chat_sessions(id),
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
     
@@ -1338,6 +1359,117 @@ export const fixRecordContentType = async (id: string): Promise<void> => {
     }
   } catch (error) {
     console.error('Failed to fix record content type:', error);
+  }
+};
+
+/**
+ * Creates a new chat session for a specific content
+ */
+export const createChatSession = async (
+  contentId: string, 
+  contentType: 'study-set' | 'homework-help',
+  title: string,
+  profileId: string = ''
+): Promise<ChatSession> => {
+  try {
+    const db = await getDatabase();
+    const id = uuidv4();
+    const now = Date.now();
+    
+    await db.runAsync(
+      `INSERT INTO chat_sessions (id, content_id, content_type, title, created_at, updated_at, profile_id) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, contentId, contentType, title, now, now, profileId]
+    );
+    
+    return {
+      id,
+      content_id: contentId,
+      content_type: contentType,
+      title,
+      created_at: now,
+      updated_at: now,
+      profile_id: profileId
+    };
+  } catch (error) {
+    console.error('Failed to create chat session:', error);
+    throw error;
+  }
+};
+
+/**
+ * Retrieves chat sessions for a specific content
+ */
+export const getChatSessionsForContent = async (
+  contentId: string
+): Promise<ChatSession[]> => {
+  try {
+    const db = await getDatabase();
+    const sessions = await db.getAllAsync<ChatSession>(
+      'SELECT * FROM chat_sessions WHERE content_id = ? ORDER BY updated_at DESC',
+      [contentId]
+    );
+    return sessions;
+  } catch (error) {
+    console.error('Failed to get chat sessions:', error);
+    throw error;
+  }
+};
+
+/**
+ * Adds a message to a chat session
+ */
+export const addChatMessage = async (
+  sessionId: string,
+  role: MessageRole,
+  content: string
+): Promise<ChatMessage> => {
+  try {
+    const db = await getDatabase();
+    const id = uuidv4();
+    const now = Date.now();
+    
+    await db.runAsync(
+      `INSERT INTO chat_messages (id, session_id, role, content, timestamp) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, sessionId, role, content, now]
+    );
+    
+    // Update the session's updated_at time
+    await db.runAsync(
+      'UPDATE chat_sessions SET updated_at = ? WHERE id = ?',
+      [now, sessionId]
+    );
+    
+    return {
+      id,
+      session_id: sessionId,
+      role,
+      content,
+      timestamp: now
+    };
+  } catch (error) {
+    console.error('Failed to add chat message:', error);
+    throw error;
+  }
+};
+
+/**
+ * Retrieves all messages for a specific chat session
+ */
+export const getChatMessages = async (
+  sessionId: string
+): Promise<ChatMessage[]> => {
+  try {
+    const db = await getDatabase();
+    const messages = await db.getAllAsync<ChatMessage>(
+      'SELECT * FROM chat_messages WHERE session_id = ? ORDER BY timestamp ASC',
+      [sessionId]
+    );
+    return messages;
+  } catch (error) {
+    console.error('Failed to get chat messages:', error);
+    throw error;
   }
 };
 

@@ -10,12 +10,19 @@ import {
   ActivityIndicator,
   Platform,
   TextStyle,
+  TextInput,
+  KeyboardAvoidingView,
+  Keyboard,
+  Image,
+  ActionSheetIOS,
+  Animated,
+  Easing,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
 import { useStudySetDetails } from '../hooks/useStudySet';
-import { ChevronLeft, Play, Pause, MoreVertical, Plus, X, Rewind, FastForward, Volume2, ThumbsUp, ThumbsDown } from 'lucide-react-native';
+import { ChevronLeft, Play, Pause, MoreVertical, Plus, X, Rewind, FastForward, Volume2, ThumbsUp, ThumbsDown, Mic, ArrowUp, Send } from 'lucide-react-native';
 import { useFolders } from '../hooks/useFolders';
 import FolderSelectModal from '../components/FolderSelectModal';
 import FolderCreationModal from '../components/FolderCreationModal';
@@ -33,7 +40,8 @@ import { isStudySet, isHomeworkHelp, getCardCountText, hasSummary, getSummary } 
 import * as NavigationService from '../navigation/NavigationService';
 import { useAudio } from '../hooks/useAudio';
 import AudioPlayer from '../components/AudioPlayer';
-import { AntDesign } from '@expo/vector-icons';
+import { sendChatMessage } from '../services/api';
+import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-context';
 
 type StudySetScreenProps = NativeStackScreenProps<RootStackParamList, 'StudySet'>;
 type ContentType = 'study-set' | 'homework-help';
@@ -64,6 +72,9 @@ const hasProblemSummary = (content: HomeworkHelp): boolean => {
   return !!content?.homeworkHelp?.problem_summary;
 };
 
+// Add this helper function after the imports
+const getChatHistoryKey = (studySetId: string) => `chat_history_${studySetId}`;
+
 export default function StudySetScreen({ route, navigation }: StudySetScreenProps): React.JSX.Element {
   const { id, contentType = 'study-set' } = route.params;
   const navigationNative = useNavigation<NavigationProp<RootStackParamList>>();
@@ -91,6 +102,32 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const [showFeedbackToast, setShowFeedbackToast] = useState(false);
   const [selectedTab, setSelectedTab] = useState('summary');
   const { playAudio, pauseAudio, isPlaying, isLoading: audioIsLoading } = useAudio();
+  const [showDebugBorder, setShowDebugBorder] = useState(false); // Change to false
+  const [isActive, setIsActive] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  const [messages, setMessages] = useState<Array<{
+    text: string, 
+    timestamp: Date,
+    role: 'user' | 'assistant'
+  }>>([]);
+  const [inputText, setInputText] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+
+  // Add loading state for chat history
+  const [isLoadingChat, setIsLoadingChat] = useState(true);
+
+  // Add this to your state variables (near the top where other states are defined)
+  const [isLexieTyping, setIsLexieTyping] = useState(false);
+
+  // Add this with your other state variables
+  const [dotAnimations] = useState([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]);
+
+  // Add this with your other state variables
+  const spinValue = useRef(new Animated.Value(0)).current;
 
   // Hooks
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
@@ -652,13 +689,14 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         color: theme.colors.text,
         fontFamily: fontFamily,
         fontSize: fontSize,
+        lineHeight: Math.round(fontSize * 1.8),
       },
       paragraph: {
         marginBottom: 16,
         color: theme.colors.text,
         fontFamily: fontFamily,
         fontSize: fontSize,
-        lineHeight: Math.round(fontSize * 1.5),
+        lineHeight: Math.round(fontSize * 1.8),
         textTransform: textTransform,
       },
       bullet_list: {
@@ -711,7 +749,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   // Update the approach guidance styles
   const getApproachGuidanceMarkdownStyles = () => {
     const fontFamily = getFontFamily();
-    const fontSize = fontSettings.size;
+    const fontSize = 15; // Changed from fontSettings.size to fixed 15
     const textTransform = fontSettings.isAllCaps ? 'uppercase' : 'none';
     
     return {
@@ -721,7 +759,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         color: theme.colors.text,
         fontFamily: fontFamily,
         fontSize: fontSize,
-        lineHeight: Math.round(fontSize * 1.5),
+        lineHeight: Math.round(fontSize * 1.8), // Increased line height for better readability
         textTransform: textTransform,
       },
       strong: {
@@ -963,459 +1001,761 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     });
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity 
-            onPress={handleBackPress}
-            style={styles.headerButton}
-          >
-            <ChevronLeft color={theme.colors.text} size={20} />
-          </TouchableOpacity>
-          
-          <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-            {content ? content.title : 'Loading...'}
-          </Text>
-        </View>
-        
-        <View style={styles.headerRight}>
-          <TouchableOpacity 
-            style={styles.headerButton}
-            onPress={() => setShowSettingsSheet(true)}
-          >
-            <MoreVertical color={theme.colors.text} size={20} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.addButton}
-            onPress={() => navigationNative.navigate('Home', { openBottomSheet: true })}
-          >
-            <Plus color={theme.colors.text} size={20} />
-          </TouchableOpacity>
+  // Add this ref at the top of your component with other refs
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // Add these new functions before the return statement
+  const loadChatHistory = async () => {
+    try {
+      const historyKey = getChatHistoryKey(id);
+      const savedHistory = await AsyncStorage.getItem(historyKey);
+      if (savedHistory) {
+        const parsedHistory = JSON.parse(savedHistory);
+        setMessages(parsedHistory);
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    } finally {
+      setIsLoadingChat(false);
+    }
+  };
+
+  const saveChatHistory = async (newMessages: Array<{
+    text: string,
+    timestamp: Date,
+    role: 'user' | 'assistant'
+  }>) => {
+    try {
+      const historyKey = getChatHistoryKey(id);
+      await AsyncStorage.setItem(historyKey, JSON.stringify(newMessages));
+    } catch (error) {
+      console.error('Error saving chat history:', error);
+    }
+  };
+
+  // Add this useEffect to load chat history when the component mounts
+  useEffect(() => {
+    if (id) {
+      loadChatHistory();
+    }
+  }, [id]);
+
+  // Update the handleSend function
+  const handleSend = async (message: string) => {
+    if (!message.trim() || !content) return;
+    
+    // Clear input and minimize chat immediately
+    setInputText('');
+    setIsActive(false);
+    Keyboard.dismiss();
+    
+    // Create new message
+    const userMessage = {
+      text: message.trim(),
+      timestamp: new Date(),
+      role: 'user' as const
+    };
+
+    // Update messages with user message
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    
+    try {
+      setIsLexieTyping(true);
+      
+      // Format previous messages for context
+      const messageHistory = messages.map(msg => ({
+        role: msg.role,
+        content: msg.text
+      }));
+
+      // Pass the entire conversation history
+      const response = await sendChatMessage(
+        message,
+        'session-1',
+        id,
+        content.contentType,
+        content,
+        messageHistory // Add this parameter
+      );
+      
+      // Create assistant message
+      const assistantMessage = {
+        text: response.response,
+        timestamp: new Date(),
+        role: 'assistant' as const
+      };
+
+      // Update messages with assistant response
+      const finalMessages = [...updatedMessages, assistantMessage];
+      setMessages(finalMessages);
+      await saveChatHistory(finalMessages);
+      
+      // Scroll to show the new message
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error) {
+      console.error('[Chat] Failed to get chat response:', error);
+    } finally {
+      setIsLexieTyping(false);
+    }
+  };
+
+  // Add this component near your other components
+  const RotatingLexieIndicator = () => {
+    const items = ['L', 'E', 'X', 'I', 'E'];
+    const radius = 15; // Made slightly smaller to fit better in the message container
+    const animatedValues = useRef(items.map(() => new Animated.Value(0))).current;
+
+    useEffect(() => {
+      const animations = animatedValues.map((value, index) => {
+        return Animated.loop(
+          Animated.sequence([
+            Animated.timing(value, {
+              toValue: 1,
+              duration: 2000, // Slowed down slightly for better readability
+              delay: index * 200, // Reduced delay between letters
+              easing: Easing.linear,
+              useNativeDriver: true,
+            }),
+            Animated.timing(value, {
+              toValue: 0,
+              duration: 0,
+              useNativeDriver: true,
+            })
+          ])
+        );
+      });
+
+      Animated.parallel(animations).start();
+
+      // Cleanup animation when component unmounts
+      return () => {
+        animations.forEach(anim => anim.stop());
+      };
+    }, []);
+
+    return (
+      <View style={[styles.messageContainer, styles.assistantMessage]}>
+        <View style={styles.rotatingContainer}>
+          {items.map((letter, index) => {
+            const angle = animatedValues[index].interpolate({
+              inputRange: [0, 1],
+              outputRange: ['0deg', '360deg']
+            });
+
+            const translateX = animatedValues[index].interpolate({
+              inputRange: [0, 0.25, 0.5, 0.75, 1],
+              outputRange: [
+                radius * Math.cos(0),
+                radius * Math.cos(Math.PI / 2),
+                radius * Math.cos(Math.PI),
+                radius * Math.cos(3 * Math.PI / 2),
+                radius * Math.cos(2 * Math.PI)
+              ]
+            });
+
+            const translateY = animatedValues[index].interpolate({
+              inputRange: [0, 0.25, 0.5, 0.75, 1],
+              outputRange: [
+                radius * Math.sin(0),
+                radius * Math.sin(Math.PI / 2),
+                radius * Math.sin(Math.PI),
+                radius * Math.sin(3 * Math.PI / 2),
+                radius * Math.sin(2 * Math.PI)
+              ]
+            });
+
+            return (
+              <Animated.Text
+                key={index}
+                style={[
+                  styles.rotatingLetter,
+                  {
+                    transform: [
+                      { translateX },
+                      { translateY },
+                      { rotate: angle }
+                    ]
+                  }
+                ]}
+              >
+                {letter}
+              </Animated.Text>
+            );
+          })}
         </View>
       </View>
+    );
+  };
 
-      {/* Content conditionally rendered based on loading state */}
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Loading content...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => {
-            setIsLoading(true);
-            setError(null);
-            // Reload the content
-            loadStudySet();
-          }}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : content ? (
-        <ScrollView 
-          style={{flex: 1}}
-          contentContainerStyle={{paddingBottom: 150}}
-          showsVerticalScrollIndicator={true}
-          scrollEnabled={true}
-          onScrollBeginDrag={() => setShowMoreOptions(false)}
-        >
-          <View style={{padding: 16}}>
-            {/* Introduction with language-appropriate fallback */}
-            {isHomeworkHelp(content) && (
-              <View style={styles.introductionContainer}>
-                <Text style={getTextStyle(styles.introText)}>
-                  {content.introduction || (content.homeworkHelp?.language === 'fi' 
-                    ? "Kävin tehtäväsi läpi. Näistä ohjeista voisi olla hyötyä sinulle ongelman ratkaisemiseen."
-                    : "I've reviewed your content. Here's some guidance to help you solve this problem.")}
-                </Text>
-              </View>
-            )}
+  // Replace the SpinningLexieIndicator usage with RotatingLexieIndicator
+  {isLexieTyping && <RotatingLexieIndicator />}
 
-            {/* Conditional rendering based on content type */}
-            {contentIsHomeworkHelp ? (
-              // HOMEWORK HELP UI
-              <>
-                {/* Learn card - fixed 50% width */}
-                <TouchableOpacity
-                  style={[styles.card, {
-                    width: '50%',
-                    alignSelf: 'flex-start',
-                    flex: 0,
-                  }]}
-                  onPress={navigateToCards}
-                >
-                  <Text style={styles.cardTitle}>Learn</Text>
-                  <View style={styles.cardContent}>
-                    <Text style={styles.cardCount}>
-                      {content && isHomeworkHelp(content) && content.homeworkHelp?.concept_cards?.length > 0 
-                        ? `${content.homeworkHelp.concept_cards.length} cards` 
-                        : 'No cards'}
+  // Add these with the other handler functions (around line 400-500)
+  const handleImagePress = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Take Photo', 'Choose from Library'],
+          cancelButtonIndex: 0,
+          userInterfaceStyle: 'dark',
+          message: 'Add a photo',
+        },
+        (buttonIndex) => {
+          switch (buttonIndex) {
+            case 1: // Take Photo
+              console.log('Take photo');
+              break;
+            case 2: // Choose from Library
+              console.log('Choose from library');
+              break;
+          }
+        }
+      );
+    } else {
+      // For Android, you might want to use a different approach
+      console.log('Show Android photo picker');
+    }
+  };
+
+  const handleRecordPress = () => {
+    setIsRecording(!isRecording);
+    // Add recording logic here
+    console.log('Record pressed');
+  };
+
+  return (
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
+      <SafeAreaViewContext style={styles.safeArea} edges={['top']}>
+        <View style={styles.mainContent}>
+          {/* Header */}
+          <View style={styles.headerContainer}>
+            <View style={styles.headerLeft}>
+              <TouchableOpacity 
+                onPress={handleBackPress}
+                style={styles.headerButton}
+              >
+                <ChevronLeft color={theme.colors.text} size={18} />
+              </TouchableOpacity>
+              
+              <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+                {content ? content.title : 'Loading...'}
+              </Text>
+            </View>
+            
+            <View style={styles.headerRight}>
+              <TouchableOpacity 
+                style={styles.headerButton}
+                onPress={() => setShowSettingsSheet(true)}
+              >
+                <MoreVertical color={theme.colors.text} size={18} />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.addButton}
+                onPress={() => navigationNative.navigate('Home', { openBottomSheet: true })}
+              >
+                <Plus color={theme.colors.text} size={18} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Main scrollable content */}
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={styles.loadingText}>Loading content...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={() => {
+                setIsLoading(true);
+                setError(null);
+                // Reload the content
+                loadStudySet();
+              }}>
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : content ? (
+            <ScrollView 
+              ref={scrollViewRef}
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollViewContent}
+              showsVerticalScrollIndicator={true}
+              scrollEnabled={true}
+              onScrollBeginDrag={() => setShowMoreOptions(false)}
+            >
+              <View style={{padding: 16}}>
+                {/* Introduction with language-appropriate fallback */}
+                {isHomeworkHelp(content) && (
+                  <View style={styles.introductionContainer}>
+                    <Text style={getTextStyle(styles.introText)}>
+                      {content.introduction || (content.homeworkHelp?.language === 'fi' 
+                        ? "Kävin tehtäväsi läpi. Näistä ohjeista voisi olla hyötyä sinulle ongelman ratkaisemiseen."
+                        : "I've reviewed your content. Here's some guidance to help you solve this problem.")}
                     </Text>
                   </View>
-                  <View style={styles.stackedCardsContainer}>
-                    <View style={[styles.stackedCard, styles.cardWhite]} />
-                    <View style={[styles.stackedCard, styles.cardYellow]} />
-                    <View style={[styles.stackedCard, styles.cardBlue]} />
-                  </View>
-                </TouchableOpacity>
+                )}
 
-                {/* Assignment section with audio button */}
-                <View style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginVertical: theme.spacing.sm,
-                }}>
-                  <Text style={getTextStyle(styles.assignmentTitle)}>
-                    {isHomeworkHelp(content) && isNewFormat(content as HomeworkHelp) && content.homeworkHelp.language === 'fi' 
-                      ? 'Tehtävänanto' 
-                      : isNewFormat(content as HomeworkHelp) 
-                        ? 'Problem' 
-                        : 'Assignment'}
-                  </Text>
-                  
-                  {/* Audio button */}
-                  <TouchableOpacity 
-                    style={styles.listenCircleButton}
-                    onPress={handleListenPress}
-                    disabled={audioIsLoading}
-                  >
-                    {audioIsLoading ? (
-                      <ActivityIndicator size="small" color={theme.colors.text} />
-                    ) : (
-                      isPlaying ? (
-                        <Pause color="#FFFFFF" size={16} />
-                      ) : (
-                        <Volume2 color="#FFFFFF" size={16} />
-                      )
-                    )}
-                  </TouchableOpacity>
-                </View>
-                
-                {/* Display homework help content with applied font settings */}
-                <View style={styles.homeworkContent}>
-                  {/* NEW FORMAT: Problem Summary with better formatting using helper function */}
-                  {isHomeworkHelp(content) && isNewFormat(content as HomeworkHelp) && content.homeworkHelp.problem_summary && (
-                    <View style={styles.problemSummaryContainer}>
-                      {renderMarkdownContent(content.homeworkHelp.problem_summary)}
+                {/* Conditional rendering based on content type */}
+                {contentIsHomeworkHelp ? (
+                  // HOMEWORK HELP UI
+                  <>
+                    {/* Learn card - fixed 50% width */}
+                    <TouchableOpacity
+                      style={[styles.card, {
+                        width: '50%',
+                        alignSelf: 'flex-start',
+                        flex: 0,
+                      }]}
+                      onPress={navigateToCards}
+                    >
+                      <Text style={styles.cardTitle}>Learn</Text>
+                      <View style={styles.cardContent}>
+                        <Text style={styles.cardCount}>
+                          {content && isHomeworkHelp(content) && content.homeworkHelp?.concept_cards?.length > 0 
+                            ? `${content.homeworkHelp.concept_cards.length} cards` 
+                            : 'No cards'}
+                        </Text>
+                      </View>
+                      <View style={styles.stackedCardsContainer}>
+                        <View style={[styles.stackedCard, styles.cardWhite]} />
+                        <View style={[styles.stackedCard, styles.cardYellow]} />
+                        <View style={[styles.stackedCard, styles.cardBlue]} />
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* Assignment section with audio button */}
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'flex-start',
+                      alignItems: 'center',
+                      marginVertical: theme.spacing.sm,
+                    }}>
+                      {/* Audio button */}
+                      <TouchableOpacity 
+                        style={styles.listenCircleButton}
+                        onPress={handleListenPress}
+                        disabled={audioIsLoading}
+                      >
+                        {audioIsLoading ? (
+                          <ActivityIndicator size="small" color={theme.colors.text} />
+                        ) : (
+                          isPlaying ? (
+                            <Pause color="#FFFFFF" size={12} />
+                          ) : (
+                            <Volume2 color="#FFFFFF" size={12} />
+                          )
+                        )}
+                      </TouchableOpacity>
                     </View>
-                  )}
+                    
+                    {/* Display homework help content with applied font settings */}
+                    <View style={styles.homeworkContent}>
+                      {/* NEW FORMAT: Problem Summary with better formatting using helper function */}
+                      {isHomeworkHelp(content) && isNewFormat(content as HomeworkHelp) && content.homeworkHelp.problem_summary && (
+                        <View style={styles.problemSummaryContainer}>
+                          {renderMarkdownContent(content.homeworkHelp.problem_summary)}
+                        </View>
+                      )}
 
-                  {/* NEW FORMAT: Approach Guidance - Updated style to match screenshot */}
-                  {isHomeworkHelp(content) && isNewFormat(content as HomeworkHelp) && (content as HomeworkHelp).homeworkHelp.approach_guidance && (
-                    <View style={styles.approachGuidanceContainer}>
-                      <Text style={getTextStyle(styles.approachGuidanceTitle)}>
-                        {content.homeworkHelp.language === 'fi' ? 'Tee näin' : 'How to approach'}
-                      </Text>
-                      {/* Replace plain Text with Markdown */}
-                      {renderMarkdownContent(
-                        (content as HomeworkHelp).homeworkHelp.approach_guidance,
-                        getApproachGuidanceMarkdownStyles()
+                      {/* NEW FORMAT: Approach Guidance - Updated style to match screenshot */}
+                      {isHomeworkHelp(content) && isNewFormat(content as HomeworkHelp) && (content as HomeworkHelp).homeworkHelp.approach_guidance && (
+                        <View style={styles.approachGuidanceContainer}>
+                          <Text style={getTextStyle(styles.approachGuidanceTitle)}>
+                            {content.homeworkHelp.language === 'fi' ? 'Tee näin' : 'How to approach'}
+                          </Text>
+                          {renderMarkdownContent(
+                            (content as HomeworkHelp).homeworkHelp.approach_guidance,
+                            getApproachGuidanceMarkdownStyles()
+                          )}
+                        </View>
                       )}
                     </View>
-                  )}
 
-                  {/* OLD FORMAT: Facts list with applied font settings */}
-                  {!isNewFormat(content as HomeworkHelp) && 
-                    (content as HomeworkHelp).homeworkHelp?.assignment?.facts?.map((fact, index) => (
-                    <View key={index} style={styles.factItem}>
-                      <Text style={getTextStyle(styles.bulletPoint)}>•</Text>
-                      <Text style={getTextStyle(styles.factText)}>{fact}</Text>
-                    </View>
-                  ))}
-                  
-                  {/* OLD FORMAT: Objective with applied font settings */}
-                  {isHomeworkHelp(content) && !isNewFormat(content as HomeworkHelp) && 
-                    (content as HomeworkHelp).homeworkHelp?.assignment?.objective && (
-                    <Text style={getTextStyle(styles.objectiveText)}>
-                      {(content as HomeworkHelp).homeworkHelp?.assignment?.objective}
-                    </Text>
-                  )}
-                </View>
-
-                {/* Feedback section - updated to be left-aligned and closer to content */}
-                <View style={styles.feedbackContainer}>
-                  <View style={styles.feedbackButtons}>
-                    <TouchableOpacity 
-                      style={styles.feedbackButton} 
-                      onPress={() => handleFeedback(true)}
-                      disabled={feedbackSubmitted}
-                    >
-                      <ThumbsUp 
-                        color={theme.colors.textSecondary}
-                        size={20} 
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={styles.feedbackButton} 
-                      onPress={() => handleFeedback(false)}
-                      disabled={feedbackSubmitted}
-                    >
-                      <ThumbsDown 
-                        color={theme.colors.textSecondary}
-                        size={20} 
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </>
-            ) : (
-              // STUDY SET UI
-              <>
-                {/* Learn and Practice cards */}
-                <View style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  marginVertical: theme.spacing.sm,
-                  gap: theme.spacing.sm,
-                  position: 'relative',
-                }}>
-                  {/* Learn card */}
-                  <TouchableOpacity
-                    style={styles.card}
-                    onPress={navigateToCards}
-                  >
-                    <Text style={styles.cardTitle}>Learn</Text>
-                    <View style={styles.cardContent}>
-                      <Text style={styles.cardCount}>
-                        {content && isStudySet(content) && content.flashcards?.length > 0 
-                          ? `${content.flashcards.length} cards` 
-                          : 'No cards'}
-                      </Text>
-                    </View>
-                    <View style={styles.stackedCardsContainer}>
-                      <View style={[styles.stackedCard, styles.cardWhite]} />
-                      <View style={[styles.stackedCard, styles.cardYellow]} />
-                      <View style={[styles.stackedCard, styles.cardBlue]} />
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Practice card */}
-                  <TouchableOpacity
-                    style={styles.card}
-                    onPress={handleCreateQuiz}
-                  >
-                    <Text style={styles.cardTitle}>Practise</Text>
-                    <View style={styles.cardContent}>
-                      <Text style={styles.cardCount}>
-                        {content && isStudySet(content) && content.quiz?.length > 0 
-                          ? `${content.quiz.length} questions` 
-                          : 'No questions'}
-                      </Text>
-                    </View>
-                    {/* Card decoration */}
-                    <View style={styles.practiceCardsContainer}>
-                      <View style={styles.practiceCard1} />
-                      <View style={styles.practiceCard2} />
-                      <View style={styles.practiceCard3}>
-                        <View style={styles.checkCircle}>
-                          <Text style={styles.checkMark}>✓</Text>
-                        </View>
+                    {/* Feedback section */}
+                    <View style={styles.feedbackContainer}>
+                      <View style={styles.feedbackButtons}>
+                        <TouchableOpacity 
+                          style={styles.feedbackButton} 
+                          onPress={() => handleFeedback(true)}
+                          disabled={feedbackSubmitted}
+                        >
+                          <ThumbsUp 
+                            color={theme.colors.textSecondary}
+                            size={16} 
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={styles.feedbackButton} 
+                          onPress={() => handleFeedback(false)}
+                          disabled={feedbackSubmitted}
+                        >
+                          <ThumbsDown 
+                            color={theme.colors.textSecondary}
+                            size={16} 
+                          />
+                        </TouchableOpacity>
                       </View>
                     </View>
-                  </TouchableOpacity>
-                </View>
+                  </>
+                ) : (
+                  // STUDY SET UI
+                  <>
+                    {/* Learn and Practice cards */}
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginVertical: theme.spacing.sm,
+                      gap: theme.spacing.sm,
+                      position: 'relative',
+                    }}>
+                      {/* Learn card */}
+                      <TouchableOpacity
+                        style={styles.card}
+                        onPress={navigateToCards}
+                      >
+                        <Text style={styles.cardTitle}>Learn</Text>
+                        <View style={styles.cardContent}>
+                          <Text style={styles.cardCount}>
+                            {content && isStudySet(content) && content.flashcards?.length > 0 
+                              ? `${content.flashcards.length} cards` 
+                              : 'No cards'}
+                          </Text>
+                        </View>
+                        <View style={styles.stackedCardsContainer}>
+                          <View style={[styles.stackedCard, styles.cardWhite]} />
+                          <View style={[styles.stackedCard, styles.cardYellow]} />
+                          <View style={[styles.stackedCard, styles.cardBlue]} />
+                        </View>
+                      </TouchableOpacity>
 
-                {/* Tabs for Summary and Original Text */}
-                <View style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginVertical: theme.spacing.sm,
-                }}>
-                  <View style={styles.tabContainer}>
-                    <TouchableOpacity 
-                      style={[styles.tab, selectedTab === 'summary' && styles.activeTab]}
-                      onPress={() => setSelectedTab('summary')}
-                    >
-                      <Text style={[styles.tabText, selectedTab === 'summary' && styles.activeTabText]}>
-                        Summary
-                      </Text>
-                    </TouchableOpacity>
+                      {/* Practice card */}
+                      <TouchableOpacity
+                        style={styles.card}
+                        onPress={handleCreateQuiz}
+                      >
+                        <Text style={styles.cardTitle}>Practise</Text>
+                        <View style={styles.cardContent}>
+                          <Text style={styles.cardCount}>
+                            {content && isStudySet(content) && content.quiz?.length > 0 
+                              ? `${content.quiz.length} questions` 
+                              : 'No questions'}
+                          </Text>
+                        </View>
+                        {/* Card decoration */}
+                        <View style={styles.practiceCardsContainer}>
+                          <View style={styles.practiceCard1} />
+                          <View style={styles.practiceCard2} />
+                          <View style={styles.practiceCard3}>
+                            <View style={styles.checkCircle}>
+                              <Text style={styles.checkMark}>✓</Text>
+                            </View>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Tabs for Summary and Original Text */}
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginVertical: theme.spacing.sm,
+                    }}>
+                      <View style={styles.tabContainer}>
+                        <TouchableOpacity 
+                          style={[styles.tab, selectedTab === 'summary' && styles.activeTab]}
+                          onPress={() => setSelectedTab('summary')}
+                        >
+                          <Text style={[styles.tabText, selectedTab === 'summary' && styles.activeTabText]}>
+                            Summary
+                          </Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                          style={[styles.tab, selectedTab === 'original' && styles.activeTab]}
+                          onPress={() => setSelectedTab('original')}
+                        >
+                          <Text style={[styles.tabText, selectedTab === 'original' && styles.activeTabText]}>
+                            Original text
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      
+                      <TouchableOpacity 
+                        style={styles.listenCircleButton}
+                        onPress={handleListenPress}
+                        disabled={audioIsLoading}
+                      >
+                        {audioIsLoading ? (
+                          <ActivityIndicator size="small" color={theme.colors.text} />
+                        ) : (
+                          isPlaying ? (
+                            <Pause color="#FFFFFF" size={12} />
+                          ) : (
+                            <Volume2 color="#FFFFFF" size={12} />
+                          )
+                        )}
+                      </TouchableOpacity>
+                    </View>
                     
-                    <TouchableOpacity 
-                      style={[styles.tab, selectedTab === 'original' && styles.activeTab]}
-                      onPress={() => setSelectedTab('original')}
-                    >
-                      <Text style={[styles.tabText, selectedTab === 'original' && styles.activeTabText]}>
-                        Original text
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                  
-                  <TouchableOpacity 
-                    style={styles.listenCircleButton}
-                    onPress={handleListenPress}
-                    disabled={audioIsLoading}
-                  >
-                    {audioIsLoading ? (
-                      <ActivityIndicator size="small" color={theme.colors.text} />
-                    ) : (
-                      isPlaying ? (
-                        <Pause color="#FFFFFF" size={16} />
-                      ) : (
-                        <Volume2 color="#FFFFFF" size={16} />
-                      )
+                    {/* Content based on selected tab */}
+                    <View style={styles.tabContent}>
+                      {content && renderContent()}
+                    </View>
+
+                    {/* Feedback section - updated to be left-aligned and closer to content */}
+                    <View style={styles.feedbackContainer}>
+                      <View style={styles.feedbackButtons}>
+                        <TouchableOpacity 
+                          style={styles.feedbackButton} 
+                          onPress={() => handleFeedback(true)}
+                          disabled={feedbackSubmitted}
+                        >
+                          <ThumbsUp 
+                            color={theme.colors.textSecondary}
+                            size={16} 
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={styles.feedbackButton} 
+                          onPress={() => handleFeedback(false)}
+                          disabled={feedbackSubmitted}
+                        >
+                          <ThumbsDown 
+                            color={theme.colors.textSecondary}
+                            size={16} 
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </>
+                )}
+
+                {/* Add messages section at the bottom of the content */}
+                {messages.length > 0 && (
+                  <View style={styles.messagesWrapper}>
+                    {messages.map((message, index) => (
+                      <View 
+                        key={index} 
+                        style={[
+                          styles.messageContainer,
+                          message.role === 'user' ? styles.userMessage : styles.assistantMessage
+                        ]}
+                      >
+                        <Text style={styles.messageText}>{message.text}</Text>
+                        {message.role === 'assistant' && (
+                          <View style={styles.messageFooter}>
+                            <TouchableOpacity style={styles.messageIconButton}>
+                              <ThumbsUp color={theme.colors.textSecondary} size={16} style={styles.messageIcon} />
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.messageIconButton}>
+                              <ThumbsDown color={theme.colors.textSecondary} size={16} style={styles.messageIcon} />
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    ))}
+                    {isLexieTyping && (
+                      <View style={[styles.messageContainer, styles.assistantMessage]}>
+                        <LoadingDot />
+                      </View>
                     )}
-                  </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          ) : (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>No content available</Text>
+            </View>
+          )}
+
+          {/* Chat Interface - moved inside KeyboardAvoidingView */}
+          <View style={[styles.chatContainer]}>
+            {isActive ? (
+              <View style={styles.chatInputWrapper}>
+                <View style={styles.chatInputRow}>
+                  <TextInput
+                    ref={inputRef}
+                    style={styles.chatInput}
+                    placeholder="Ask Lexie..."
+                    placeholderTextColor={theme.colors.textSecondary}
+                    value={inputText}
+                    onChangeText={setInputText}
+                    onSubmitEditing={(e) => handleSend(e.nativeEvent.text)}
+                    blurOnSubmit={false}
+                    returnKeyType="send"
+                  />
                 </View>
                 
-                {/* Content based on selected tab */}
-                <View style={styles.tabContent}>
-                  {content && renderContent()}
-                </View>
-
-                {/* Feedback section - updated to be left-aligned and closer to content */}
-                <View style={styles.feedbackContainer}>
-                  <View style={styles.feedbackButtons}>
+                <View style={styles.buttonsContainer}>
+                  <TouchableOpacity 
+                    style={styles.iconButton} 
+                    onPress={handleImagePress}
+                  >
+                    <Plus color={theme.colors.text} size={16} />
+                  </TouchableOpacity>
+                  
+                  {inputText.length > 0 ? (
                     <TouchableOpacity 
-                      style={styles.feedbackButton} 
-                      onPress={() => handleFeedback(true)}
-                      disabled={feedbackSubmitted}
+                      style={[styles.iconButton, styles.activeIconButton]} 
+                      onPress={() => handleSend(inputText)}
                     >
-                      <ThumbsUp 
-                        color={theme.colors.textSecondary}
-                        size={20} 
+                      <ArrowUp color="#000000" size={16} />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity 
+                      style={styles.iconButton} 
+                      onPress={handleRecordPress}
+                    >
+                      <Mic 
+                        color={isRecording ? theme.colors.primary : theme.colors.text} 
+                        size={16} 
                       />
                     </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={styles.feedbackButton} 
-                      onPress={() => handleFeedback(false)}
-                      disabled={feedbackSubmitted}
-                    >
-                      <ThumbsDown 
-                        color={theme.colors.textSecondary}
-                        size={20} 
-                      />
-                    </TouchableOpacity>
-                  </View>
+                  )}
                 </View>
-              </>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.chatButton}
+                onPress={() => {
+                  setIsActive(true);
+                  setTimeout(() => {
+                    inputRef.current?.focus();
+                  }, 100);
+                }}
+              >
+                <Text style={styles.chatButtonText}>Kysy Lexieltä...</Text>
+              </TouchableOpacity>
             )}
           </View>
-        </ScrollView>
-      ) : (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>No content available</Text>
         </View>
-      )}
 
-      {/* Audio player overlay */}
-      {showAudioPlayer && content && (
-        <AudioPlayer 
-          content={content}
-          selectedTab={selectedTab}
-          onClose={handleCloseAudio}
-        />
-      )}
+        {/* Audio player overlay */}
+        {showAudioPlayer && content && (
+          <AudioPlayer 
+            content={content}
+            selectedTab={selectedTab}
+            onClose={handleCloseAudio}
+          />
+        )}
 
-      {/* Modals and other elements */}
-      {folderSelectVisible && (
-        <FolderSelectModal
-          visible={folderSelectVisible}
-          onClose={() => setFolderSelectVisible(false)}
-          onCreateNew={handleCreateNewFolder}
-          folders={folders}
-          selectedFolderId={content?.folder_id || null}
-          onSelect={handleFolderSelect}
-          onUpdateFolder={updateFolder}
-        />
-      )}
+        {/* Modals and other elements */}
+        {folderSelectVisible && (
+          <FolderSelectModal
+            visible={folderSelectVisible}
+            onClose={() => setFolderSelectVisible(false)}
+            onCreateNew={handleCreateNewFolder}
+            folders={folders}
+            selectedFolderId={content?.folder_id || null}
+            onSelect={handleFolderSelect}
+            onUpdateFolder={updateFolder}
+          />
+        )}
 
-      {folderCreateVisible && (
-        <FolderCreationModal
-          visible={folderCreateVisible}
-          onClose={() => setFolderCreateVisible(false)}
-          onCreate={handleCreateFolder}
-        />
-      )}
+        {folderCreateVisible && (
+          <FolderCreationModal
+            visible={folderCreateVisible}
+            onClose={() => setFolderCreateVisible(false)}
+            onCreate={handleCreateFolder}
+          />
+        )}
 
-      {/* Toast notification for feedback - updated design */}
-      {showFeedbackToast && (
-        <View style={styles.feedbackToast}>
-          <View style={styles.closeToastButtonContainer}>
-            <TouchableOpacity 
-              style={styles.closeToastButton}
-              onPress={() => setShowFeedbackToast(false)}
-            >
-              <X color="#FFFFFF" size={18} />
-            </TouchableOpacity>
+        {/* Toast notification for feedback - updated design */}
+        {showFeedbackToast && (
+          <View style={styles.feedbackToast}>
+            <View style={styles.closeToastButtonContainer}>
+              <TouchableOpacity 
+                style={styles.closeToastButton}
+                onPress={() => setShowFeedbackToast(false)}
+              >
+                <X color="#FFFFFF" size={16} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.feedbackToastText}>
+              Thank you for your feedback!
+            </Text>
           </View>
-          <Text style={styles.feedbackToastText}>
-            Thank you for your feedback!
-          </Text>
-        </View>
-      )}
+        )}
 
-      {/* Original toast for other messages */}
-      {showToast && (
-        <View style={styles.toast}>
-          <Text style={styles.toastText}>{toastMessage}</Text>
-        </View>
-      )}
+        {/* Original toast for other messages */}
+        {showToast && (
+          <View style={styles.toast}>
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </View>
+        )}
 
-      <StudySetSettingsSheet
-        visible={showSettingsSheet}
-        onClose={() => setShowSettingsSheet(false)}
-        onFolderPress={() => {
-          setShowSettingsSheet(false);
-          setTimeout(() => { setFolderSelectVisible(true); }, 300);
-        }}
-        onDeletePress={() => {
-          setShowSettingsSheet(false);
-          handleDeletePress();
-        }}
-        onTranslatePress={handleTranslatePress}
-        onChangeFontPress={handleChangeFontPress}
-        onLanguagePress={handleLanguagePress}
-        hasFolderAssigned={!!content?.folder_id}
-        folderName={currentFolder?.name || ''}
-        folderColor={currentFolder?.color || '#888'}
-        language={'English'}
-        selectedFont={fontSettings.font}
-      />
+        <StudySetSettingsSheet
+          visible={showSettingsSheet}
+          onClose={() => setShowSettingsSheet(false)}
+          onFolderPress={() => {
+            setShowSettingsSheet(false);
+            setTimeout(() => { setFolderSelectVisible(true); }, 300);
+          }}
+          onDeletePress={() => {
+            setShowSettingsSheet(false);
+            handleDeletePress();
+          }}
+          onTranslatePress={handleTranslatePress}
+          onChangeFontPress={handleChangeFontPress}
+          onLanguagePress={handleLanguagePress}
+          hasFolderAssigned={!!content?.folder_id}
+          folderName={currentFolder?.name || ''}
+          folderColor={currentFolder?.color || '#888'}
+          language={'English'}
+          selectedFont={fontSettings.font}
+        />
 
-      <FontSelectionSheet
-        visible={fontSheetVisible}
-        onClose={() => setFontSheetVisible(false)}
-        onBack={handleFontSheetBack}
-        selectedFont={fontSettings.font}
-        fontSize={fontSettings.size}
-        isAllCaps={fontSettings.isAllCaps}
-        onFontChange={handleFontChange}
-      />
-    </SafeAreaView>
+        <FontSelectionSheet
+          visible={fontSheetVisible}
+          onClose={() => setFontSheetVisible(false)}
+          onBack={handleFontSheetBack}
+          selectedFont={fontSettings.font}
+          fontSize={fontSettings.size}
+          isAllCaps={fontSettings.isAllCaps}
+          onFontChange={handleFontChange}
+        />
+      </SafeAreaViewContext>
+    </KeyboardAvoidingView>
   );
 }
 
 // Consolidated styles
 const styles = StyleSheet.create({
-  // ==================== LAYOUT & CONTAINERS ====================
+  // Base Layout
   container: {
+    flex: 1,
+    backgroundColor: '#1C1C1E',
+  },
+  safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  loadingContainer: {
+  mainContent: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    backgroundColor: theme.colors.background,
   },
-  errorContainer: {
+  scrollView: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: theme.spacing.md,
   },
-  homeworkContent: {
-    paddingVertical: theme.spacing.xs,
-    paddingHorizontal: 8,
+  scrollViewContent: {
+    paddingBottom: 80,
   },
-  
-  // ==================== HEADER COMPONENTS ====================
+
+  // Header
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1461,9 +1801,222 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.stroke,
     marginLeft: theme.spacing.sm,
   },
-  
-  // ==================== HOMEWORK HELP SECTIONS ====================
-  // Introduction
+
+  // Chat Interface
+  chatContainer: {
+    backgroundColor: '#1C1C1E',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 12,
+    paddingBottom: 24,
+    marginTop: 'auto',
+    minHeight: Platform.OS === 'ios' ? 60 : 52,
+  },
+  chatButton: {
+    width: '100%',
+    height: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    marginBottom: 0,
+  },
+  chatButtonText: {
+    color: theme.colors.textSecondary,
+    fontSize: 15,
+  },
+  chatInputWrapper: {
+    marginBottom: Platform.OS === 'ios' ? 8 : 0,
+  },
+  chatInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  chatInput: {
+    flex: 1,
+    color: theme.colors.text,
+    fontSize: 15,
+    height: 40,
+    paddingHorizontal: 4,
+  },
+  buttonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.stroke,
+    borderRadius: 20,
+  },
+  activeIconButton: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
+  },
+
+  // Messages
+  messagesWrapper: {
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  messageContainer: {
+    backgroundColor: theme.colors.background02,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+    maxWidth: '85%',
+  },
+  userMessage: {
+    alignSelf: 'flex-end',
+    backgroundColor: theme.colors.background02,
+  },
+  assistantMessage: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'transparent',
+  },
+  messageText: {
+    color: theme.colors.text,
+    fontSize: 15,
+    lineHeight: 24,
+  },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 12,
+  },
+  messageIcon: {
+    opacity: 0.8,
+  },
+  messageIconButton: {
+    padding: 4,
+  },
+
+  // Loading & Error States
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: theme.fontSizes.lg,
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 14,
+    fontFamily: theme.fonts.medium,
+    marginTop: theme.spacing.sm,
+  },
+  retryButton: {
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+    marginTop: theme.spacing.sm,
+  },
+  retryButtonText: {
+    fontSize: theme.fontSizes.md,
+    fontFamily: theme.fonts.medium,
+    color: 'white',
+  },
+
+  // Feedback
+  feedbackContainer: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    paddingLeft: theme.spacing.xs,
+  },
+  feedbackButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    gap: theme.spacing.md,
+  },
+  feedbackButton: {
+    padding: theme.spacing.xs / 2,
+  },
+
+  // Toast Notifications
+  toast: {
+    position: 'absolute',
+    top: '10%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    zIndex: 1000,
+  },
+  toastText: {
+    color: 'white',
+    fontSize: 14,
+    fontFamily: theme.fonts.medium,
+  },
+  feedbackToast: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 90 : 50,
+    left: theme.spacing.md,
+    right: theme.spacing.md,
+    backgroundColor: 'rgba(30, 30, 30, 0.85)',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1000,
+    borderWidth: 1,
+    borderColor: 'rgba(60, 60, 60, 0.5)',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  feedbackToastText: {
+    color: 'white',
+    fontSize: 16,
+    fontFamily: theme.fonts.regular,
+    flex: 1,
+    textAlign: 'left',
+    paddingLeft: 0,
+    marginRight: 0,
+  },
+  closeToastButtonContainer: {
+    marginRight: 4,
+    marginLeft: -4,
+  },
+  closeToastButton: {
+    padding: 5,
+    backgroundColor: 'rgba(80, 80, 80, 0.5)',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 24,
+    height: 24,
+  },
+
+  // Homework Help Sections
+  homeworkContent: {
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+  },
   introductionContainer: {
     marginBottom: theme.spacing.sm,
     paddingBottom: 4,
@@ -1474,16 +2027,8 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     lineHeight: 20,
   },
-  
-  // Assignment/Problem
-  assignmentTitle: {
-    fontSize: theme.fontSizes.lg,
-    fontFamily: theme.fonts.medium,
-    color: theme.colors.text,
-    paddingHorizontal: theme.spacing.sm,
-  },
   problemSummaryContainer: {
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
     paddingHorizontal: 0,
     paddingVertical: 0,
     backgroundColor: 'transparent',
@@ -1493,66 +2038,31 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSizes.md,
     fontFamily: theme.fonts.regular,
     color: theme.colors.text,
-    lineHeight: 26,
+    lineHeight: 28,
     textAlign: 'left',
     marginBottom: theme.spacing.xs,
   },
   paragraphMargin: {
     marginBottom: 16,
   },
-  
-  // Facts in old format
-  factItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  bulletPoint: {
-    fontSize: 16,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.text,
-    marginRight: theme.spacing.xs,
-  },
-  factText: {
-    fontSize: 16,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.text,
-    lineHeight: 24,
-  },
-  objectiveText: {
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.text,
-    marginTop: theme.spacing.sm,
-    lineHeight: 26,
-  },
-  
-  // Approach Guidance
   approachGuidanceContainer: {
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-    padding: theme.spacing.md,
-    paddingHorizontal: 16,
-    backgroundColor: '#1C1C1E',
-    borderRadius: 8,
-    borderLeftWidth: 0,
+    marginBottom: theme.spacing.sm,
+    paddingLeft: 16,
+    paddingRight: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.stroke,
+    borderRadius: 12,
   },
   approachGuidanceTitle: {
-    fontSize: theme.fontSizes.md,
-    fontWeight: '600',
-    color: theme.colors.text,
+    fontSize: 16,
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.primary,
     marginBottom: theme.spacing.sm,
   },
-  approachGuidanceText: {
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.text,
-    lineHeight: 26,
-    textAlign: 'left',
-  },
-  
-  // ==================== CARD COMPONENTS ====================
-  // Base card style
+
+  // Cards and UI Components
   card: {
     flex: 1,
     backgroundColor: '#1F1F1F',
@@ -1591,8 +2101,8 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     opacity: 0.9,
   },
-  
-  // Card decorations - Learn card
+
+  // Card Decorations
   stackedCardsContainer: {
     position: 'absolute',
     bottom: -3,
@@ -1634,8 +2144,8 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '0deg' }],
     zIndex: 3,
   },
-  
-  // Card decorations - Practice card
+
+  // Practice Cards
   practiceCardsContainer: {
     position: 'absolute',
     top: '30%',
@@ -1723,8 +2233,8 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     textAlign: 'center',
   },
-  
-  // ==================== TABS ====================
+
+  // Tabs
   tabContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
@@ -1758,139 +2268,18 @@ const styles = StyleSheet.create({
   tabContent: {
     paddingTop: 0,
   },
-  
-  // ==================== STUDY SET CONTENT ====================
-  summaryText: {
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.text,
-    lineHeight: 26,
-  },
-  rawContentText: {
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.text,
-  },
-  
-  // ==================== UI ELEMENTS ====================
-  // Buttons
-  retryButton: {
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
-    marginTop: theme.spacing.sm,
-  },
-  retryButtonText: {
-    fontSize: theme.fontSizes.md,
-    fontFamily: theme.fonts.medium,
-    color: 'white',
-  },
+
+  // Audio Player
   listenCircleButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: theme.colors.stroke,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
-  // Loading/Error text
-  loadingText: {
-    fontSize: theme.fontSizes.lg,
-    color: theme.colors.text,
-    textAlign: 'center',
-  },
-  errorText: {
-    color: 'red',
-    fontSize: 14,
-    fontFamily: theme.fonts.medium,
-    marginTop: theme.spacing.sm,
-  },
-  
-  // ==================== FEEDBACK SECTION ====================
-  feedbackContainer: {
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    paddingLeft: theme.spacing.xs,
-  },
-  feedbackButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    gap: theme.spacing.md,
-  },
-  feedbackButton: {
-    padding: theme.spacing.xs / 2,
-  },
-  
-  // ==================== TOASTS & OVERLAYS ====================
-  toast: {
-    position: 'absolute',
-    top: '10%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    zIndex: 1000,
-  },
-  toastText: {
-    color: 'white',
-    fontSize: 14,
-    fontFamily: theme.fonts.medium,
-  },
-  feedbackToast: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 90 : 50,
-    left: theme.spacing.md,
-    right: theme.spacing.md,
-    backgroundColor: 'rgba(30, 30, 30, 0.85)',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    zIndex: 1000,
-    borderWidth: 1,
-    borderColor: 'rgba(60, 60, 60, 0.5)',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  feedbackToastText: {
-    color: 'white',
-    fontSize: 16,
-    fontFamily: theme.fonts.regular,
-    flex: 1,
-    textAlign: 'left',
-    paddingLeft: 0,
-    marginRight: 0,
-  },
-  closeToastButtonContainer: {
-    marginRight: 4,
-    marginLeft: -4,
-  },
-  closeToastButton: {
-    padding: 5,
-    backgroundColor: 'rgba(80, 80, 80, 0.5)',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 24,
-    height: 24,
-  },
-  
-  // ==================== AUDIO PLAYER ====================
   audioPlayerOverlay: {
     position: 'absolute',
     top: 0,
@@ -1945,4 +2334,87 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  // Typing Indicator
+  typingIndicator: {
+    flexDirection: 'row',
+    padding: 8,
+    gap: 4,
+  },
+  typingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.textSecondary,
+    opacity: 0.7,
+    marginHorizontal: 2,
+  },
+  spinningLogoContainer: {
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  spinningLogo: {
+    width: 32,
+    height: 32,
+    resizeMode: 'contain',
+  },
+  rotatingContainer: {
+    width: 80, // Made smaller
+    height: 80, // Made smaller
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    paddingVertical: 8,
+  },
+  rotatingLetter: {
+    position: 'absolute',
+    fontSize: 16, // Made slightly smaller
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.text,
+    width: 16,
+    height: 16,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+  },
+  loadingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FFFFFF',
+    margin: 8,
+  },
 });
+
+// Add this component inside StudySetScreen component
+const LoadingDot = () => {
+  const scale = new Animated.Value(0.5);
+
+  useEffect(() => {
+    const animation = Animated.sequence([
+      Animated.timing(scale, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scale, {
+        toValue: 0.5,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+    ]);
+
+    Animated.loop(animation).start();
+
+    return () => animation.stop();
+  }, []);
+
+  return (
+    <Animated.View 
+      style={[
+        styles.loadingDot, 
+        { transform: [{ scale }] }
+      ]} 
+    />
+  );
+};
