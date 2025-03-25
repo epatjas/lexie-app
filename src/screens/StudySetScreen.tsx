@@ -75,6 +75,25 @@ const hasProblemSummary = (content: HomeworkHelp): boolean => {
 // Add this helper function after the imports
 const getChatHistoryKey = (studySetId: string) => `chat_history_${studySetId}`;
 
+// Add this helper function to detect vocabulary content
+const isVocabularyContent = (content: any): boolean => {
+  if (!content) return false;
+  
+  // Check if text_content contains vocabulary indicators
+  const rawText = content.text_content?.raw_text || '';
+  
+  // Look for patterns that suggest vocabulary lists
+  const hasVocabularyPatterns = 
+    // Table-like structure with multiple columns separated by whitespace
+    /\w+\s+\([^)]+\)\s+\w+/.test(rawText) || 
+    // Common vocabulary section headers
+    /vocabulaire|vocabulary|sanasto|ordlista|wörter/i.test(rawText) ||
+    // Language pairs
+    /english.*french|french.*english|suomi.*english|english.*suomi/i.test(rawText);
+    
+  return hasVocabularyPatterns;
+};
+
 export default function StudySetScreen({ route, navigation }: StudySetScreenProps): React.JSX.Element {
   const { id, contentType = 'study-set' } = route.params;
   const navigationNative = useNavigation<NavigationProp<RootStackParamList>>();
@@ -128,6 +147,9 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
   // Add this with your other state variables
   const spinValue = useRef(new Animated.Value(0)).current;
+
+  // Add this to your state variables section
+  const [messageFeedback, setMessageFeedback] = useState<Record<number, 'like' | 'dislike' | null>>({});
 
   // Hooks
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
@@ -651,9 +673,11 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       // Lists
       bullet_list: {
         marginBottom: 16,
+        marginLeft: 16,
       },
       ordered_list: {
         marginBottom: 16,
+        marginLeft: 16,
       },
       list_item: {
         fontSize: fontSize,
@@ -663,10 +687,17 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         flexDirection: 'row',
         textTransform: textTransform,
       },
-      // Bold text
+      // Bold text - combine both strong styles into one
       strong: {
         fontWeight: 'bold',
         fontFamily: fontFamily,
+        color: theme.colors.primary, // Make bold text stand out in tables
+      },
+      // Italic text
+      emphasis: {
+        fontStyle: 'italic',
+        fontFamily: fontFamily,
+        color: theme.colors.textSecondary, // Subtle color for pronunciations
       },
       // Other elements as needed
       blockquote: {
@@ -675,6 +706,51 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         paddingLeft: 16,
         marginLeft: 0,
         marginBottom: 16,
+      },
+      
+      // Add these table styles
+      table: {
+        borderWidth: 1,
+        borderColor: theme.colors.stroke,
+        borderRadius: 8,
+        marginBottom: 16,
+        marginTop: 8,
+        overflow: 'hidden',
+        width: '100%', // Ensure table takes full width
+      },
+      thead: {
+        backgroundColor: theme.colors.background02,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.stroke,
+      },
+      tbody: {
+        backgroundColor: 'transparent',
+      },
+      th: {
+        padding: 8, // Slightly reduced padding
+        fontFamily: theme.fonts.medium,
+        fontSize: fontSize - 2, // Smaller font for headers
+        color: theme.colors.text,
+        textAlign: 'left',
+        textTransform: textTransform,
+        flex: 1, // Equal width columns
+        minWidth: '50%', // Ensure minimum width
+        maxWidth: '50%', // Ensure maximum width
+      },
+      tr: {
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.stroke,
+        flexDirection: 'row',
+      },
+      td: {
+        padding: 8, // Slightly reduced padding
+        fontFamily: fontFamily,
+        fontSize: fontSize - 2, // Smaller font for better fitting
+        color: theme.colors.text,
+        textTransform: textTransform,
+        flex: 1, // Equal width columns
+        minWidth: '50%', // Ensure minimum width
+        maxWidth: '50%', // Ensure maximum width
       },
     };
   };
@@ -784,17 +860,106 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     };
   };
 
+  // Fix for duplicate 'markdownRules' declarations - create one comprehensive rule set
+  // Add this after all helper functions but before the return statement
+  const createMarkdownRules = () => {
+    // Add this component for scrollable tables
+    const ScrollableTable = ({children}: {children: React.ReactNode}) => {
+      return (
+        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+          <View style={{minWidth: '100%', paddingBottom: 5}}>
+            {children}
+          </View>
+        </ScrollView>
+      );
+    };
+
+    return {
+      bullet_list_icon: () => {
+        return (
+          <View
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: theme.colors.primary,
+              marginTop: 10,
+              marginRight: 10,
+            }}
+          />
+        );
+      },
+      table: (node: any, children: React.ReactNode, parent: any, styles: any) => {
+        return (
+          <ScrollableTable key={node.key}>
+            <View style={styles.table}>
+              {children}
+            </View>
+          </ScrollableTable>
+        );
+      },
+      // Add other custom rules as needed
+    };
+  };
+
+  // In the renderContent function, change how Markdown is used
   const renderContent = () => {
     if (!content) return null;
     
     const markdownStyles = getMarkdownStyles();
+    const rules = createMarkdownRules();
     
+    // Enhance table styles if this is vocabulary content
+    if (isVocabularyContent(content)) {
+      // Add enhanced styling for vocabulary-specific content
+      const vocabularyStyles = {
+        ...markdownStyles,
+        table: {
+          ...markdownStyles.table,
+          width: '100%', // Full width table
+          marginVertical: 16,
+        },
+        th: {
+          ...markdownStyles.th,
+          backgroundColor: theme.colors.background02,
+          fontWeight: 'bold', 
+          fontSize: fontSettings.size - 2, // Use fontSettings instead of fontSize
+          flex: 1, // Equal width
+          width: '50%', // Force 50% width
+          maxWidth: '50%',
+        },
+        td: {
+          ...markdownStyles.td,
+          fontSize: fontSettings.size - 2, // Use fontSettings instead of fontSize
+          flex: 1, // Equal width
+          width: '50%', // Force 50% width
+          maxWidth: '50%',
+          borderRightWidth: 1,
+          borderRightColor: theme.colors.stroke,
+        }
+      };
+      
+      // For vocabulary content, we need the full width for tables
+      const contentText = selectedTab === 'summary' && hasSummary(content) ? 
+        getSummary(content) : 
+        convertSectionsToMarkdown(content.text_content.sections);
+        
+      return (
+        <View style={{width: '100%'}}>
+          <Markdown style={vocabularyStyles as any} rules={rules}>
+            {contentText}
+          </Markdown>
+        </View>
+      );
+    }
+    
+    // Regular content rendering
     if (selectedTab === 'summary' && hasSummary(content)) {
       const summary = getSummary(content);
       console.log('Rendering summary markdown with proper component');
       
       return (
-        <Markdown style={markdownStyles}>
+        <Markdown style={markdownStyles} rules={rules}>
           {summary}
         </Markdown>
       );
@@ -803,7 +968,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       console.log('Rendering original text markdown with proper component');
       
       return (
-        <Markdown style={markdownStyles}>
+        <Markdown style={markdownStyles} rules={rules}>
           {originalText}
         </Markdown>
       );
@@ -1037,6 +1202,74 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   useEffect(() => {
     if (id) {
       loadChatHistory();
+    }
+  }, [id]);
+
+  // Add this new function to handle message feedback
+  const handleMessageFeedback = async (messageIndex: number, isPositive: boolean) => {
+    try {
+      // Create a new feedback state
+      const newFeedbackState = {
+        ...messageFeedback,
+        [messageIndex]: isPositive ? 'like' : 'dislike'
+      } as Record<number, 'like' | 'dislike' | null>; // Cast to fix type error
+      
+      setMessageFeedback(newFeedbackState);
+      
+      // Store feedback data in AsyncStorage
+      const feedbackData = {
+        messageId: `${id}-message-${messageIndex}`,
+        studySetId: id,
+        messageIndex,
+        isPositive,
+        messageText: messages[messageIndex]?.text,
+        timestamp: new Date().toISOString(),
+      };
+      
+      // Get existing feedback data or initialize empty array
+      const existingDataJson = await AsyncStorage.getItem('message_feedback') || '[]';
+      const existingData = JSON.parse(existingDataJson);
+      
+      // Add new feedback and save back to AsyncStorage
+      existingData.push(feedbackData);
+      await AsyncStorage.setItem('message_feedback', JSON.stringify(existingData));
+      
+      // Show feedback toast (using the same style as study content feedback)
+      setShowFeedbackToast(true);
+      setTimeout(() => setShowFeedbackToast(false), 5000); // Keep visible for 5 seconds
+      
+      console.log('Message feedback submitted:', feedbackData);
+    } catch (error) {
+      console.error('Error saving message feedback:', error);
+    }
+  };
+
+  // Add this function to load previous message feedback
+  const loadMessageFeedback = async () => {
+    try {
+      const feedbackData = await AsyncStorage.getItem('message_feedback') || '[]';
+      const parsedFeedback = JSON.parse(feedbackData);
+      
+      // Filter feedback for this specific study set and create a feedback state object
+      const messageFeedbackState: Record<number, 'like' | 'dislike' | null> = {};
+      
+      parsedFeedback.forEach((item: any) => {
+        if (item.studySetId === id) {
+          messageFeedbackState[item.messageIndex] = item.isPositive ? 'like' : 'dislike';
+        }
+      });
+      
+      setMessageFeedback(messageFeedbackState);
+    } catch (error) {
+      console.error('Error loading message feedback:', error);
+    }
+  };
+
+  // Add this to your useEffect section (with the one that loads chat history)
+  useEffect(() => {
+    if (id) {
+      loadChatHistory();
+      loadMessageFeedback(); // Add this line
     }
   }, [id]);
 
@@ -1275,13 +1508,11 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
           ) : error ? (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity style={styles.retryButton} onPress={() => {
-                setIsLoading(true);
-                setError(null);
-                // Reload the content
-                loadStudySet();
-              }}>
-                <Text style={styles.retryButtonText}>Retry</Text>
+              <Text style={styles.errorSubtext}>
+                Tables may not display correctly in this view. Try using flashcards for vocabulary practice.
+              </Text>
+              <TouchableOpacity style={styles.retryButton} onPress={navigateToCards}>
+                <Text style={styles.retryButtonText}>Go to Flashcards</Text>
               </TouchableOpacity>
             </View>
           ) : content ? (
@@ -1543,7 +1774,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
                 {/* Add messages section at the bottom of the content */}
                 {messages.length > 0 && (
-                  <View style={styles.messagesWrapper}>
+                  <View style={[styles.messagesWrapper, {marginLeft: -8}]}>
                     {messages.map((message, index) => (
                       <View 
                         key={index} 
@@ -1555,11 +1786,31 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                         <Text style={styles.messageText}>{message.text}</Text>
                         {message.role === 'assistant' && (
                           <View style={styles.messageFooter}>
-                            <TouchableOpacity style={styles.messageIconButton}>
-                              <ThumbsUp color={theme.colors.textSecondary} size={16} style={styles.messageIcon} />
+                            <TouchableOpacity 
+                              style={styles.messageIconButton}
+                              onPress={() => handleMessageFeedback(index, true)}
+                              disabled={messageFeedback[index] !== undefined}
+                            >
+                              <ThumbsUp 
+                                color={messageFeedback[index] === 'like' 
+                                  ? theme.colors.primary 
+                                  : theme.colors.textSecondary} 
+                                size={16} 
+                                style={styles.messageIcon} 
+                              />
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.messageIconButton}>
-                              <ThumbsDown color={theme.colors.textSecondary} size={16} style={styles.messageIcon} />
+                            <TouchableOpacity 
+                              style={styles.messageIconButton}
+                              onPress={() => handleMessageFeedback(index, false)}
+                              disabled={messageFeedback[index] !== undefined}
+                            >
+                              <ThumbsDown 
+                                color={messageFeedback[index] === 'dislike' 
+                                  ? theme.colors.primary 
+                                  : theme.colors.textSecondary} 
+                                size={16} 
+                                style={styles.messageIcon} 
+                              />
                             </TouchableOpacity>
                           </View>
                         )}
@@ -1636,7 +1887,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                   }, 100);
                 }}
               >
-                <Text style={styles.chatButtonText}>Kysy Lexieltä...</Text>
+                <Text style={styles.chatButtonText}>Ask Lexie...</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1862,8 +2113,11 @@ const styles = StyleSheet.create({
   messagesWrapper: {
     marginTop: 4,
     marginBottom: 16,
+    // Remove marginLeft and paddingLeft properties so they don't conflict with inline styles
   },
   messageContainer: {
+    marginLeft: 0, // Reduce this from 8 to 0
+    marginStart: 0, // Remove this as well since we're handling the positioning differently
     backgroundColor: theme.colors.background02,
     borderRadius: 16,
     padding: 12,
@@ -1890,7 +2144,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   messageIcon: {
-    opacity: 0.8,
+    opacity: 1,
   },
   messageIconButton: {
     padding: 4,
@@ -1918,6 +2172,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: theme.fonts.medium,
     marginTop: theme.spacing.sm,
+  },
+  errorSubtext: {
+    color: 'gray',
+    fontSize: 12,
+    fontFamily: theme.fonts.regular,
+    marginTop: theme.spacing.sm,
+    textAlign: 'center',
   },
   retryButton: {
     padding: theme.spacing.md,
@@ -2360,8 +2621,8 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   rotatingContainer: {
-    width: 80, // Made smaller
-    height: 80, // Made smaller
+    width: 80, 
+    height: 80, 
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -2369,7 +2630,7 @@ const styles = StyleSheet.create({
   },
   rotatingLetter: {
     position: 'absolute',
-    fontSize: 16, // Made slightly smaller
+    fontSize: 16, 
     fontFamily: theme.fonts.medium,
     color: theme.colors.text,
     width: 16,
@@ -2383,6 +2644,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#FFFFFF',
     margin: 8,
+  },
+  activeMessageIcon: {
+    opacity: 1,
   },
 });
 

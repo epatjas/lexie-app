@@ -435,8 +435,8 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
               { color: theme.colors.background }  
             ]}>
               {selectedAnswer === currentQuestion.correct || attempts >= 2
-                ? 'Jatka'
-                : 'Tarkista'}
+                ? 'Continue'
+                : 'Submit'}
             </Text>
           </TouchableOpacity>
         )}

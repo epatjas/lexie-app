@@ -448,6 +448,18 @@ export const getAudioContent = async (
   }
 }
 
+// Add this helper function at the top with other utilities
+const simulateTypingDelay = async (text: string) => {
+  // Increased base delay and per-character delay
+  const baseDelay = 1000;  // Increased from 500ms to 1000ms
+  const perCharacterDelay = 2;  // Increased from 0.5ms to 2ms per character
+  const maxDelay = 3000;  // Increased max delay from 1500ms to 3000ms
+  
+  // Calculate delay with new parameters
+  const delay = Math.min(maxDelay, Math.max(baseDelay, text.length * perCharacterDelay + baseDelay));
+  await new Promise(resolve => setTimeout(resolve, delay));
+};
+
 /**
  * Sends a chat message to the server and gets a response
  */
@@ -483,6 +495,10 @@ export const sendChatMessage = async (
     });
 
     console.log('[API] Chat response received');
+    
+    // Add typing delay before returning response
+    await simulateTypingDelay(response.data.response);
+    
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
