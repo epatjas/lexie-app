@@ -177,6 +177,7 @@ export const analyzeImages = async (
     // Ensure proper type discrimination with contentType
     if (response.data.contentType === 'study-set') {
       const studyMaterials: StudySet = {
+        id: response.data.id || `study-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         title: response.data.title,
         text_content: response.data.text_content,
         contentType: 'study-set' as const,
@@ -184,7 +185,7 @@ export const analyzeImages = async (
         summary: response.data.summary || '',
         flashcards: response.data.flashcards || [],
         quiz: response.data.quiz || [],
-        created_at: response.data.created_at,
+        created_at: response.data.created_at || Date.now(),
         updated_at: response.data.updated_at,
         processingId: response.data.processingId
       };

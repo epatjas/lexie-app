@@ -42,6 +42,7 @@ import { useAudio } from '../hooks/useAudio';
 import AudioPlayer from '../components/AudioPlayer';
 import { sendChatMessage } from '../services/api';
 import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-context';
+import { useTranslation } from '../i18n/LanguageContext'; // Ensure this is imported
 
 type StudySetScreenProps = NativeStackScreenProps<RootStackParamList, 'StudySet'>;
 type ContentType = 'study-set' | 'homework-help';
@@ -95,6 +96,7 @@ const isVocabularyContent = (content: any): boolean => {
 };
 
 export default function StudySetScreen({ route, navigation }: StudySetScreenProps): React.JSX.Element {
+  const { t } = useTranslation(); // Add this near the top with other hooks
   const { id, contentType = 'study-set' } = route.params;
   const navigationNative = useNavigation<NavigationProp<RootStackParamList>>();
   
@@ -278,7 +280,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       console.log('Content type from database:', studySet.contentType || 'study-set');
     } catch (error) {
       console.error('Failed to load study set:', error);
-      setError('Failed to load study set.');
+      setError(t('studySet.loadError'));
     } finally {
       setIsLoading(false);
     }
@@ -395,7 +397,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       setFolderCreateVisible(false);
       setFolderSelectVisible(false);
     } catch (error) {
-      Alert.alert('Error', 'Failed to create folder');
+      Alert.alert(t('alerts.error'), t('alerts.folderCreateFailed'));
     }
   };
 
@@ -407,7 +409,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       }
       setFolderSelectVisible(false);
     } catch (error) {
-      Alert.alert('Error', 'Failed to assign study set to folder');
+      Alert.alert(t('alerts.error'), t('alerts.assignToFolderFailed'));
     }
   };
 
@@ -436,19 +438,19 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
   const handleDeletePress = () => {
     Alert.alert(
-      "Poista harjoittelusetti",
-      "Haluatko varmasti poistaa tämän harjoittelusetin? Tätä toimintoa ei voi kumota.",
+      t('alerts.deleteStudySet'),
+      t('alerts.deleteConfirmation'),
       [
-        { text: "Peruuta", style: "cancel" },
+        { text: t('alerts.cancel'), style: "cancel" },
         {
-          text: "Poista",
+          text: t('alerts.delete'),
           onPress: async () => {
             try {
               if (!id) return;
               await deleteStudySet(id);
               navigationNative.navigate('Home', { refresh: true } as const);
             } catch (error) {
-              Alert.alert('Virhe', 'Harjoittelusetin poistaminen epäonnistui');
+              Alert.alert(t('alerts.error'), t('alerts.deleteError'));
             }
           },
           style: "destructive"
@@ -461,8 +463,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     if (content) {
       setShowAudioPlayer(true);
     } else {
-      // Maybe show an error message
-      Alert.alert('Error', 'No content available to play');
+      Alert.alert(t('alerts.error'), t('studySet.noContentToPlay'));
     }
   };
 
@@ -497,9 +498,9 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       if (!content.homeworkHelp.concept_cards || content.homeworkHelp.concept_cards.length === 0) {
         console.log('[StudySetScreen] No concept cards available, showing alert');
         Alert.alert(
-          'No Cards Available',
-          'There are no concept cards available for this content.',
-          [{ text: 'OK', onPress: () => console.log('OK Pressed') }]
+          t('alerts.noCardsAvailable'),
+          t('alerts.noCardsForContent'),
+          [{ text: t('alerts.ok'), onPress: () => console.log('OK Pressed') }]
         );
         return;
       }
@@ -540,7 +541,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   
   const handleTranslatePress = () => {
     setShowSettingsSheet(false);
-    setToastMessage("Translation feature coming soon!");
+    setToastMessage(t('alerts.translationComingSoon'));
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2000);
   };
@@ -558,7 +559,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
   const handleLanguagePress = () => {
     setShowSettingsSheet(false);
-    setToastMessage("Language settings coming soon!");
+    setToastMessage(t('alerts.languageComingSoon'));
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2000);
   };
@@ -1431,10 +1432,10 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', 'Take Photo', 'Choose from Library'],
+          options: [t('chat.cancel'), t('chat.takePhoto'), t('chat.chooseFromLibrary')],
           cancelButtonIndex: 0,
           userInterfaceStyle: 'dark',
-          message: 'Add a photo',
+          message: t('chat.addPhoto'),
         },
         (buttonIndex) => {
           switch (buttonIndex) {
@@ -1503,16 +1504,16 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
           {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={theme.colors.primary} />
-              <Text style={styles.loadingText}>Loading content...</Text>
+              <Text style={styles.loadingText}>{t('studySet.loading')}</Text>
             </View>
           ) : error ? (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
               <Text style={styles.errorSubtext}>
-                Tables may not display correctly in this view. Try using flashcards for vocabulary practice.
+                {t('studySet.tableDisplay')}
               </Text>
               <TouchableOpacity style={styles.retryButton} onPress={navigateToCards}>
-                <Text style={styles.retryButtonText}>Go to Flashcards</Text>
+                <Text style={styles.retryButtonText}>{t('studySet.cards.goToFlashcards')}</Text>
               </TouchableOpacity>
             </View>
           ) : content ? (
@@ -1549,12 +1550,12 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                       }]}
                       onPress={navigateToCards}
                     >
-                      <Text style={styles.cardTitle}>Learn</Text>
+                      <Text style={styles.cardTitle}>{t('studySet.cards.learn')}</Text>
                       <View style={styles.cardContent}>
                         <Text style={styles.cardCount}>
                           {content && isHomeworkHelp(content) && content.homeworkHelp?.concept_cards?.length > 0 
-                            ? `${content.homeworkHelp.concept_cards.length} cards` 
-                            : 'No cards'}
+                            ? t('studySet.cards.xCards', { count: content.homeworkHelp.concept_cards.length })
+                            : t('studySet.cards.noCards')}
                         </Text>
                       </View>
                       <View style={styles.stackedCardsContainer}>
@@ -1602,7 +1603,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                       {isHomeworkHelp(content) && isNewFormat(content as HomeworkHelp) && (content as HomeworkHelp).homeworkHelp.approach_guidance && (
                         <View style={styles.approachGuidanceContainer}>
                           <Text style={getTextStyle(styles.approachGuidanceTitle)}>
-                            {content.homeworkHelp.language === 'fi' ? 'Tee näin' : 'How to approach'}
+                            {content.homeworkHelp.language === 'fi' ? t('studySet.howToApproach') : t('studySet.howToApproach')}
                           </Text>
                           {renderMarkdownContent(
                             (content as HomeworkHelp).homeworkHelp.approach_guidance,
@@ -1654,12 +1655,12 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                         style={styles.card}
                         onPress={navigateToCards}
                       >
-                        <Text style={styles.cardTitle}>Learn</Text>
+                        <Text style={styles.cardTitle}>{t('studySet.cards.learn')}</Text>
                         <View style={styles.cardContent}>
                           <Text style={styles.cardCount}>
                             {content && isStudySet(content) && content.flashcards?.length > 0 
-                              ? `${content.flashcards.length} cards` 
-                              : 'No cards'}
+                              ? t('studySet.cards.xCards', { count: content.flashcards.length })
+                              : t('studySet.cards.noCards')}
                           </Text>
                         </View>
                         <View style={styles.stackedCardsContainer}>
@@ -1674,12 +1675,12 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                         style={styles.card}
                         onPress={handleCreateQuiz}
                       >
-                        <Text style={styles.cardTitle}>Practise</Text>
+                        <Text style={styles.cardTitle}>{t('studySet.cards.practice')}</Text>
                         <View style={styles.cardContent}>
                           <Text style={styles.cardCount}>
                             {content && isStudySet(content) && content.quiz?.length > 0 
-                              ? `${content.quiz.length} questions` 
-                              : 'No questions'}
+                              ? t('studySet.cards.xQuestions', { count: content.quiz.length })
+                              : t('studySet.cards.noQuestions')}
                           </Text>
                         </View>
                         {/* Card decoration */}
@@ -1708,7 +1709,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                           onPress={() => setSelectedTab('summary')}
                         >
                           <Text style={[styles.tabText, selectedTab === 'summary' && styles.activeTabText]}>
-                            Summary
+                            {t('studySet.summary')}
                           </Text>
                         </TouchableOpacity>
                         
@@ -1717,7 +1718,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                           onPress={() => setSelectedTab('original')}
                         >
                           <Text style={[styles.tabText, selectedTab === 'original' && styles.activeTabText]}>
-                            Original text
+                            {t('studySet.original')}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -1827,7 +1828,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
             </ScrollView>
           ) : (
             <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>No content available</Text>
+              <Text style={styles.errorText}>{t('studySet.noContent')}</Text>
             </View>
           )}
 
@@ -1839,7 +1840,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                   <TextInput
                     ref={inputRef}
                     style={styles.chatInput}
-                    placeholder="Ask Lexie..."
+                    placeholder={t('chat.askLexie')}
                     placeholderTextColor={theme.colors.textSecondary}
                     value={inputText}
                     onChangeText={setInputText}
@@ -1887,7 +1888,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                   }, 100);
                 }}
               >
-                <Text style={styles.chatButtonText}>Ask Lexie...</Text>
+                <Text style={styles.chatButtonText}>{t('chat.askLexie')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1935,7 +1936,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
               </TouchableOpacity>
             </View>
             <Text style={styles.feedbackToastText}>
-              Thank you for your feedback!
+              {t('feedback.thankYou')}
             </Text>
           </View>
         )}

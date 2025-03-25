@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ChevronLeft, X, Image as ImageIcon, Camera } from 'lucide-react-native';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
+import { useTranslation } from '../i18n/LanguageContext';
 
 // Define the screen props type
 type ScanPageScreenProps = NativeStackScreenProps<RootStackParamList, 'ScanPage'>;
@@ -15,6 +16,7 @@ type ScanPageRouteParams = {
 };
 
 export default function ScanPageScreen({ route, navigation }: ScanPageScreenProps) {
+  const { t } = useTranslation();
   const cameraRef = useRef<any>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
@@ -39,7 +41,7 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
         const result = await requestPermission();
         console.log('Permission request result:', result);
         if (!result.granted) {
-          setPermissionError('Camera permission is required to scan photos');
+          setPermissionError(t('scanPage.permissionRequired'));
         }
       }
     };
@@ -50,7 +52,7 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
     cameraInitTimeoutRef.current = setTimeout(() => {
       if (!isCameraReady) {
         console.log('Camera initialization timeout - camera not ready after 10 seconds');
-        setCameraError('Camera initialization failed. Please try again.');
+        setCameraError(t('scanPage.cameraError') + '. ' + t('alerts.tryAgain'));
       }
     }, 10000); // 10 second timeout
     
@@ -60,7 +62,7 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
         clearTimeout(cameraInitTimeoutRef.current);
       }
     };
-  }, [permission, requestPermission]);
+  }, [permission, requestPermission, t]);
 
   // Add this function to handle camera ready state
   const onCameraReady = () => {
@@ -74,7 +76,7 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
   // Add this function to handle camera errors
   const onCameraError = (error: any) => {
     console.error('Camera error:', error);
-    setCameraError(`Camera error: ${error.message || 'Unknown error'}`);
+    setCameraError(`${t('scanPage.cameraError')}: ${error.message || t('alerts.error')}`);
   };
 
   const startCapture = () => {
@@ -109,7 +111,7 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
         }
       } catch (error) {
         console.error('Error taking picture:', error);
-        Alert.alert('Error', 'Failed to take picture. Please try again.');
+        Alert.alert(t('alerts.error'), t('alerts.takePictureError'));
       }
     }
   };
@@ -131,21 +133,21 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
         <View style={styles.loadingContainer}>
           {!permission && <ActivityIndicator size="large" color={theme.colors.primary} />}
           <Text style={styles.permissionText}>
-            {permissionError || 'Checking camera permission...'}
+            {permissionError || t('scanPage.checkingPermission')}
           </Text>
           {permissionError && (
             <TouchableOpacity 
               style={styles.permissionButton} 
               onPress={() => requestPermission()}
             >
-              <Text style={styles.permissionButtonText}>Grant Permission</Text>
+              <Text style={styles.permissionButtonText}>{t('scanPage.grantPermission')}</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity 
             style={[styles.permissionButton, {marginTop: 10}]} 
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.permissionButtonText}>Go Back</Text>
+            <Text style={styles.permissionButtonText}>{t('scanPage.goBack')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -160,7 +162,7 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <ChevronLeft size={24} color={theme.colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Camera Error</Text>
+          <Text style={styles.headerTitle}>{t('scanPage.cameraError')}</Text>
           <View style={{ width: 24 }} />
         </View>
         
@@ -170,13 +172,13 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
             style={styles.permissionButton} 
             onPress={resetCamera}
           >
-            <Text style={styles.permissionButtonText}>Try Again</Text>
+            <Text style={styles.permissionButtonText}>{t('scanPage.tryAgain')}</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.permissionButton, {marginTop: 10, backgroundColor: theme.colors.background02}]} 
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.permissionButtonText}>Go Back</Text>
+            <Text style={styles.permissionButtonText}>{t('scanPage.goBack')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -189,7 +191,7 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <ChevronLeft size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Take photo</Text>
+        <Text style={styles.headerTitle}>{t('scanPage.title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -213,7 +215,7 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
           ) : (
             <View style={styles.cameraLoadingContainer}>
               <ActivityIndicator size="large" color="white" />
-              <Text style={styles.cameraLoadingText}>Starting camera...</Text>
+              <Text style={styles.cameraLoadingText}>{t('scanPage.startingCamera')}</Text>
             </View>
           )}
         </CameraView>

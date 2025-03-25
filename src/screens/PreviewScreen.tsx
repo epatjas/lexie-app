@@ -33,6 +33,7 @@ import ParticleBackground from '../components/ParticleBackground';
 import axios from 'axios';
 import { getActiveProfile } from '../utils/storage';
 import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from '../i18n/LanguageContext';
 
 type PreviewScreenParams = {
   photos: Array<{uri: string; base64?: string}>;
@@ -81,6 +82,7 @@ const calculateBase64Size = (base64String: string): number => {
 };
 
 export default function PreviewScreen({ route, navigation }: PreviewScreenNavigationProp) {
+  const { t } = useTranslation();
   const [photos, setPhotos] = useState<Photo[]>(route.params.photos);
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [currentIndex, setCurrentIndex] = React.useState(0);
@@ -105,28 +107,28 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
 
   const processingScreens = [
     {
-      title: "Just a moment",
-      message: "Reading your work now. This takes seconds, not minutes.",
+      title: t('processing.justAMoment'),
+      message: t('processing.readingWork'),
       icon: <Search size={20} color={theme.colors.text} />
     },
     {
-      title: "Creating your lesson",
-      message: "Text captured. Organizing content.",
+      title: t('processing.creatingLesson'),
+      message: t('processing.organizingContent'),
       icon: <FileText size={20} color={theme.colors.text} />
     },
     {
-      title: "Creating your lesson",
-      message: "Forming questions from your material.",
+      title: t('processing.creatingLesson'),
+      message: t('processing.formingQuestions'),
       icon: <Brain size={20} color={theme.colors.text} />
     },
     {
-      title: "Creating your lesson",
-      message: "Converting text to spoken audio.",
+      title: t('processing.creatingLesson'),
+      message: t('processing.convertingToAudio'),
       icon: <ListChecks size={20} color={theme.colors.text} />
     },
     {
-      title: "Almost ready",
-      message: "Finalizing your practice materials.",
+      title: t('processing.almostReady'),
+      message: t('processing.finalizingMaterials'),
       icon: <Sparkles size={20} color={theme.colors.text} />
     }
   ];
@@ -217,36 +219,36 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       setIsProcessing(false);
       console.error('Error details:', error);
       
-      let errorMessage = 'Image processing error. Please try again.';
+      let errorMessage = t('alerts.processingError');
       
       if (axios.isAxiosError(error)) {
         switch (error.response?.status) {
           case 400:
-            errorMessage = 'Image sending failed. Ensure your images are clear and try again.';
+            errorMessage = t('alerts.imageSendingFailed');
             break;
           case 413:
-            errorMessage = 'Images are too large. Try again with smaller images.';
+            errorMessage = t('alerts.imagesTooLarge');
             break;
           case 429:
-            errorMessage = 'Too many attempts. Wait a moment and try again.';
+            errorMessage = t('alerts.tooManyAttempts');
             break;
           case 500:
           case 502:
           case 503:
-            errorMessage = 'Server is temporarily unavailable. Try again later.';
+            errorMessage = t('alerts.serverUnavailable');
             break;
           default:
             if (!navigator.onLine) {
-              errorMessage = 'Check your internet connection and try again.';
+              errorMessage = t('alerts.checkConnection');
             }
         }
       }
 
       Alert.alert(
-        'Virhe',
+        t('alerts.error'),
         errorMessage,
         [{ 
-          text: 'OK',
+          text: t('alerts.ok'),
           onPress: () => navigation.goBack()
         }]
       );
@@ -426,10 +428,10 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
           <ArrowLeft color={theme.colors.text} size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-        Preview
+          {t('preview.title')}
         </Text>
         <Text style={styles.imageCounter}>
-          {currentIndex + 1}/{photos.length}
+          {t('preview.imageCounter').replace('{current}', String(currentIndex + 1)).replace('{total}', String(photos.length))}
         </Text>
       </View>
 
@@ -454,7 +456,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
           disabled={isProcessing}
         >
           <Text style={styles.analyzeButtonText}>
-            Ready
+            {t('preview.readyButton')}
           </Text>
         </TouchableOpacity>
 
@@ -464,7 +466,7 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
             onPress={() => navigation.navigate('ScanPage', { existingPhotos: photos })}
             disabled={isProcessing}
           >
-            <Text style={styles.addButtonText}>Take more</Text>
+            <Text style={styles.addButtonText}>{t('preview.takeMore')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -476,8 +478,8 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
                 
                 if (!permissionResult.granted) {
                   Alert.alert(
-                    'Permission needed',
-                    'Lexie needs permission to use your photo library.'
+                    t('alerts.permissionNeeded'),
+                    t('alerts.photoLibraryPermission')
                   );
                   return;
                 }
@@ -502,14 +504,14 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
               } catch (error) {
                 console.error('Error picking image:', error);
                 Alert.alert(
-                  'Error',
-                  'Image loading failed. Try again.'
+                  t('alerts.error'),
+                  t('alerts.imageLoadFailed')
                 );
               }
             }}
             disabled={isProcessing}
           >
-            <Text style={styles.addButtonText}>Choose more</Text>
+            <Text style={styles.addButtonText}>{t('preview.chooseMore')}</Text>
           </TouchableOpacity>
         </View>
       </View>

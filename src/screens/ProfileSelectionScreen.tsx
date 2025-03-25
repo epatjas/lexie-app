@@ -15,13 +15,20 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { Profile } from '../types/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from '../i18n/LanguageContext';
 
 type ProfileSelectionScreenProps = NativeStackScreenProps<RootStackParamList, 'ProfileSelection'>;
 
 const ProfileSelectionScreen: React.FC<ProfileSelectionScreenProps> = ({ navigation }) => {
+  const { t } = useTranslation();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [shouldShowScreen, setShouldShowScreen] = useState(false);
+
+  // Get the route params to check if we're in profile switching mode
+  const isSwitchingProfile = (navigation.getState().routes.find(r => 
+    r.name === 'ProfileSelection'
+  )?.params as any)?.switchProfile;
 
   // Perform navigation check immediately on mount
   useEffect(() => {
@@ -118,11 +125,9 @@ const ProfileSelectionScreen: React.FC<ProfileSelectionScreenProps> = ({ navigat
       <ParticleBackground />
       <View style={styles.content}>
         <Text style={styles.title}>
-          {(navigation.getState().routes.find(r => 
-            r.name === 'ProfileSelection'
-          )?.params as any)?.switchProfile 
-            ? 'Switch profile' 
-            : 'Valitse profiili'}
+          {isSwitchingProfile 
+            ? t('profileSelection.switchProfile') 
+            : t('profileSelection.selectProfile')}
         </Text>
 
         <View style={styles.profilesContainer}>
@@ -147,7 +152,7 @@ const ProfileSelectionScreen: React.FC<ProfileSelectionScreenProps> = ({ navigat
             <View style={styles.plusIconContainer}>
               <Plus size={24} color="rgba(255, 255, 255, 0.5)" />
             </View>
-            <Text style={styles.addProfileText}>Add new</Text>
+            <Text style={styles.addProfileText}>{t('profileSelection.addNew')}</Text>
           </TouchableOpacity>
         </View>
       </View>

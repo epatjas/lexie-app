@@ -16,7 +16,8 @@ import theme from '../styles/theme';
 import { getFlashcardsFromStudySet } from '../services/Database';
 import { Flashcard } from '../types/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FontSettings } from './FontSelectionScreen';
+import { FontSettings } from '../types/fontSettings';
+import { useTranslation } from '../i18n/LanguageContext';
 
 type FlashcardsScreenProps = NativeStackScreenProps<RootStackParamList, 'Flashcards'>;
 
@@ -27,6 +28,7 @@ const cardWidth = width - 48; // 24px padding on each side
 const FONT_SETTINGS_KEY = 'global_font_settings';
 
 export default function FlashcardsScreen({ route, navigation }: FlashcardsScreenProps) {
+  const { t } = useTranslation();
   const { studySetId, filterIndices = [] } = route.params;
   const [isFlipped, setIsFlipped] = useState(false);
   const [flipAnim] = useState(new Animated.Value(0));
@@ -411,7 +413,7 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
                 }
               ]}
             >
-              Still learning
+              {t('flashcards.stillLearning')}
             </Animated.Text>
             
             {/* "I know this" text - appears when swiping right */}
@@ -428,14 +430,14 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
                 }
               ]}
             >
-              I know this
+              {t('flashcards.iKnowThis')}
             </Animated.Text>
             
             {/* Card footer with counter and sound button */}
             <View style={styles.cardFooter}>
               <View style={styles.cardCounter}>
                 <Text style={styles.cardCounterText}>
-                  {currentIndex + 1} / {flashcards.length}
+                  {t('flashcards.counter', { current: currentIndex + 1, total: flashcards.length })}
                 </Text>
               </View>
               
@@ -467,7 +469,7 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
             <View style={styles.cardFooter}>
               <View style={styles.cardCounter}>
                 <Text style={styles.cardCounterText}>
-                  {currentIndex + 1} / {flashcards.length}
+                  {t('flashcards.counter', { current: currentIndex + 1, total: flashcards.length })}
                 </Text>
               </View>
               
@@ -580,7 +582,7 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <ChevronLeft color={theme.colors.text} size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Learn</Text>
+        <Text style={styles.headerTitle}>{t('flashcards.title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -616,7 +618,7 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
             }
           </View>
         ) : (
-          <Text style={styles.noCardsText}>No flashcards available</Text>
+          <Text style={styles.noCardsText}>{t('flashcards.noCards')}</Text>
         )}
       </View>
 

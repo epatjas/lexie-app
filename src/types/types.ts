@@ -25,6 +25,9 @@ export interface StudySet extends BaseContent {
     correct: string;
     explanation?: string;
   }>;
+  id: string;
+  created_at: string | number;
+  subject?: string;
 }
 
 // Homework Help specific interface

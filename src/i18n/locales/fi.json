@@ -1,0 +1,348 @@
+{
+  "common": {
+    "appName": "LexieLearn",
+    "save": "Tallenna",
+    "cancel": "Peruuta",
+    "next": "Seuraava",
+    "back": "Takaisin",
+    "close": "Sulje",
+    "loading": "Ladataan...",
+    "months": {
+      "january": "Tammikuu",
+      "february": "Helmikuu",
+      "march": "Maaliskuu",
+      "april": "Huhtikuu",
+      "may": "Toukokuu",
+      "june": "Kesäkuu",
+      "july": "Heinäkuu",
+      "august": "Elokuu",
+      "september": "Syyskuu",
+      "october": "Lokakuu",
+      "november": "Marraskuu",
+      "december": "Joulukuu"
+    }
+  },
+  "welcome": {
+    "title": "LexieLearn",
+    "description": "Lexie auttaa sinua harjoittelemaan kokeisiin tai tekemään kotitehtäviä.",
+    "startButton": "Aloita"
+  },
+  "home": {
+    "greeting": "Hei 👋🏻",
+    "questionPrompt": "Mitä haluaisit\noppia tänään?",
+    "startLesson": "Aloita oppitunti Lexien kanssa",
+    "lessons": "Oppitunnit"
+  },
+  "studySet": {
+    "title": "Opiskelukokonaisuus",
+    "summary": "Yhteenveto",
+    "quiz": "Koe",
+    "flashcards": "Muistikortit",
+    "original": "Alkuperäinen teksti",
+    "listen": "Kuuntele",
+    "howToApproach": "Tee näin",
+    "problemSummary": "Tehtävän yhteenveto",
+    "loading": "Ladataan sisältöä...",
+    "noContent": "Ei sisältöä saatavilla",
+    "loadError": "Opiskelukokonaisuuden lataaminen epäonnistui.",
+    "cards": {
+      "learn": "Opiskele",
+      "practice": "Harjoittele",
+      "xCards": "{count} korttia",
+      "xQuestions": "{count} kysymystä",
+      "noCards": "Ei kortteja",
+      "noQuestions": "Ei kysymyksiä",
+      "goToFlashcards": "Siirry muistikortteihin"
+    },
+    "tableDisplay": "Taulukot eivät ehkä näy oikein tässä näkymässä. Kokeile muistikortteja sanastoharjoittelua varten.",
+    "noContentToPlay": "Ei sisältöä toistettavaksi"
+  },
+  "processing": {
+    "justAMoment": "Hetkinen",
+    "readingWork": "Luen työtäsi nyt. Tämä kestää sekunteja, ei minuutteja.",
+    "creatingLesson": "Luon oppituntiasi",
+    "organizingContent": "Teksti kaapattu. Järjestelen sisältöä.",
+    "formingQuestions": "Muodostan kysymyksiä materiaalisi pohjalta.",
+    "convertingToAudio": "Muunnan tekstin puhutuksi ääneksi.",
+    "almostReady": "Melkein valmis",
+    "finalizingMaterials": "Viimeistelen harjoitusmateriaalejasi."
+  },
+  "homeworkHelp": {
+    "introduction": {
+      "fi": "Kävin tehtäväsi läpi. Näistä ohjeista voisi olla hyötyä sinulle ongelman ratkaisemiseen.",
+      "en": "I've reviewed your content. Here's some guidance to help you solve this problem."
+    }
+  },
+  "settings": {
+    "title": "Asetukset",
+    "language": "Kieli",
+    "profile": "Profiili",
+    "about": "Tietoja",
+    "profileSettings": "Profiiliasetukset",
+    "termsConditions": "Käyttöehdot",
+    "giveFeedback": "Anna palautetta",
+    "comingSoon": "Tulossa pian",
+    "footer": {
+      "thankYou": "Kiitos, että valitsit LexieLearnin.",
+      "loveLine": "Rakastamme sinua."
+    },
+    "deleteProfile": {
+      "title": "Poista profiili",
+      "message": "Haluatko varmasti poistaa tämän profiilin? Tätä toimintoa ei voi kumota.",
+      "cancel": "Peruuta",
+      "confirm": "Poista",
+      "error": "Profiilin poistaminen epäonnistui"
+    },
+    "logout": {
+      "title": "Kirjaudu ulos",
+      "message": "Haluatko varmasti kirjautua ulos?",
+      "cancel": "Peruuta",
+      "confirm": "Kirjaudu ulos"
+    }
+  },
+  "preview": {
+    "title": "Esikatselu",
+    "imageCounter": "{current}/{total}",
+    "readyButton": "Valmis",
+    "takeMore": "Ota lisää",
+    "chooseMore": "Valitse lisää"
+  },
+  "chat": {
+    "askLexie": "Kysy Lexieltä...",
+    "addPhoto": "Lisää kuva",
+    "takePhoto": "Ota kuva",
+    "chooseFromLibrary": "Valitse kirjastosta",
+    "cancel": "Peruuta"
+  },
+  "feedback": {
+    "thankYou": "Kiitos palautteestasi!"
+  },
+  "alerts": {
+    "error": "Virhe",
+    "ok": "OK",
+    "permissionNeeded": "Lupa tarvitaan",
+    "photoLibraryPermission": "Lexie tarvitsee luvan käyttää kuvakirjastoasi.",
+    "imageLoadFailed": "Kuvan lataus epäonnistui. Yritä uudelleen.",
+    "processingError": "Kuvan käsittelyvirhe. Yritä uudelleen.",
+    "imageSendingFailed": "Kuvien lähettäminen epäonnistui. Varmista, että kuvasi ovat selkeitä ja yritä uudelleen.",
+    "imagesTooLarge": "Kuvat ovat liian suuria. Yritä uudelleen pienemmillä kuvilla.",
+    "tooManyAttempts": "Liian monta yritystä. Odota hetki ja yritä uudelleen.",
+    "serverUnavailable": "Palvelin on tilapäisesti pois käytöstä. Yritä myöhemmin uudelleen.",
+    "checkConnection": "Tarkista internet-yhteytesi ja yritä uudelleen.",
+    "folderCreateFailed": "Kansion luominen epäonnistui",
+    "assignToFolderFailed": "Opiskelukokonaisuuden lisääminen kansioon epäonnistui",
+    "noCardsAvailable": "Ei kortteja saatavilla",
+    "noCardsForContent": "Tälle sisällölle ei ole saatavilla käsitekortteja.",
+    "translationComingSoon": "Käännöstoiminto tulossa pian!",
+    "languageComingSoon": "Kieliasetukset tulossa pian!",
+    "deleteStudySet": "Poista harjoittelusetti",
+    "deleteConfirmation": "Haluatko varmasti poistaa tämän harjoittelusetin? Tätä toimintoa ei voi kumota.",
+    "delete": "Poista",
+    "deleteError": "Harjoittelusetin poistaminen epäonnistui",
+    "takePictureError": "Kuvan ottaminen epäonnistui. Yritä uudelleen."
+  },
+  "scanPage": {
+    "title": "Ota kuva",
+    "cameraError": "Kameravirhe",
+    "checkingPermission": "Tarkistetaan kameran käyttöoikeutta...",
+    "permissionRequired": "Kameran käyttöoikeus vaaditaan kuvien skannaamiseen",
+    "grantPermission": "Myönnä käyttöoikeus",
+    "goBack": "Takaisin",
+    "tryAgain": "Yritä uudelleen",
+    "startingCamera": "Käynnistetään kameraa..."
+  },
+  "quiz": {
+    "title": "Harjoittele",
+    "loading": "Ladataan kysymyksiä...",
+    "validation": {
+      "selectAnswer": "Valitse vastaus ennen tarkistusta"
+    },
+    "feedback": {
+      "correct": "Se oli oikein.",
+      "incorrect": "Se oli väärin. Yritä uudelleen.",
+      "incorrectFinal": "Se oli väärin. Oikea vastaus on {answer}."
+    },
+    "buttons": {
+      "submit": "Lähetä",
+      "ok": "OK",
+      "continue": "Jatka",
+      "skip": "Ohita kysymys"
+    },
+    "alerts": {
+      "noQuestionsTitle": "Virhe",
+      "noQuestionsMessage": "Tälle harjoitussetille ei löytynyt kysymyksiä.",
+      "loadErrorTitle": "Virhe",
+      "loadErrorMessage": "Kysymysten lataaminen epäonnistui."
+    }
+  },
+  "quizComplete": {
+    "backToLesson": "Takaisin oppituntiin",
+    "stats": {
+      "correct": "OIKEIN",
+      "time": "NOPEUS"
+    },
+    "results": {
+      "perfect": {
+        "title": "Täydellinen tulos",
+        "subtitle": "Tunnet materiaalin hyvin"
+      },
+      "excellent": {
+        "title": "Vahvaa työtä",
+        "subtitle": "Sait suurimman osan oikein"
+      },
+      "good": {
+        "title": "Hyvää edistystä",
+        "subtitle": "Jatka näiden käsitteiden harjoittelua"
+      },
+      "average": {
+        "title": "Alkuun pääsemässä",
+        "subtitle": "Kokeile käydä materiaali uudelleen läpi"
+      },
+      "needsImprovement": {
+        "title": "Parannettavaa",
+        "subtitle": "Keskity ensin perusteisiin"
+      }
+    }
+  },
+  "profileSettings": {
+    "title": "Profiiliasetukset",
+    "loading": "Ladataan profiilia...",
+    "save": "Tallenna",
+    "nameLabel": "Miten meidän tulisi kutsua sinua",
+    "namePlaceholder": "Kirjoita nimesi",
+    "deleteProfile": "Poista profiili",
+    "alerts": {
+      "loadError": "Profiilin tietoja ei voitu ladata",
+      "noProfile": "Profiilia ei ladattu",
+      "saveError": "Profiilin muutosten tallentaminen epäonnistui"
+    }
+  },
+  "profileSelection": {
+    "selectProfile": "Valitse profiili",
+    "switchProfile": "Vaihda profiili",
+    "addNew": "Lisää uusi"
+  },
+  "profileImage": {
+    "title": "Valitse profiilikuva",
+    "continue": "Jatka",
+    "alerts": {
+      "selectImageTitle": "Valitse profiilikuva",
+      "selectImageMessage": "Valitse profiilikuva jatkaaksesi"
+    }
+  },
+  "nameInput": {
+    "greeting": "Hei 👋🏻",
+    "question": "Mitä minun pitäisi kutsua sinua?",
+    "placeholder": "Kirjoita nimesi tähän",
+    "continue": "Jatka",
+    "alerts": {
+      "nameRequiredTitle": "Nimi vaaditaan",
+      "nameRequiredMessage": "Kirjoita nimesi jatkaaksesi"
+    }
+  },
+  "lessonHistory": {
+    "title": "Oppitunnit Lexien kanssa",
+    "loading": "Ladataan oppitunteja...",
+    "empty": {
+      "noLessons": "Oppitunteja ei löytynyt.",
+      "startFirst": "Aloita ensimmäinen oppituntisi."
+    },
+    "newLesson": "Uusi oppitunti",
+    "timeSections": {
+      "today": "Tänään",
+      "thisWeek": "Tällä viikolla",
+      "lastWeek": "Viime viikolla",
+      "lastMonth": "Viime kuussa",
+      "older": "Vanhemmat"
+    },
+    "dateFormats": {
+      "yesterday": "Eilen",
+      "unknownDate": "Päivämäärä ei saatavilla",
+      "invalidDate": "Virheellinen päivämäärä",
+      "invalidFormat": "Virheellinen päivämäärän muoto",
+      "dateError": "Päivämäärävirhe"
+    }
+  },
+  "fontSettings": {
+    "goToSettings": "Siirry fonttiasetuksiin",
+    "title": "Fonttiasetukset",
+    "fontSize": "Fonttikoko",
+    "fontFamily": "Fontti",
+    "allCaps": "ISOT KIRJAIMET",
+    "standard": "Tavallinen",
+    "reading": "Lukeminen",
+    "dyslexiaFriendly": "Lukihäiriöystävällinen",
+    "highVisibility": "Korkea näkyvyys",
+    "monospaced": "Tasalevyinen",
+    "case": "KIRJAINKOKO"
+  },
+  "folder": {
+    "loading": "Ladataan...",
+    "empty": "Tässä kansiossa ei ole vielä harjoittelusettejä",
+    "alerts": {
+      "deleteError": "Kansion poistaminen epäonnistui",
+      "saveError": "Kansion muutosten tallentaminen epäonnistui"
+    }
+  },
+  "flashcards": {
+    "title": "Opiskele",
+    "noCards": "Ei muistikortteja saatavilla",
+    "stillLearning": "Opiskelen vielä",
+    "iKnowThis": "Osaan tämän",
+    "counter": "{current} / {total}"
+  },
+  "flashcardResults": {
+    "congratsTitle": "Loistavaa työtä.",
+    "progressTitle": "Edistymisesi",
+    "termsMastered": "Käsitteitä\nhallittu",
+    "masteredLabel": "Hallittu",
+    "stillLearningLabel": "Opiskellaan vielä",
+    "practiceButton": "Harjoittele kysymyksillä",
+    "keepReviewingButton": "Jatka {count} käsitteen kertausta",
+    "restartButton": "Aloita muistikortit uudelleen"
+  },
+  "conceptCards": {
+    "noCards": "Ei käsitekortteja saatavilla.",
+    "hint": "Vihje",
+    "counter": "{current} / {total}"
+  },
+  "studySetSettings": {
+    "language": "Opiskelumateriaalin kieli",
+    "chooseFolder": "Valitse kansio",
+    "chooseFont": "Valitse fontti",
+    "deleteLesson": "Poista oppitunti"
+  },
+  "folders": {
+    "selection": {
+      "title": "Valitse kansio",
+      "subtitle": "Valitse tai luo uusi",
+      "empty": "Sinulla ei ole vielä kansiota",
+      "createButton": "Luo uusi kansio"
+    },
+    "edit": {
+      "title": "Muokkaa kansiota",
+      "nameLabel": "Kansion nimi",
+      "namePlaceholder": "Kirjoita kansion nimi",
+      "validation": "Anna kansiolle nimi",
+      "colorLabel": "Valitse väri",
+      "deleteButton": "Poista",
+      "deletingButton": "Poistetaan...",
+      "alerts": {
+        "deleteTitle": "Poista kansio",
+        "deleteMessage": "Haluatko varmasti poistaa tämän kansion? Toimintoa ei voi kumota.",
+        "cancel": "Peruuta",
+        "delete": "Poista",
+        "error": "Kansion poistaminen epäonnistui",
+        "saveError": "Kansion muutosten tallentaminen epäonnistui"
+      }
+    },
+    "creation": {
+      "title": "Luo kansio",
+      "nameLabel": "Kansion nimi",
+      "namePlaceholder": "esim. Matematiikka, Biologia, jne.",
+      "validation": "Anna kansiolle nimi",
+      "colorLabel": "Valitse väri",
+      "createButton": "Luo uusi kansio"
+    }
+  }
+} 

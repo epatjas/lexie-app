@@ -1,0 +1,340 @@
+{
+  "common": {
+    "appName": "LexieLearn",
+    "save": "Save",
+    "cancel": "Cancel",
+    "next": "Next",
+    "back": "Back",
+    "close": "Close",
+    "loading": "Loading...",
+    "months": {
+      "january": "January",
+      "february": "February",
+      "march": "March",
+      "april": "April",
+      "may": "May",
+      "june": "June",
+      "july": "July",
+      "august": "August",
+      "september": "September",
+      "october": "October",
+      "november": "November",
+      "december": "December"
+    }
+  },
+  "welcome": {
+    "title": "LexieLearn",
+    "description": "Take a photo of study material and Lexie turns it into quizzes, flashcards, and audio. Practice when you need to, how you need to.",
+    "startButton": "Let's start"
+  },
+  "home": {
+    "greeting": "Hi 👋🏻",
+    "questionPrompt": "What do you want to\nlearn today?",
+    "startLesson": "Start a lesson with Lexie",
+    "lessons": "Lessons"
+  },
+  "studySet": {
+    "title": "Study Set",
+    "summary": "Summary",
+    "quiz": "Quiz",
+    "flashcards": "Flashcards",
+    "original": "Original text",
+    "listen": "Listen",
+    "howToApproach": "How to approach",
+    "problemSummary": "Problem Summary",
+    "loading": "Loading content...",
+    "noContent": "No content available",
+    "loadError": "Failed to load study set.",
+    "cards": {
+      "learn": "Learn",
+      "practice": "Practise",
+      "xCards": "{count} cards",
+      "xQuestions": "{count} questions",
+      "noCards": "No cards",
+      "noQuestions": "No questions",
+      "goToFlashcards": "Go to Flashcards"
+    },
+    "tableDisplay": "Tables may not display correctly in this view. Try using flashcards for vocabulary practice.",
+    "noContentToPlay": "No content available to play"
+  },
+  "processing": {
+    "justAMoment": "Just a moment",
+    "readingWork": "Reading your work now. This takes seconds, not minutes.",
+    "creatingLesson": "Creating your lesson",
+    "organizingContent": "Text captured. Organizing content.",
+    "formingQuestions": "Forming questions from your material.",
+    "convertingToAudio": "Converting text to spoken audio.",
+    "almostReady": "Almost ready",
+    "finalizingMaterials": "Finalizing your practice materials."
+  },
+  "homeworkHelp": {
+    "introduction": {
+      "fi": "I've reviewed your content. Here's some guidance to help you solve this problem.",
+      "en": "I've reviewed your content. Here's some guidance to help you solve this problem."
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "profile": "Profile",
+    "about": "About",
+    "profileSettings": "Profile settings",
+    "termsConditions": "Terms & conditions",
+    "giveFeedback": "Give feedback",
+    "comingSoon": "Coming soon",
+    "footer": {
+      "thankYou": "Thank you for choosing LexieLearn.",
+      "loveLine": "We love you."
+    },
+    "deleteProfile": {
+      "title": "Delete Profile",
+      "message": "Are you sure you want to delete this profile? This action cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Delete",
+      "error": "Failed to delete profile"
+    },
+    "logout": {
+      "title": "Log Out",
+      "message": "Are you sure you want to log out?",
+      "cancel": "Cancel",
+      "confirm": "Log Out"
+    }
+  },
+  "preview": {
+    "title": "Preview",
+    "imageCounter": "{current}/{total}",
+    "readyButton": "Ready",
+    "takeMore": "Take more",
+    "chooseMore": "Choose more"
+  },
+  "chat": {
+    "askLexie": "Ask Lexie...",
+    "addPhoto": "Add a photo",
+    "takePhoto": "Take Photo",
+    "chooseFromLibrary": "Choose from Library",
+    "cancel": "Cancel"
+  },
+  "feedback": {
+    "thankYou": "Thank you for your feedback!"
+  },
+  "alerts": {
+    "error": "Error",
+    "ok": "OK",
+    "permissionNeeded": "Permission needed",
+    "photoLibraryPermission": "Lexie needs permission to use your photo library.",
+    "imageLoadFailed": "Image loading failed. Try again.",
+    "processingError": "Image processing error. Please try again.",
+    "imageSendingFailed": "Image sending failed. Ensure your images are clear and try again.",
+    "imagesTooLarge": "Images are too large. Try again with smaller images.",
+    "tooManyAttempts": "Too many attempts. Wait a moment and try again.",
+    "serverUnavailable": "Server is temporarily unavailable. Try again later.",
+    "checkConnection": "Check your internet connection and try again.",
+    "folderCreateFailed": "Failed to create folder",
+    "assignToFolderFailed": "Failed to assign study set to folder",
+    "noCardsAvailable": "No Cards Available",
+    "noCardsForContent": "There are no concept cards available for this content.",
+    "translationComingSoon": "Translation feature coming soon!",
+    "languageComingSoon": "Language settings coming soon!",
+    "deleteStudySet": "Delete study set",
+    "deleteConfirmation": "Are you sure you want to delete this study set? This action cannot be undone.",
+    "delete": "Delete",
+    "deleteError": "Failed to delete study set",
+    "takePictureError": "Failed to take picture. Please try again."
+  },
+  "scanPage": {
+    "title": "Take photo",
+    "cameraError": "Camera Error",
+    "checkingPermission": "Checking camera permission...",
+    "permissionRequired": "Camera permission is required to scan photos",
+    "grantPermission": "Grant Permission",
+    "goBack": "Go Back",
+    "tryAgain": "Try Again",
+    "startingCamera": "Starting camera..."
+  },
+  "quiz": {
+    "title": "Practice",
+    "loading": "Loading questions...",
+    "validation": {
+      "selectAnswer": "Please select an answer before checking"
+    },
+    "feedback": {
+      "correct": "That was correct.",
+      "incorrect": "That was incorrect. Try again.",
+      "incorrectFinal": "That was incorrect. The correct answer is {answer}."
+    },
+    "buttons": {
+      "submit": "Submit",
+      "ok": "OK",
+      "continue": "Continue",
+      "skip": "Skip question"
+    },
+    "alerts": {
+      "noQuestionsTitle": "Error",
+      "noQuestionsMessage": "No quiz questions found for this study set.",
+      "loadErrorTitle": "Error",
+      "loadErrorMessage": "Failed to load quiz questions."
+    }
+  },
+  "quizComplete": {
+    "backToLesson": "Back to lesson",
+    "stats": {
+      "correct": "CORRECT",
+      "time": "SUPAFAST"
+    },
+    "results": {
+      "perfect": {
+        "title": "Perfect score",
+        "subtitle": "You know this material well"
+      },
+      "excellent": {
+        "title": "Strong work",
+        "subtitle": "You got most of it right"
+      },
+      "good": {
+        "title": "Good progress",
+        "subtitle": "Keep practicing these concepts"
+      },
+      "average": {
+        "title": "Getting started",
+        "subtitle": "Try reviewing the material again"
+      },
+      "needsImprovement": {
+        "title": "Room to improve",
+        "subtitle": "Focus on the basics first"
+      }
+    }
+  },
+  "profileSettings": {
+    "title": "Profile settings",
+    "loading": "Loading profile...",
+    "save": "Save",
+    "nameLabel": "How should we call you",
+    "namePlaceholder": "Enter your name",
+    "deleteProfile": "Delete profile",
+    "alerts": {
+      "loadError": "Could not load profile data",
+      "noProfile": "No profile loaded",
+      "saveError": "Failed to save profile changes"
+    }
+  },
+  "profileSelection": {
+    "selectProfile": "Select profile",
+    "switchProfile": "Switch profile",
+    "addNew": "Add new"
+  },
+  "profileImage": {
+    "title": "Select profile picture",
+    "continue": "Continue",
+    "alerts": {
+      "selectImageTitle": "Select a profile picture",
+      "selectImageMessage": "Please select a profile picture to continue"
+    }
+  },
+  "nameInput": {
+    "greeting": "Hi 👋🏻",
+    "question": "What should I call you?",
+    "placeholder": "Write your name here",
+    "continue": "Continue",
+    "alerts": {
+      "nameRequiredTitle": "Name required",
+      "nameRequiredMessage": "Please write your name to continue"
+    }
+  },
+  "lessonHistory": {
+    "title": "Lessons with Lexie",
+    "loading": "Loading lessons...",
+    "empty": {
+      "noLessons": "No lessons found.",
+      "startFirst": "Start your first lesson."
+    },
+    "newLesson": "New lesson",
+    "timeSections": {
+      "today": "Today",
+      "thisWeek": "This week",
+      "lastWeek": "Last week",
+      "lastMonth": "Last month",
+      "older": "Older"
+    },
+    "dateFormats": {
+      "yesterday": "Yesterday",
+      "unknownDate": "Date unavailable",
+      "invalidDate": "Invalid date",
+      "invalidFormat": "Invalid date format",
+      "dateError": "Date error"
+    }
+  },
+  "fontSettings": {
+    "goToSettings": "Go to Font Settings",
+    "title": "Font Settings",
+    "fontSize": "Font Size",
+    "fontFamily": "Font Family",
+    "allCaps": "ALL CAPS",
+    "standard": "Standard",
+    "reading": "Reading",
+    "dyslexiaFriendly": "Dyslexia-friendly",
+    "highVisibility": "High-visibility",
+    "monospaced": "Monospaced",
+    "case": "CASE"
+  },
+  "flashcards": {
+    "title": "Learn",
+    "noCards": "No flashcards available",
+    "stillLearning": "Still learning",
+    "iKnowThis": "I know this",
+    "counter": "{current} / {total}"
+  },
+  "flashcardResults": {
+    "congratsTitle": "Brilliant work.",
+    "progressTitle": "Your progress",
+    "termsMastered": "Terms\nMastered",
+    "masteredLabel": "Mastered",
+    "stillLearningLabel": "Still learning",
+    "practiceButton": "Practise with questions",
+    "keepReviewingButton": "Keep reviewing {count} terms",
+    "restartButton": "Restart flashcards"
+  },
+  "conceptCards": {
+    "noCards": "No concept cards available.",
+    "hint": "Hint",
+    "counter": "{current} / {total}"
+  },
+  "studySetSettings": {
+    "language": "Study set language",
+    "chooseFolder": "Choose folder",
+    "chooseFont": "Choose font",
+    "deleteLesson": "Delete lesson"
+  },
+  "folders": {
+    "selection": {
+      "title": "Choose folder",
+      "subtitle": "Choose or create new",
+      "empty": "You don't have any folders yet",
+      "createButton": "Create new folder"
+    },
+    "edit": {
+      "title": "Edit folder",
+      "nameLabel": "Folder name",
+      "namePlaceholder": "Enter folder name",
+      "validation": "Please enter a folder name",
+      "colorLabel": "Pick a color",
+      "deleteButton": "Delete",
+      "deletingButton": "Deleting...",
+      "alerts": {
+        "deleteTitle": "Delete folder",
+        "deleteMessage": "Are you sure you want to delete this folder? This action cannot be undone.",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "error": "Failed to delete folder",
+        "saveError": "Failed to save folder changes"
+      }
+    },
+    "creation": {
+      "title": "Create folder",
+      "nameLabel": "Folder name",
+      "namePlaceholder": "ie. Math, Science, etc.",
+      "validation": "Please enter a folder name",
+      "colorLabel": "Pick a color",
+      "createButton": "Create new folder"
+    }
+  }
+} 

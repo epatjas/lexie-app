@@ -17,6 +17,7 @@ import { deleteProfile } from '../utils/storage';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from '../i18n/LanguageContext';
 
 type Profile = {
   id: string;
@@ -39,6 +40,7 @@ const PROFILE_IMAGES = [
 type ProfileSettingsScreenProps = NativeStackScreenProps<RootStackParamList, 'ProfileSettings'>;
 
 export default function ProfileSettingsScreen({ navigation }: ProfileSettingsScreenProps) {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [name, setName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('1');
@@ -77,18 +79,18 @@ export default function ProfileSettingsScreen({ navigation }: ProfileSettingsScr
         setSelectedAvatar(activeProfile.avatarId || '1');
       } catch (error: any) {
         console.error('Error loading profile:', error.message);
-        Alert.alert('Error', 'Could not load profile data');
+        Alert.alert(t('alerts.error'), t('profileSettings.alerts.loadError'));
       } finally {
         setLoading(false);
       }
     };
     
     loadProfile();
-  }, []);
+  }, [t]);
 
   const handleSave = async () => {
     if (!profile) {
-      Alert.alert('Error', 'No profile loaded');
+      Alert.alert(t('alerts.error'), t('profileSettings.alerts.noProfile'));
       return;
     }
     
@@ -119,7 +121,7 @@ export default function ProfileSettingsScreen({ navigation }: ProfileSettingsScr
       navigation.goBack();
     } catch (error: any) {
       console.error('Error saving profile:', error.message);
-      Alert.alert('Error', 'Failed to save profile changes');
+      Alert.alert(t('alerts.error'), t('profileSettings.alerts.saveError'));
     } finally {
       setLoading(false);
     }
@@ -129,15 +131,15 @@ export default function ProfileSettingsScreen({ navigation }: ProfileSettingsScr
     if (!profile) return;
 
     Alert.alert(
-      "Delete Profile",
-      "Are you sure you want to delete this profile? This action cannot be undone.",
+      t('settings.deleteProfile.title'),
+      t('settings.deleteProfile.message'),
       [
         {
-          text: "Cancel",
+          text: t('settings.deleteProfile.cancel'),
           style: "cancel"
         },
         {
-          text: "Delete",
+          text: t('settings.deleteProfile.confirm'),
           style: "destructive",
           onPress: async () => {
             try {
@@ -148,7 +150,7 @@ export default function ProfileSettingsScreen({ navigation }: ProfileSettingsScr
               });
             } catch (error) {
               console.error('Error deleting profile:', error);
-              Alert.alert('Error', 'Failed to delete profile');
+              Alert.alert(t('alerts.error'), t('settings.deleteProfile.error'));
             }
           }
         }
@@ -180,12 +182,12 @@ export default function ProfileSettingsScreen({ navigation }: ProfileSettingsScr
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <ChevronLeft color={theme.colors.text} size={24} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profile settings</Text>
+          <Text style={styles.headerTitle}>{t('profileSettings.title')}</Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          <Text style={styles.loadingText}>{t('profileSettings.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -200,7 +202,7 @@ export default function ProfileSettingsScreen({ navigation }: ProfileSettingsScr
         >
           <ChevronLeft color={theme.colors.text} size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile settings</Text>
+        <Text style={styles.headerTitle}>{t('profileSettings.title')}</Text>
         <TouchableOpacity 
           onPress={handleSave}
           style={styles.saveButton}
@@ -209,18 +211,18 @@ export default function ProfileSettingsScreen({ navigation }: ProfileSettingsScr
           {loading ? (
             <ActivityIndicator size="small" color={theme.colors.primary} />
           ) : (
-            <Text style={styles.saveButtonText}>Save</Text>
+            <Text style={styles.saveButtonText}>{t('profileSettings.save')}</Text>
           )}
         </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.label}>How should we call you</Text>
+        <Text style={styles.label}>{t('profileSettings.nameLabel')}</Text>
         <TextInput
           style={styles.input}
           value={name}
           onChangeText={setName}
-          placeholder="Enter your name"
+          placeholder={t('profileSettings.namePlaceholder')}
           placeholderTextColor="rgba(255,255,255,0.5)"
         />
 
@@ -239,7 +241,7 @@ export default function ProfileSettingsScreen({ navigation }: ProfileSettingsScr
           onPress={handleDeleteProfile}
         >
           <Trash2 size={20} color="#FF6B6B" style={{marginRight: 8}} />
-          <Text style={styles.deleteButtonText}>Delete profile</Text>
+          <Text style={styles.deleteButtonText}>{t('profileSettings.deleteProfile')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

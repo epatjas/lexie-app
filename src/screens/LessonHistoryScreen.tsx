@@ -27,6 +27,7 @@ import Animated, {
 import { Plus, ChevronLeft } from 'lucide-react-native';
 import SettingsScreen from './SettingsScreen';
 import ProfileBadge from '../components/ProfileBadge';
+import { useTranslation } from '../i18n/LanguageContext';
 
 
 type LessonHistoryScreenProps = NativeStackScreenProps<RootStackParamList, 'LessonHistory'>;
@@ -44,6 +45,7 @@ type TimeSection = {
 };
 
 export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenProps) {
+  const { t } = useTranslation();
   const { studySets, refreshStudySets, loading } = useStudySets();
   const { folders } = useFolders();
   const [sections, setSections] = useState<TimeSection[]>([]);
@@ -167,23 +169,23 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
     const newSections: TimeSection[] = [];
     
     if (todaySets.length > 0) {
-      newSections.push({ title: 'Today', data: todaySets });
+      newSections.push({ title: t('lessonHistory.timeSections.today'), data: todaySets });
     }
     
     if (thisWeekSets.length > 0) {
-      newSections.push({ title: 'This week', data: thisWeekSets });
+      newSections.push({ title: t('lessonHistory.timeSections.thisWeek'), data: thisWeekSets });
     }
     
     if (lastWeekSets.length > 0) {
-      newSections.push({ title: 'Last week', data: lastWeekSets });
+      newSections.push({ title: t('lessonHistory.timeSections.lastWeek'), data: lastWeekSets });
     }
     
     if (lastMonthSets.length > 0) {
-      newSections.push({ title: 'Last month', data: lastMonthSets });
+      newSections.push({ title: t('lessonHistory.timeSections.lastMonth'), data: lastMonthSets });
     }
     
     if (olderSets.length > 0) {
-      newSections.push({ title: 'Older', data: olderSets });
+      newSections.push({ title: t('lessonHistory.timeSections.older'), data: olderSets });
     }
     
     setSections(newSections);
@@ -351,10 +353,10 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
     );
   };
 
-  // Add this new function with specialized formatting for lesson history
+  // Update the formatting function to use translations
   const formatDateForDisplay = (timestamp: any) => {
     // Handle case where timestamp is invalid
-    if (!timestamp) return 'Date unavailable';
+    if (!timestamp) return t('lessonHistory.dateFormats.unknownDate');
     
     try {
       // Try to create a valid date object
@@ -372,12 +374,12 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
         }
       } else {
         // Unknown type
-        return 'Invalid date format';
+        return t('lessonHistory.dateFormats.invalidFormat');
       }
       
       // Check if the date object is valid
       if (isNaN(dateObj.getTime())) {
-        return 'Invalid date';
+        return t('lessonHistory.dateFormats.invalidDate');
       }
       
       // Get current date for comparison
@@ -392,7 +394,7 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
         return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       } else if (dateObj >= yesterday && dateObj < today) {
         // For yesterday
-        return 'Yesterday';
+        return t('lessonHistory.dateFormats.yesterday');
       } else {
         // For older dates, show month and day
         const months = ['January', 'February', 'March', 'April', 'May', 'June', 
@@ -401,7 +403,7 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
       }
     } catch (error) {
       console.error('Date formatting error:', error);
-      return 'Date error';
+      return t('lessonHistory.dateFormats.dateError');
     }
   };
 
@@ -421,7 +423,7 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
       <ParticleBackground />
       
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Lessons with Lexie</Text>
+        <Text style={styles.headerTitle}>{t('lessonHistory.title')}</Text>
         <TouchableOpacity
           style={styles.profileButton}
           onPress={() => setIsSettingsVisible(true)}
@@ -435,7 +437,7 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading lessons...</Text>
+          <Text style={styles.loadingText}>{t('lessonHistory.loading')}</Text>
         </View>
       ) : (
         <FlatList
@@ -448,9 +450,9 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
           ]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No lessons found.</Text>
+              <Text style={styles.emptyText}>{t('lessonHistory.empty.noLessons')}</Text>
               <View style={{height: 2}} />
-              <Text style={styles.emptyText}>Start your first lesson.</Text>
+              <Text style={styles.emptyText}>{t('lessonHistory.empty.startFirst')}</Text>
             </View>
           }
         />
@@ -464,7 +466,7 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
           size={20}
           color={theme.colors.background}
         />
-        <Text style={styles.newLessonButtonText}>New lesson</Text>
+        <Text style={styles.newLessonButtonText}>{t('lessonHistory.newLesson')}</Text>
       </TouchableOpacity>
 
       <Modal

@@ -16,6 +16,7 @@ import { getQuizFromStudySet } from '../services/Database';
 import Svg, { Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontSettings } from '../types/fontSettings';
+import { useTranslation } from '../i18n/LanguageContext';
 
 type QuizScreenProps = NativeStackScreenProps<RootStackParamList, 'Quiz'>;
 
@@ -80,6 +81,7 @@ const ProgressCircle = ({ current, total }: { current: number; total: number }) 
 const FONT_SETTINGS_KEY = 'global_font_settings';
 
 export default function QuizScreen({ route, navigation }: QuizScreenProps) {
+  const { t } = useTranslation();
   const { studySetId } = route.params;
   const quizFromParams = route.params.quiz;
   
@@ -126,8 +128,8 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
           } else {
             console.warn('No quiz questions found');
             Alert.alert(
-              'Error',
-              'No quiz questions found for this study set.',
+              t('quiz.alerts.noQuestionsTitle'),
+              t('quiz.alerts.noQuestionsMessage'),
               [{ text: 'OK', onPress: () => navigation.goBack() }]
             );
           }
@@ -135,13 +137,13 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
         .catch(error => {
           console.error('Error loading quiz questions:', error);
           Alert.alert(
-            'Error',
-            'Failed to load quiz questions.',
+            t('quiz.alerts.loadErrorTitle'),
+            t('quiz.alerts.loadErrorMessage'),
             [{ text: 'OK', onPress: () => navigation.goBack() }]
           );
         });
     }
-  }, [studySetId, hasInitialQuiz]);
+  }, [studySetId, hasInitialQuiz, t]);
 
   useEffect(() => {
     if (questions.length > 0) {
@@ -189,7 +191,7 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
   if (!currentQuestion) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.loadingText}>Loading questions...</Text>
+        <Text style={styles.loadingText}>{t('quiz.loading')}</Text>
       </SafeAreaView>
     );
   }
@@ -202,7 +204,7 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
 
   const handleCheck = () => {
     if (!selectedAnswer) {
-      setValidationMessage('Valitse vastaus ennen tarkistusta');
+      setValidationMessage(t('quiz.validation.selectAnswer'));
       return;
     }
     
@@ -277,7 +279,7 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <ChevronLeft color={theme.colors.text} size={24} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Practise</Text>
+          <Text style={styles.headerTitle}>{t('quiz.title')}</Text>
           <View style={{ width: 20 }} />
         </View>
 
@@ -377,10 +379,10 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
             { color: theme.colors.text }
           ]}>
             {selectedAnswer === currentQuestion.correct
-              ? 'That was correct.'
+              ? t('quiz.feedback.correct')
               : attempts >= 2
-                ? `That was incorrect. The correct answer is ${currentQuestion.correct}.`
-                : 'That was incorrect. Try again.'}
+                ? t('quiz.feedback.incorrectFinal', { answer: currentQuestion.correct })
+                : t('quiz.feedback.incorrect')}
           </Text>
         ) : null}
         
@@ -410,8 +412,8 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
                 { color: theme.colors.background }
               ]}>
                 {selectedAnswer === currentQuestion.correct || attempts >= 2
-                  ? 'Continue'
-                  : 'OK'}
+                  ? t('quiz.buttons.continue')
+                  : t('quiz.buttons.ok')}
               </Text>
             </TouchableOpacity>
             {selectedAnswer !== currentQuestion.correct && 
@@ -420,7 +422,7 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
                 style={styles.skipButton}
                 onPress={handleNext}
               >
-                <Text style={styles.skipButtonText}>Skip question</Text>
+                <Text style={styles.skipButtonText}>{t('quiz.buttons.skip')}</Text>
               </TouchableOpacity>
             )}
           </>
@@ -435,8 +437,8 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
               { color: theme.colors.background }  
             ]}>
               {selectedAnswer === currentQuestion.correct || attempts >= 2
-                ? 'Continue'
-                : 'Submit'}
+                ? t('quiz.buttons.continue')
+                : t('quiz.buttons.submit')}
             </Text>
           </TouchableOpacity>
         )}
