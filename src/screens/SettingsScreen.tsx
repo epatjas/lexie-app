@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ import { RootStackParamList } from '../types/navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from '../i18n/LanguageContext';
 import LanguageSelector from '../components/LanguageSelector';
+import FeedbackScreen from './FeedbackScreen';
 
 export default function SettingsScreen({ 
   navigation, 
@@ -46,6 +47,7 @@ export default function SettingsScreen({
   
   // Add state for language selector visibility
   const [languageSelectorVisible, setLanguageSelectorVisible] = React.useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   React.useEffect(() => {
     if (visible) {
@@ -290,7 +292,7 @@ export default function SettingsScreen({
               paddingHorizontal: 16,
               marginBottom: 8
             }}
-            onPress={() => navigation.navigate('Feedback')}
+            onPress={() => setShowFeedback(true)}
           >
             <Sparkles size={20} color={theme.colors.text} style={{marginRight: 12}} />
             <Text style={{flex: 1, color: 'white', fontSize: 16}}>{t('settings.giveFeedback')}</Text>
@@ -315,6 +317,14 @@ export default function SettingsScreen({
           />
         </View>
       </Animated.View>
+
+      {showFeedback && (
+        <FeedbackScreen
+          navigation={navigation}
+          visible={showFeedback}
+          onClose={() => setShowFeedback(false)}
+        />
+      )}
     </View>
   );
 }

@@ -115,7 +115,29 @@
     "cancel": "Peruuta"
   },
   "feedback": {
-    "thankYou": "Kiitos palautteestasi!"
+    "title": "Anna palautetta",
+    "selectCategory": "Mihin palautteesi liittyy?",
+    "categories": {
+      "technical": "Tekninen toimivuus",
+      "content": "Sisällön laatu",
+      "ux": "Käyttökokemus",
+      "feature": "Ominaisuustoiveet",
+      "other": "Muu palaute"
+    },
+    "placeholder": "Kerro kokemuksestasi tarkemmin",
+    "screenshot": {
+      "help": "Kuvakaappaukset auttavat meitä ymmärtämään tilannetta paremmin"
+    },
+    "submit": "Lähetä palaute",
+    "thankYou": "Kiitos palautteestasi.",
+    "permissions": {
+      "gallery": "Tarvitsemme luvan kuvien valitsemiseen"
+    },
+    "errors": {
+      "category": "Valitse palautteen tyyppi",
+      "description": "Kirjoita palautteen kuvaus"
+    },
+    "selectCategoryPlaceholder": "Valitse kategoria"
   },
   "alerts": {
     "error": "Virhe",

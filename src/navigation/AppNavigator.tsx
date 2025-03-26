@@ -30,6 +30,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import LessonHistoryScreen from '../screens/LessonHistoryScreen';
 import FlashcardResultsScreen from '../screens/FlashcardResultsScreen';
 import ConceptCardScreen from '../screens/ConceptCardScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
 
 // Log import status
 console.log('[AppNavigator] All screens imported');
@@ -84,6 +85,7 @@ const AppNavigator = ({ initialRouteName = "Home" as keyof RootStackParamList }:
       {/* Settings */}
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="LessonHistory" component={LessonHistoryScreen} />
+      <Stack.Screen name="Feedback" component={FeedbackScreen} />
     </Stack.Navigator>
   );
 };
