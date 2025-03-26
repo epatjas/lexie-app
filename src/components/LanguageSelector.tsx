@@ -101,12 +101,17 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                   style={styles.optionRow}
                   onPress={() => handleLanguageSelect(lang.code)}
                 >
-                  <Text style={styles.languageText}>
+                  <Text 
+                    style={[
+                      styles.languageText,
+                      language === lang.code && styles.selectedLanguageText
+                    ]}
+                  >
                     {lang.name}
                   </Text>
                   {language === lang.code && (
                     <View style={styles.selectedIndicator}>
-                      <Check color="#FFF" size={12} />
+                      <Check color="#000" size={12} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -173,9 +178,12 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   languageText: {
-    fontSize: 18,
+    fontSize: 16,
     color: theme.colors.text,
     fontFamily: theme.fonts.regular,
+  },
+  selectedLanguageText: {
+    color: theme.colors.primary,
   },
   selectedIndicator: {
     width: 24,

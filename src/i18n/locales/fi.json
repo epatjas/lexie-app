@@ -24,19 +24,19 @@
   },
   "welcome": {
     "title": "LexieLearn",
-    "description": "Lexie auttaa sinua harjoittelemaan kokeisiin tai tekemään kotitehtäviä.",
+    "description": "Lexie auttaa sinua harjoittelemaan. Lataa kuva ja Lexie hoitaa loput.",
     "startButton": "Aloita"
   },
   "home": {
     "greeting": "Hei 👋🏻",
     "questionPrompt": "Mitä haluaisit\noppia tänään?",
-    "startLesson": "Aloita oppitunti Lexien kanssa",
-    "lessons": "Oppitunnit"
+    "startLesson": "Aloita harjoittelu",
+    "lessons": "Aiemmat harjoitukset"
   },
   "studySet": {
-    "title": "Opiskelukokonaisuus",
+    "title": "Harjoitus",
     "summary": "Yhteenveto",
-    "quiz": "Koe",
+    "quiz": "Testi",
     "flashcards": "Muistikortit",
     "original": "Alkuperäinen teksti",
     "listen": "Kuuntele",
@@ -44,28 +44,28 @@
     "problemSummary": "Tehtävän yhteenveto",
     "loading": "Ladataan sisältöä...",
     "noContent": "Ei sisältöä saatavilla",
-    "loadError": "Opiskelukokonaisuuden lataaminen epäonnistui.",
+    "loadError": "Harjoittelusetin lataaminen epäonnistui.",
     "cards": {
-      "learn": "Opiskele",
+      "learn": "Opi",
       "practice": "Harjoittele",
       "xCards": "{count} korttia",
-      "xQuestions": "{count} kysymystä",
+      "xQuestions": "{count} tehtävää",
       "noCards": "Ei kortteja",
-      "noQuestions": "Ei kysymyksiä",
+      "noQuestions": "Ei tehtäviä",
       "goToFlashcards": "Siirry muistikortteihin"
     },
-    "tableDisplay": "Taulukot eivät ehkä näy oikein tässä näkymässä. Kokeile muistikortteja sanastoharjoittelua varten.",
-    "noContentToPlay": "Ei sisältöä toistettavaksi"
+    "tableDisplay": "Taulukot eivät ehkä näy oikein tässä näkymässä. Kokeile muistikortteja.",
+    "noContentToPlay": "Ei sisältöä"
   },
   "processing": {
-    "justAMoment": "Hetkinen",
-    "readingWork": "Luen työtäsi nyt. Tämä kestää sekunteja, ei minuutteja.",
-    "creatingLesson": "Luon oppituntiasi",
-    "organizingContent": "Teksti kaapattu. Järjestelen sisältöä.",
-    "formingQuestions": "Muodostan kysymyksiä materiaalisi pohjalta.",
-    "convertingToAudio": "Muunnan tekstin puhutuksi ääneksi.",
-    "almostReady": "Melkein valmis",
-    "finalizingMaterials": "Viimeistelen harjoitusmateriaalejasi."
+    "justAMoment": "Hetkinen.",
+    "readingWork": "Käyn materiaaliasi läpi. Tämä vie vain hetken.",
+    "creatingLesson": "Luon harjoitusta.",
+    "organizingContent": "Sain tekstin talteen. Jäsentelen sitä nyt.",
+    "formingQuestions": "Mietin hyviä kysymyksiä tästä aiheesta.",
+    "convertingToAudio": "Teen ääniversion.",
+    "almostReady": "Melkein valmista.",
+    "finalizingMaterials": "Viimeistelen harjoituksen."
   },
   "homeworkHelp": {
     "introduction": {
@@ -84,7 +84,7 @@
     "comingSoon": "Tulossa pian",
     "footer": {
       "thankYou": "Kiitos, että valitsit LexieLearnin.",
-      "loveLine": "Rakastamme sinua."
+      "loveLine": "We love you."
     },
     "deleteProfile": {
       "title": "Poista profiili",
@@ -130,7 +130,7 @@
     "serverUnavailable": "Palvelin on tilapäisesti pois käytöstä. Yritä myöhemmin uudelleen.",
     "checkConnection": "Tarkista internet-yhteytesi ja yritä uudelleen.",
     "folderCreateFailed": "Kansion luominen epäonnistui",
-    "assignToFolderFailed": "Opiskelukokonaisuuden lisääminen kansioon epäonnistui",
+    "assignToFolderFailed": "Harjoittelusetin lisääminen kansioon epäonnistui",
     "noCardsAvailable": "Ei kortteja saatavilla",
     "noCardsForContent": "Tälle sisällölle ei ole saatavilla käsitekortteja.",
     "translationComingSoon": "Käännöstoiminto tulossa pian!",
@@ -158,9 +158,9 @@
       "selectAnswer": "Valitse vastaus ennen tarkistusta"
     },
     "feedback": {
-      "correct": "Se oli oikein.",
-      "incorrect": "Se oli väärin. Yritä uudelleen.",
-      "incorrectFinal": "Se oli väärin. Oikea vastaus on {answer}."
+      "correct": "Se meni oikein.",
+      "incorrect": "Se meni väärin. Yritä uudelleen.",
+      "incorrectFinal": "Se meni väärin. Oikea vastaus on {answer}."
     },
     "buttons": {
       "submit": "Lähetä",
@@ -176,31 +176,31 @@
     }
   },
   "quizComplete": {
-    "backToLesson": "Takaisin oppituntiin",
+    "backToLesson": "Takaisin harjoitukseen",
     "stats": {
       "correct": "OIKEIN",
       "time": "NOPEUS"
     },
     "results": {
       "perfect": {
-        "title": "Täydellinen tulos",
-        "subtitle": "Tunnet materiaalin hyvin"
+        "title": "Kaikki oikein",
+        "subtitle": "Osaat tämän jo hyvin"
       },
       "excellent": {
-        "title": "Vahvaa työtä",
-        "subtitle": "Sait suurimman osan oikein"
+        "title": "Hienosti tehty",
+        "subtitle": "Lähes kaikki oikein"
       },
       "good": {
-        "title": "Hyvää edistystä",
-        "subtitle": "Jatka näiden käsitteiden harjoittelua"
+        "title": "Hyvä suoritus",
+        "subtitle": "Kertaa vielä hankalammat kohdat"
       },
       "average": {
-        "title": "Alkuun pääsemässä",
-        "subtitle": "Kokeile käydä materiaali uudelleen läpi"
+        "title": "Hyvä alku",
+        "subtitle": "Käy materiaali uudelleen läpi"
       },
       "needsImprovement": {
-        "title": "Parannettavaa",
-        "subtitle": "Keskity ensin perusteisiin"
+        "title": "Harjoitus tekee mestarin",
+        "subtitle": "Palaa ensin perusasioihin"
       }
     }
   },
@@ -208,7 +208,7 @@
     "title": "Profiiliasetukset",
     "loading": "Ladataan profiilia...",
     "save": "Tallenna",
-    "nameLabel": "Miten meidän tulisi kutsua sinua",
+    "nameLabel": "Millä nimellä voisin kutsua sinua?",
     "namePlaceholder": "Kirjoita nimesi",
     "deleteProfile": "Poista profiili",
     "alerts": {
@@ -232,7 +232,7 @@
   },
   "nameInput": {
     "greeting": "Hei 👋🏻",
-    "question": "Mitä minun pitäisi kutsua sinua?",
+    "question": "Millä nimellä voisin kutsua sinua?",
     "placeholder": "Kirjoita nimesi tähän",
     "continue": "Jatka",
     "alerts": {
@@ -241,13 +241,13 @@
     }
   },
   "lessonHistory": {
-    "title": "Oppitunnit Lexien kanssa",
-    "loading": "Ladataan oppitunteja...",
+    "title": "Aiemmat harjoitukset",
+    "loading": "Ladataan harjoituksia...",
     "empty": {
-      "noLessons": "Oppitunteja ei löytynyt.",
-      "startFirst": "Aloita ensimmäinen oppituntisi."
+      "noLessons": "Tyhjää toistaiseksi.",
+      "startFirst": "Ota kuva ja pääset alkuun."
     },
-    "newLesson": "Uusi oppitunti",
+    "newLesson": "Uusi harjoitus",
     "timeSections": {
       "today": "Tänään",
       "thisWeek": "Tällä viikolla",
@@ -273,7 +273,7 @@
     "reading": "Lukeminen",
     "dyslexiaFriendly": "Lukihäiriöystävällinen",
     "highVisibility": "Korkea näkyvyys",
-    "monospaced": "Tasalevyinen",
+    "monospaced": "Monospaced",
     "case": "KIRJAINKOKO"
   },
   "folder": {
@@ -287,30 +287,30 @@
   "flashcards": {
     "title": "Opiskele",
     "noCards": "Ei muistikortteja saatavilla",
-    "stillLearning": "Opiskelen vielä",
+    "stillLearning": "Harjoittelen vielä",
     "iKnowThis": "Osaan tämän",
     "counter": "{current} / {total}"
   },
   "flashcardResults": {
-    "congratsTitle": "Loistavaa työtä.",
+    "congratsTitle": "Hienosti tehty!",
     "progressTitle": "Edistymisesi",
-    "termsMastered": "Käsitteitä\nhallittu",
-    "masteredLabel": "Hallittu",
-    "stillLearningLabel": "Opiskellaan vielä",
-    "practiceButton": "Harjoittele kysymyksillä",
-    "keepReviewingButton": "Jatka {count} käsitteen kertausta",
-    "restartButton": "Aloita muistikortit uudelleen"
+    "termsMastered": "Asioita\nhallussa",
+    "masteredLabel": "Osaat jo",
+    "stillLearningLabel": "Harjoittelet vielä",
+    "practiceButton": "Testaa taitosi",
+    "keepReviewingButton": "Jatka {count} asian kertausta",
+    "restartButton": "Aloita alusta"
   },
   "conceptCards": {
-    "noCards": "Ei käsitekortteja saatavilla.",
+    "noCards": "Ei kortteja saatavilla.",
     "hint": "Vihje",
     "counter": "{current} / {total}"
   },
   "studySetSettings": {
-    "language": "Opiskelumateriaalin kieli",
+    "language": "Käännä kieli",
     "chooseFolder": "Valitse kansio",
     "chooseFont": "Valitse fontti",
-    "deleteLesson": "Poista oppitunti"
+    "deleteLesson": "Poista harjoitus"
   },
   "folders": {
     "selection": {
