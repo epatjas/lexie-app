@@ -5,10 +5,12 @@ import theme from '../styles/theme';
 import { saveUserName } from '../utils/storage';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
+import { useTranslation } from '../i18n/LanguageContext';
 
 type NameInputScreenProps = NativeStackScreenProps<RootStackParamList, 'NameInput'>;
 
 const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [isFocused, setIsFocused] = useState(true);
   const textInputRef = useRef<TextInput>(null);
@@ -51,9 +53,9 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
   const handleContinue = async () => {
     if (!name.trim()) {
       Alert.alert(
-        "Name required",
-        "Please write your name to continue",
-        [{ text: "OK" }]
+        t('nameInput.alerts.nameRequiredTitle'),
+        t('nameInput.alerts.nameRequiredMessage'),
+        [{ text: t('alerts.ok') }]
       );
       return;
     }
@@ -76,8 +78,8 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
         style={styles.content}
       >
         <View style={styles.textContainer}>
-          <Text style={styles.title}>Hi 👋🏻</Text>
-          <Text style={styles.title}>What should I call you?</Text>
+          <Text style={styles.title}>{t('nameInput.greeting')}</Text>
+          <Text style={styles.title}>{t('nameInput.question')}</Text>
         </View>
 
         <View style={styles.inputContainer}>
@@ -85,7 +87,7 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
             <TextInput
               ref={textInputRef}
               style={styles.input}
-              placeholder="Write your name here"
+              placeholder={t('nameInput.placeholder')}
               placeholderTextColor="rgba(255, 255, 255, 0.3)"
               value={name}
               onChangeText={setName}
@@ -111,7 +113,7 @@ const NameInputScreen: React.FC<NameInputScreenProps> = ({ navigation }) => {
           style={styles.button}
           onPress={handleContinue}
         >
-          <Text style={styles.buttonText}>Continue</Text>
+          <Text style={styles.buttonText}>{t('nameInput.continue')}</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
     </View>

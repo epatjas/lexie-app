@@ -4,6 +4,7 @@ import { X, Play, Pause, Rewind, FastForward } from 'lucide-react-native';
 import { useAudio } from '../hooks/useAudio';
 import { StudyMaterials } from '../types/types';
 import theme from '../styles/theme';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface AudioPlayerProps {
   content: StudyMaterials;
@@ -12,6 +13,7 @@ interface AudioPlayerProps {
 }
 
 const AudioPlayer: React.FC<AudioPlayerProps> = ({ content, selectedTab, onClose }) => {
+  const { t } = useTranslation();
   const { 
     playAudio, 
     pauseAudio, 
@@ -64,6 +66,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ content, selectedTab, onClose
         <TouchableOpacity 
           style={styles.playButton}
           onPress={handlePlayPause}
+          accessibilityLabel={isPlaying ? t('common.pause') : t('common.play')}
         >
           {isPlaying ? (
             <Pause color="#FFF" size={24} />
@@ -77,15 +80,27 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ content, selectedTab, onClose
       </View>
       
       <View style={styles.audioRightControls}>
-        <TouchableOpacity style={styles.skipButton} onPress={skipBackward}>
+        <TouchableOpacity 
+          style={styles.skipButton} 
+          onPress={skipBackward}
+          accessibilityLabel={t('common.back')}
+        >
           <Rewind color="#FFF" size={16} />
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.skipButton} onPress={skipForward}>
+        <TouchableOpacity 
+          style={styles.skipButton} 
+          onPress={skipForward}
+          accessibilityLabel={t('common.next')}
+        >
           <FastForward color="#FFF" size={16} />
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+        <TouchableOpacity 
+          style={styles.closeButton} 
+          onPress={onClose}
+          accessibilityLabel={t('common.close')}
+        >
           <X color="#FFF" size={24} />
         </TouchableOpacity>
       </View>

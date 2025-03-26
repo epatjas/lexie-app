@@ -12,6 +12,7 @@ import { RootStackParamList } from '../types/navigation';
 import { Check, X, PieChart, ChevronLeft } from 'lucide-react-native';
 import theme from '../styles/theme';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { useTranslation } from '../i18n/LanguageContext';
 
 type FlashcardResultsScreenProps = NativeStackScreenProps<RootStackParamList, 'FlashcardResults'>;
 
@@ -20,6 +21,7 @@ const cardWidth = width - 48;
 const CHART_SIZE = cardWidth * 0.7; // Size of our chart
 
 export default function FlashcardResultsScreen({ route, navigation }: FlashcardResultsScreenProps) {
+  const { t } = useTranslation();
   const { knownCount = 0, learningCount = 0, total = 0, studySetId, learningIndices = [] } = route.params;
   
   // Fix the percentage calculation and add more debugging
@@ -88,23 +90,23 @@ export default function FlashcardResultsScreen({ route, navigation }: FlashcardR
         >
           <ChevronLeft color={theme.colors.text} size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Learn</Text>
+        <Text style={styles.headerTitle}>{t('flashcards.title')}</Text>
         <View style={{ width: 24 }} />
       </View>
       
       <View style={styles.content}>
-        <Text style={styles.title}>Brilliant work.</Text>
+        <Text style={styles.title}>{t('flashcardResults.congratsTitle')}</Text>
         
         <View style={styles.statsCard}>
           <View style={styles.progressHeader}>
             <PieChart color="#F5D76E" size={16} style={styles.progressIcon} />
-            <Text style={styles.progressText}>Your progress</Text>
+            <Text style={styles.progressText}>{t('flashcardResults.progressTitle')}</Text>
           </View>
           
           <View style={styles.percentageContainer}>
             <Text style={styles.percentageNumber}>{progressPercentage}%</Text>
             <Text style={styles.percentageLabel}>
-              Terms{'\n'}Mastered
+              {t('flashcardResults.termsMastered')}
             </Text>
           </View>
           
@@ -141,7 +143,7 @@ export default function FlashcardResultsScreen({ route, navigation }: FlashcardR
               <View style={styles.knownIconCircle}>
                 <Check color="#333333" size={14} />
               </View>
-              <Text style={styles.statLabel}>Mastered</Text>
+              <Text style={styles.statLabel}>{t('flashcardResults.masteredLabel')}</Text>
               <Text style={styles.statValue}>{knownCount}</Text>
             </View>
             
@@ -149,7 +151,7 @@ export default function FlashcardResultsScreen({ route, navigation }: FlashcardR
               <View style={styles.learningIconCircle}>
                 <X color="#333333" size={14} />
               </View>
-              <Text style={styles.statLabel}>Still learning</Text>
+              <Text style={styles.statLabel}>{t('flashcardResults.stillLearningLabel')}</Text>
               <Text style={styles.statValue}>{learningCount}</Text>
             </View>
           </View>
@@ -160,7 +162,7 @@ export default function FlashcardResultsScreen({ route, navigation }: FlashcardR
             style={styles.primaryButton}
             onPress={handlePracticeWithQuestions}
           >
-            <Text style={styles.primaryButtonText}>Practise with questions</Text>
+            <Text style={styles.primaryButtonText}>{t('flashcardResults.practiceButton')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -169,8 +171,8 @@ export default function FlashcardResultsScreen({ route, navigation }: FlashcardR
           >
             <Text style={styles.secondaryButtonText}>
               {learningCount > 0 
-                ? `Keep reviewing ${learningCount} terms` 
-                : 'Restart flashcards'}
+                ? t('flashcardResults.keepReviewingButton', { count: learningCount })
+                : t('flashcardResults.restartButton')}
             </Text>
           </TouchableOpacity>
         </View>

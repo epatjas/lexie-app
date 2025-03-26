@@ -14,6 +14,7 @@ import { Check, ChevronLeft } from 'lucide-react-native';
 import theme from '../styles/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontSettings, FONT_SETTINGS_KEY } from '../types/fontSettings';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface FontSelectionSheetProps {
   visible: boolean;
@@ -43,6 +44,8 @@ const FontSelectionSheet: React.FC<FontSelectionSheetProps> = ({
   isAllCaps,
   onFontChange,
 }) => {
+  const { t } = useTranslation();
+  
   // Use a single animation for the sheet
   const [sheetAnimation] = React.useState(new Animated.Value(SCREEN_HEIGHT));
   
@@ -139,7 +142,7 @@ const FontSelectionSheet: React.FC<FontSelectionSheetProps> = ({
             <TouchableOpacity onPress={onBack} style={styles.backButton}>
               <ChevronLeft color={theme.colors.text} size={20} />
             </TouchableOpacity>
-            <Text style={styles.title}>Choose font</Text>
+            <Text style={styles.title}>{t('fontSettings.title')}</Text>
             <View style={{ width: 20 }} />
           </View>
 
@@ -151,7 +154,9 @@ const FontSelectionSheet: React.FC<FontSelectionSheetProps> = ({
                   style={styles.optionRow}
                   onPress={() => handleFontSelect(font)}
                 >
-                  <Text style={getFontStyle(font)}>{font}</Text>
+                  <Text style={getFontStyle(font)}>
+                    {t(`fontSettings.${font.toLowerCase().replace('-', '')}`)}
+                  </Text>
                   {selectedFont === font && (
                     <View style={styles.selectedIndicator}>
                       <Check color="#000" size={12} />
@@ -161,7 +166,7 @@ const FontSelectionSheet: React.FC<FontSelectionSheetProps> = ({
               ))}
             </View>
             
-            <Text style={styles.sectionTitle}>CASE</Text>
+            <Text style={styles.sectionTitle}>{t('fontSettings.case')}</Text>
             <View style={styles.caseOptions}>
               <TouchableOpacity
                 style={[

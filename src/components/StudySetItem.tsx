@@ -3,6 +3,7 @@ import { TouchableOpacity, Text, View, StyleSheet } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
 import theme from '../styles/theme';
 import { StudySet } from '../types/types';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface StudySetItemProps {
   studySet: StudySet;
@@ -10,7 +11,11 @@ interface StudySetItemProps {
 }
 
 export default function StudySetItem({ studySet, onPress }: StudySetItemProps) {
-  const formattedDate = new Date(studySet.created_at).toLocaleDateString('fi-FI', {
+  const { language } = useTranslation();
+  
+  const locale = language === 'fi' ? 'fi-FI' : 'en-US';
+  
+  const formattedDate = new Date(studySet.created_at).toLocaleDateString(locale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric'

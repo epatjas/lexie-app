@@ -18,6 +18,7 @@ import Animated, {
 import theme from '../styles/theme';
 import { FOLDER_COLOR_OPTIONS } from '../constants/colors';
 import DragHandle from './DragHandle';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface FolderEditModalProps {
   visible: boolean;
@@ -36,6 +37,7 @@ export default function FolderEditModal({
   folderName,
   folderColor,
 }: FolderEditModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState(folderName);
   const [selectedColor, setSelectedColor] = useState(folderColor);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -113,15 +115,15 @@ export default function FolderEditModal({
 
   const handleDelete = async () => {
     Alert.alert(
-      'Delete folder',
-      'Are you sure you want to delete this folder? This action cannot be undone.',
+      t('folders.edit.alerts.deleteTitle'),
+      t('folders.edit.alerts.deleteMessage'),
       [
         {
-          text: 'Cancel',
+          text: t('folders.edit.alerts.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Delete',
+          text: t('folders.edit.alerts.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -129,7 +131,7 @@ export default function FolderEditModal({
               await onDelete();
               onClose();
             } catch (error) {
-              Alert.alert('Error', 'Failed to delete folder');
+              Alert.alert(t('alerts.error'), t('folders.edit.alerts.error'));
             } finally {
               setIsDeleting(false);
             }
@@ -157,12 +159,12 @@ export default function FolderEditModal({
               <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
                 <ChevronLeft color={theme.colors.text} size={20} />
               </TouchableOpacity>
-              <Text style={styles.title}>Edit folder</Text>
+              <Text style={styles.title}>{t('folders.edit.title')}</Text>
             </View>
 
             <View style={styles.content}>
               <View style={styles.inputSection}>
-                <Text style={styles.label}>Folder name</Text>
+                <Text style={styles.label}>{t('folders.edit.nameLabel')}</Text>
                 <TextInput
                   style={styles.input}
                   value={name}
@@ -175,19 +177,19 @@ export default function FolderEditModal({
                       setShowValidation(true);
                     }
                   }}
-                  placeholder="Enter folder name"
+                  placeholder={t('folders.edit.namePlaceholder')}
                   placeholderTextColor={theme.colors.textSecondary}
                 />
                 {showValidation && (
                   <View style={styles.validationMessage}>
                     <AlertCircle color="#FF6B6B" size={16} />
-                    <Text style={styles.validationText}>Please enter a folder name</Text>
+                    <Text style={styles.validationText}>{t('folders.edit.validation')}</Text>
                   </View>
                 )}
               </View>
 
               <View style={styles.colorSection}>
-                <Text style={styles.label}>Pick a color</Text>
+                <Text style={styles.label}>{t('folders.edit.colorLabel')}</Text>
                 <View style={styles.colorGrid}>
                   {FOLDER_COLOR_OPTIONS.map((color) => (
                     <TouchableOpacity
@@ -222,7 +224,7 @@ export default function FolderEditModal({
             >
               <Trash2 color={theme.colors.text} size={20} />
               <Text style={styles.deleteButtonText}>
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting ? t('folders.edit.deletingButton') : t('folders.edit.deleteButton')}
               </Text>
             </TouchableOpacity>
           </Animated.View>

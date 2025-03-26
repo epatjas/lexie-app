@@ -18,6 +18,7 @@ import Animated, {
 import theme from '../styles/theme';
 import { FOLDER_COLOR_OPTIONS, FOLDER_COLORS } from '../constants/colors';
 import DragHandle from './DragHandle';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface FolderCreationModalProps {
   visible: boolean;
@@ -32,6 +33,7 @@ export default function FolderCreationModal({
   onCreate,
   onSuccess,
 }: FolderCreationModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState<string>(FOLDER_COLORS.pink);
   const [showValidation, setShowValidation] = useState(false);
@@ -82,7 +84,7 @@ export default function FolderCreationModal({
         onSuccess?.();
         onClose();
       } catch (error) {
-        Alert.alert('Error', error instanceof Error ? error.message : 'Unknown error');
+        Alert.alert(t('alerts.error'), error instanceof Error ? error.message : t('alerts.error'));
       }
     } else {
       setShowValidation(true);
@@ -108,13 +110,13 @@ export default function FolderCreationModal({
               <TouchableOpacity onPress={onClose} style={styles.backButton}>
                 <ChevronLeft color={theme.colors.text} size={20} />
               </TouchableOpacity>
-              <Text style={styles.title}>Create folder</Text>
+              <Text style={styles.title}>{t('folders.creation.title')}</Text>
             </View>
 
             <View style={styles.content}>
               {/* Folder name input */}
               <View style={styles.inputSection}>
-                <Text style={styles.label}>Folder name</Text>
+                <Text style={styles.label}>{t('folders.creation.nameLabel')}</Text>
                 <TextInput
                   style={styles.input}
                   value={name}
@@ -124,20 +126,20 @@ export default function FolderCreationModal({
                       setShowValidation(false);
                     }
                   }}
-                  placeholder="ie. Math, Science, etc."
+                  placeholder={t('folders.creation.namePlaceholder')}
                   placeholderTextColor={theme.colors.textSecondary}
                 />
                 {showValidation && (
                   <View style={styles.validationMessage}>
                     <AlertCircle color="#FF6B6B" size={16} />
-                    <Text style={styles.validationText}>Please enter a folder name</Text>
+                    <Text style={styles.validationText}>{t('folders.creation.validation')}</Text>
                   </View>
                 )}
               </View>
 
               {/* Updated color selection */}
               <View style={styles.colorSection}>
-                <Text style={styles.label}>Pick a color</Text>
+                <Text style={styles.label}>{t('folders.creation.colorLabel')}</Text>
                 <View style={styles.colorGrid}>
                   {FOLDER_COLOR_OPTIONS.map((color) => (
                     <TouchableOpacity
@@ -171,7 +173,7 @@ export default function FolderCreationModal({
               onPress={handleCreate}
             >
               <Text style={styles.createButtonText}>
-                Create new folder
+                {t('folders.creation.createButton')}
               </Text>
             </TouchableOpacity>
           </Animated.View>

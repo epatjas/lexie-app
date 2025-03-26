@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Folder, Trash2, Globe, Type, ChevronRight, ChevronLeft, Check } from 'lucide-react-native';
 import theme from '../styles/theme';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface StudySetSettingsSheetProps {
   visible: boolean;
@@ -43,6 +44,7 @@ const StudySetSettingsSheet: React.FC<StudySetSettingsSheetProps> = ({
   language = 'English',
   selectedFont = 'Standard',
 }) => {
+  const { t } = useTranslation();
   const [animation] = React.useState(new Animated.Value(SCREEN_HEIGHT));
 
   React.useEffect(() => {
@@ -80,14 +82,14 @@ const StudySetSettingsSheet: React.FC<StudySetSettingsSheetProps> = ({
 
           <View style={styles.languageSection}>
             <Text style={styles.languageLabel}>
-              Study set language
+              {t('studySetSettings.language')}
             </Text>
             <View style={styles.languageValueContainer}>
               <Text style={styles.languageValue}>
                 {language}
               </Text>
               <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonText}>Coming soon</Text>
+                <Text style={styles.comingSoonText}>{t('settings.comingSoon')}</Text>
               </View>
             </View>
           </View>
@@ -95,7 +97,7 @@ const StudySetSettingsSheet: React.FC<StudySetSettingsSheetProps> = ({
           <TouchableOpacity style={styles.option} onPress={onFolderPress}>
             <Folder color={theme.colors.text} size={20} />
             <Text style={styles.optionText}>
-              Choose folder
+              {t('studySetSettings.chooseFolder')}
             </Text>
             
             <View style={styles.rightContainer}>
@@ -110,7 +112,7 @@ const StudySetSettingsSheet: React.FC<StudySetSettingsSheetProps> = ({
 
           <TouchableOpacity style={styles.option} onPress={onChangeFontPress}>
             <Type color={theme.colors.text} size={20} />
-            <Text style={styles.optionText}>Choose font</Text>
+            <Text style={styles.optionText}>{t('studySetSettings.chooseFont')}</Text>
             <View style={styles.rightContainer}>
               <Text style={styles.selectionText}>{selectedFont}</Text>
               <ChevronRight color={theme.colors.textSecondary} size={20} style={styles.chevronIcon} />
@@ -119,7 +121,7 @@ const StudySetSettingsSheet: React.FC<StudySetSettingsSheetProps> = ({
 
           <TouchableOpacity style={styles.deleteOption} onPress={onDeletePress}>
             <Trash2 color="#FFFFFF" size={20} />
-            <Text style={styles.deleteText}>Delete lesson</Text>
+            <Text style={styles.deleteText}>{t('studySetSettings.deleteLesson')}</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>

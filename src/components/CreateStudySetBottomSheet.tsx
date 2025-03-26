@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { getActiveProfile } from '../utils/storage';
 import { createStudySet } from '../services/Database';
+import { useTranslation } from '../i18n/LanguageContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -24,12 +25,13 @@ export default function CreateStudySetBottomSheet({ onClose, visible, existingPh
   console.log('CreateStudySetBottomSheet rendered with:', { visible, existingPhotos });
   
   const navigation = useNavigation<NavigationProp>();
+  const { t } = useTranslation();
 
   const handleImagePicker = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (!permissionResult.granted) {
-      alert('Permission to access camera roll is required.');
+      alert(t('alerts.photoLibraryPermission'));
       return;
     }
 
@@ -90,9 +92,9 @@ export default function CreateStudySetBottomSheet({ onClose, visible, existingPh
               <Camera size={24} color={theme.colors.background} />
             </View>
             <View style={styles.textContainer}>
-              <Text style={styles.optionTitle}>Take photo</Text>
+              <Text style={styles.optionTitle}>{t('scanPage.title')}</Text>
               <Text style={styles.optionDescription}>
-              Use camera to capture the content
+                {t('chat.takePhoto')}
               </Text>
             </View>
           </TouchableOpacity>
@@ -102,9 +104,9 @@ export default function CreateStudySetBottomSheet({ onClose, visible, existingPh
               <ImageIcon size={24} color={theme.colors.background} />
             </View>
             <View style={styles.textContainer}>
-              <Text style={styles.optionTitle}>Choose photo</Text>
+              <Text style={styles.optionTitle}>{t('chat.chooseFromLibrary')}</Text>
               <Text style={styles.optionDescription}>
-              Pick one from your device
+                {t('preview.chooseMore')}
               </Text>
             </View>
           </TouchableOpacity>

@@ -17,10 +17,12 @@ import { useFolders } from '../hooks/useFolders';
 import StudySetItem from '../components/StudySetItem';
 import FolderEditModal from '../components/FolderEditModal';
 import { getDatabase } from '../services/Database';
+import { useTranslation } from '../i18n/LanguageContext';
 
 type FolderScreenProps = NativeStackScreenProps<RootStackParamList, 'Folder'>;
 
 export default function FolderScreen({ route, navigation }: FolderScreenProps) {
+  const { t } = useTranslation();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const { folderId } = route.params;
   const { studySets, refreshStudySets, loading } = useStudySets();
@@ -98,7 +100,7 @@ export default function FolderScreen({ route, navigation }: FolderScreenProps) {
           >
             <ArrowLeft color={theme.colors.text} size={24} />
           </TouchableOpacity>
-          <Text style={styles.title}>Loading...</Text>
+          <Text style={styles.title}>{t('folder.loading')}</Text>
           <View style={{ width: 40 }} />
         </View>
       </SafeAreaView>
@@ -115,7 +117,7 @@ export default function FolderScreen({ route, navigation }: FolderScreenProps) {
       navigation.goBack();
     } catch (error) {
       console.error('Error deleting folder:', error);
-      Alert.alert('Error', 'Failed to delete folder');
+      Alert.alert(t('alerts.error'), t('folder.alerts.deleteError'));
     }
   };
 
@@ -125,7 +127,7 @@ export default function FolderScreen({ route, navigation }: FolderScreenProps) {
       setEditModalVisible(false);
     } catch (error) {
       console.error('Error saving folder:', error);
-      Alert.alert('Error', 'Failed to save folder changes');
+      Alert.alert(t('alerts.error'), t('folder.alerts.saveError'));
     }
   };
 
@@ -137,7 +139,7 @@ export default function FolderScreen({ route, navigation }: FolderScreenProps) {
             <BookOpen color={theme.colors.textSecondary} size={32} />
           </View>
           <Text style={styles.emptyText}>
-            Tässä kansiossa ei ole vielä harjoittelusettejä
+            {t('folder.empty')}
           </Text>
         </View>
       );

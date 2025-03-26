@@ -21,6 +21,7 @@ import { Folder as FolderType } from '../types/types';
 import { FOLDER_COLORS } from '../constants/colors';
 import FolderEditModal from './FolderEditModal';
 import DragHandle from './DragHandle';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface FolderSelectModalProps {
   visible: boolean;
@@ -32,19 +33,22 @@ interface FolderSelectModalProps {
   onUpdateFolder: (folderId: string, name: string, color: string) => void;
 }
 
-const EmptyState = () => (
-  <View style={styles.emptyStateContainer}>
-    <View style={styles.emptyStateIconContainer}>
-      <Folder 
-        size={20}
-        color={theme.colors.textSecondary}
-      />
+const EmptyState = () => {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.emptyStateContainer}>
+      <View style={styles.emptyStateIconContainer}>
+        <Folder 
+          size={20}
+          color={theme.colors.textSecondary}
+        />
+      </View>
+      <Text style={styles.emptyStateText}>
+        {t('folders.selection.empty')}
+      </Text>
     </View>
-    <Text style={styles.emptyStateText}>
-      Sinulla ei ole vielä kansiota
-    </Text>
-  </View>
-);
+  );
+}
 
 const FolderItem = ({ folder, isSelected, onPress, onMorePress }) => (
   <TouchableOpacity
@@ -86,6 +90,7 @@ export default function FolderSelectModal({
   onSelect,
   onUpdateFolder,
 }: FolderSelectModalProps) {
+  const { t } = useTranslation();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<FolderType | null>(null);
 
@@ -150,7 +155,7 @@ export default function FolderSelectModal({
         setSelectedFolder(null);
       } catch (error) {
         console.error('Error saving folder:', error);
-        Alert.alert('Error', 'Failed to save folder changes');
+        Alert.alert(t('alerts.error'), t('folders.edit.alerts.saveError'));
       }
     }
   };
@@ -174,7 +179,7 @@ export default function FolderSelectModal({
                 <TouchableOpacity onPress={onClose} style={styles.backButton}>
                   <ChevronLeft color={theme.colors.text} size={20} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Choose folder</Text>
+                <Text style={styles.headerTitle}>{t('folders.selection.title')}</Text>
               </View>
 
               <ScrollView 
@@ -185,7 +190,7 @@ export default function FolderSelectModal({
                   <EmptyState />
                 ) : (
                   <>
-                    <Text style={styles.subTitle}>Choose or create new</Text>
+                    <Text style={styles.subTitle}>{t('folders.selection.subtitle')}</Text>
                     {folders.map(folder => (
                       <FolderItem
                         key={folder.id}
@@ -203,7 +208,7 @@ export default function FolderSelectModal({
                 style={styles.createButton}
                 onPress={onCreateNew}
               >
-                <Text style={styles.createButtonText}>Create new folder</Text>
+                <Text style={styles.createButtonText}>{t('folders.selection.createButton')}</Text>
               </TouchableOpacity>
             </Animated.View>
           </View>

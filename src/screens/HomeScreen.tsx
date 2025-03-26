@@ -30,10 +30,12 @@ import ProfileBadge from '../components/ProfileBadge';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from '../i18n/LanguageContext';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
+  const { t } = useTranslation();
   const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   const [existingPhotos, setExistingPhotos] = useState<Array<{
@@ -210,7 +212,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           }}
         >
           <ChevronLeft color={theme.colors.text} size={20} />
-          <Text style={styles.backButtonText}>Lessons</Text>
+          <Text style={styles.backButtonText}>{t('home.lessons')}</Text>
         </TouchableOpacity>
 
         <ProfileBadge 
@@ -229,10 +231,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       <View style={styles.contentContainer}>
         <View style={styles.textContainer}>
           <Text style={styles.greeting}>
-            Hi 👋🏻 {activeProfile?.name}!
+            {t('home.greeting')} {activeProfile?.name}!
           </Text>
           <Text style={styles.questionText}>
-            What do you want to{'\n'}learn today?
+            {t('home.questionPrompt')}
           </Text>
         </View>
       </View>
@@ -243,7 +245,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           onPress={handleStartLesson}
         >
           <Text style={styles.startButtonText}>
-            Start a lesson with Lexie
+            {t('home.startLesson')}
           </Text>
         </TouchableOpacity>
       </View>

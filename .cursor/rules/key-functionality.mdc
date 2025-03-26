@@ -1,0 +1,34 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+#LexieLearn transforms study materials into tailored learning tools through a smart photo-based process:
+
+Input: User takes a photo of study material (textbook page, worksheet, notes)
+Content Analysis: System identifies content type and learning context:
+
+Exam preparation materials
+Homework assignments
+
+#Adaptive Output Generation: Creates context-appropriate resources:
+
+For Exam Prep: Complete lesson package with quizzes, flashcards, summary, original text, and audio versions
+For Homework: Concept cards and focused guidance to help solve problems
+
+#Interactive Learning Support:
+
+Chat functionality for students to ask follow-up questions
+Personalized explanations when students get stuck
+Contextual help based on the specific material
+
+#Multi-format Delivery: All content available in text and audio formats for different learning preferences
+Independent Usage: Students can:
+
+Access complete lessons for exam preparation
+Get targeted help with homework challenges
+Ask questions to deepen understanding
+Review material in their preferred format
+
+This adaptive approach means LexieLearn provides the right type of support based on the student's actual needs - comprehensive lesson packages for exam study or targeted assistance for homework challenges - all while maintaining the independence and confidence-building aspects of the system.

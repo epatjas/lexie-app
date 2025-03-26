@@ -26,6 +26,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from '../i18n/LanguageContext';
+import LanguageSelector from '../components/LanguageSelector';
 
 export default function SettingsScreen({ 
   navigation, 
@@ -40,6 +42,10 @@ export default function SettingsScreen({
 }) {
   const progress = useSharedValue(0);
   const [activeProfile, refreshProfile] = useActiveProfile();
+  const { t, language } = useTranslation();
+  
+  // Add state for language selector visibility
+  const [languageSelectorVisible, setLanguageSelectorVisible] = React.useState(false);
 
   React.useEffect(() => {
     if (visible) {
@@ -100,15 +106,15 @@ export default function SettingsScreen({
     if (!activeProfile?.id) return;
 
     Alert.alert(
-      "Delete Profile",
-      "Are you sure you want to delete this profile? This action cannot be undone.",
+      t('settings.deleteProfile.title'),
+      t('settings.deleteProfile.message'),
       [
         {
-          text: "Cancel",
+          text: t('settings.deleteProfile.cancel'),
           style: "cancel"
         },
         {
-          text: "Delete",
+          text: t('settings.deleteProfile.confirm'),
           style: "destructive",
           onPress: async () => {
             try {
@@ -118,7 +124,7 @@ export default function SettingsScreen({
               console.log('Profile deleted successfully:', activeProfile.id);
             } catch (error) {
               console.error('Error deleting profile:', error);
-              Alert.alert('Error', 'Failed to delete profile');
+              Alert.alert(t('alerts.error'), t('settings.deleteProfile.error'));
             }
           }
         }
@@ -128,15 +134,15 @@ export default function SettingsScreen({
 
   const handleLogout = () => {
     Alert.alert(
-      "Log Out",
-      "Are you sure you want to log out?",
+      t('settings.logout.title'),
+      t('settings.logout.message'),
       [
         {
-          text: "Cancel",
+          text: t('settings.logout.cancel'),
           style: "cancel"
         },
         {
-          text: "Log Out",
+          text: t('settings.logout.confirm'),
           onPress: async () => {
             // Clear active profile
             await AsyncStorage.removeItem('@active_profile');
@@ -154,6 +160,14 @@ export default function SettingsScreen({
         }
       ]
     );
+  };
+
+  // Map language codes to display names
+  const getLanguageDisplayName = (code: string): string => {
+    switch (code) {
+      case 'fi': return 'Suomi';
+      case 'en': default: return 'English';
+    }
   };
 
   return (
@@ -176,7 +190,7 @@ export default function SettingsScreen({
           <TouchableOpacity onPress={onClose} style={styles.backButton}>
             <ChevronLeft color={theme.colors.text} size={20} />
           </TouchableOpacity>
-          <Text style={styles.title}>Settings</Text>
+          <Text style={styles.title}>{t('settings.title')}</Text>
           <View style={styles.backButton} />
         </View>
         
@@ -207,14 +221,14 @@ export default function SettingsScreen({
             }}
           >
             <View>
-              <Text style={{color: theme.colors.text, opacity: 0.7, fontSize: 14}}>Profile</Text>
+              <Text style={{color: theme.colors.text, opacity: 0.7, fontSize: 14}}>{t('settings.profile')}</Text>
               <Text style={{color: theme.colors.text, fontSize: 16}}>{activeProfile?.name || 'Ilona'}</Text>
             </View>
             <ChevronRight color={theme.colors.text} size={20} />
           </TouchableOpacity>
 
-          {/* Language Section */}
-          <View 
+          {/* Language Section - Updated to be a TouchableOpacity */}
+          <TouchableOpacity 
             style={{
               backgroundColor: 'transparent', 
               borderWidth: 1,
@@ -226,24 +240,14 @@ export default function SettingsScreen({
               justifyContent: 'space-between',
               alignItems: 'center'
             }}
+            onPress={() => setLanguageSelectorVisible(true)}
           >
             <View>
-              <Text style={{color: theme.colors.text, opacity: 0.7, fontSize: 14}}>Language</Text>
-              <Text style={{color: theme.colors.text, fontSize: 16}}>English</Text>
+              <Text style={{color: theme.colors.text, opacity: 0.7, fontSize: 14}}>{t('settings.language')}</Text>
+              <Text style={{color: theme.colors.text, fontSize: 16}}>{getLanguageDisplayName(language)}</Text>
             </View>
-            <View style={{
-              backgroundColor: theme.colors.background02,
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 12,
-            }}>
-              <Text style={{
-                fontSize: 12,
-                color: theme.colors.textSecondary,
-                fontFamily: theme.fonts.regular,
-              }}>Coming soon</Text>
-            </View>
-          </View>
+            <ChevronRight color={theme.colors.text} size={20} />
+          </TouchableOpacity>
 
           {/* Profile Settings Option */}
           <TouchableOpacity 
@@ -257,7 +261,7 @@ export default function SettingsScreen({
             onPress={() => navigation.navigate('ProfileSettings')}
           >
             <UserCog size={20} color={theme.colors.text} style={{marginRight: 12}} />
-            <Text style={{flex: 1, color: 'white', fontSize: 16}}>Profile settings</Text>
+            <Text style={{flex: 1, color: 'white', fontSize: 16}}>{t('settings.profileSettings')}</Text>
             <ChevronRight color={theme.colors.text} size={16} />
           </TouchableOpacity>
 
@@ -273,7 +277,7 @@ export default function SettingsScreen({
             onPress={() => handleOpenLink('https://www.lexielearn.com/terms')}
           >
             <FileText size={20} color={theme.colors.text} style={{marginRight: 12}} />
-            <Text style={{flex: 1, color: 'white', fontSize: 16}}>Terms & conditions</Text>
+            <Text style={{flex: 1, color: 'white', fontSize: 16}}>{t('settings.termsConditions')}</Text>
             <ChevronRight color={theme.colors.text} size={16} />
           </TouchableOpacity>
 
@@ -289,7 +293,7 @@ export default function SettingsScreen({
             onPress={() => navigation.navigate('Feedback')}
           >
             <Sparkles size={20} color={theme.colors.text} style={{marginRight: 12}} />
-            <Text style={{flex: 1, color: 'white', fontSize: 16}}>Give feedback</Text>
+            <Text style={{flex: 1, color: 'white', fontSize: 16}}>{t('settings.giveFeedback')}</Text>
             <ChevronRight color={theme.colors.text} size={16} />
           </TouchableOpacity>
           
@@ -298,10 +302,17 @@ export default function SettingsScreen({
             alignItems: 'center', 
             marginBottom: 10
           }}>
-            <Text style={{color: theme.colors.text, fontSize: 14}}>Thank you for choosing LexieLearn.</Text>
+            <Text style={{color: theme.colors.text, fontSize: 14}}>{t('settings.footer.thankYou')}</Text>
             <View style={{height: 8}} />
-            <Text style={{color: theme.colors.text, fontSize: 14}}>We love you.</Text>
+            <Text style={{color: theme.colors.text, fontSize: 14}}>{t('settings.footer.loveLine')}</Text>
           </View>
+
+          {/* Add Language Selector modal with proper props */}
+          <LanguageSelector 
+            visible={languageSelectorVisible}
+            onClose={() => setLanguageSelectorVisible(false)}
+            onBack={() => setLanguageSelectorVisible(false)}
+          />
         </View>
       </Animated.View>
     </View>

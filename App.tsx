@@ -35,6 +35,7 @@ import {
 import {
   IBMPlexMono_400Regular
 } from '@expo-google-fonts/ibm-plex-mono';
+import { LanguageProvider } from './src/i18n/LanguageContext';
 
 LogBox.ignoreLogs([
   "It looks like you might be using shared value's .value inside reanimated inline style"
@@ -183,25 +184,27 @@ export default function App() {
   console.log("Rendering main navigation, isFirstTime:", isFirstTime);
   
   return (
-    <ProfileProvider>
-      <View style={{ flex: 1 }}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <NavigationContainer 
-            ref={navigationRef}
-            onReady={() => {
-              console.log('[App] NavigationContainer READY');
-              processNavigationQueue();
-            }}
-            onStateChange={(state) => {
-              console.log('[App] Navigation state changed:', 
-                state?.routes?.map(r => r.name) || 'No routes');
-            }}
-          >
-            <AppNavigator initialRouteName={isFirstTime ? "Welcome" : "ProfileSelection"} />
-          </NavigationContainer>
-        </GestureHandlerRootView>
-      </View>
-    </ProfileProvider>
+    <LanguageProvider>
+      <ProfileProvider>
+        <View style={{ flex: 1 }}>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <NavigationContainer 
+              ref={navigationRef}
+              onReady={() => {
+                console.log('[App] NavigationContainer READY');
+                processNavigationQueue();
+              }}
+              onStateChange={(state) => {
+                console.log('[App] Navigation state changed:', 
+                  state?.routes?.map(r => r.name) || 'No routes');
+              }}
+            >
+              <AppNavigator initialRouteName={isFirstTime ? "Welcome" : "ProfileSelection"} />
+            </NavigationContainer>
+          </GestureHandlerRootView>
+        </View>
+      </ProfileProvider>
+    </LanguageProvider>
   );
 }
 

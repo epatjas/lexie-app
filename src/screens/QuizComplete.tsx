@@ -11,38 +11,40 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { CheckCircle, Timer } from 'lucide-react-native';
 import ParticleBackground from '../components/ParticleBackground';
+import { useTranslation } from '../i18n/LanguageContext';
 
 type QuizCompleteScreenProps = NativeStackScreenProps<RootStackParamList, 'QuizComplete'>;
 
 export default function QuizCompleteScreen({ route, navigation }: QuizCompleteScreenProps) {
+  const { t } = useTranslation();
   const { correctAnswers, totalQuestions, timeSpent, studySetId } = route.params;
   const percentage = Math.round((correctAnswers / totalQuestions) * 100);
 
   const getCompletionMessage = (score: number): { title: string; subtitle: string } => {
     if (score === 100) {
       return {
-        title: 'Perfect score',
-        subtitle: 'You know this material well'
+        title: t('quizComplete.results.perfect.title'),
+        subtitle: t('quizComplete.results.perfect.subtitle')
       };
     } else if (score >= 80) {
       return {
-        title: 'Strong work',
-        subtitle: 'You got most of it right'
+        title: t('quizComplete.results.excellent.title'),
+        subtitle: t('quizComplete.results.excellent.subtitle')
       };
     } else if (score >= 60) {
       return {
-        title: 'Good progress',
-        subtitle: 'Keep practicing these concepts'
+        title: t('quizComplete.results.good.title'),
+        subtitle: t('quizComplete.results.good.subtitle')
       };
     } else if (score >= 40) {
       return {
-        title: 'Getting started',
-        subtitle: 'Try reviewing the material again'
+        title: t('quizComplete.results.average.title'),
+        subtitle: t('quizComplete.results.average.subtitle')
       };
     } else {
       return {
-        title: 'Room to improve',
-        subtitle: 'Focus on the basics first'
+        title: t('quizComplete.results.needsImprovement.title'),
+        subtitle: t('quizComplete.results.needsImprovement.subtitle')
       };
     }
   };
@@ -61,7 +63,7 @@ export default function QuizCompleteScreen({ route, navigation }: QuizCompleteSc
         <View style={styles.statsContainer}>
           <View style={[styles.statBox, { borderColor: theme.colors.yellowDark }]}>
             <Text style={[styles.statLabel, { color: theme.colors.yellowDark }]}>
-              CORRECT
+              {t('quizComplete.stats.correct')}
             </Text>
             <CheckCircle 
               size={24} 
@@ -75,7 +77,7 @@ export default function QuizCompleteScreen({ route, navigation }: QuizCompleteSc
 
           <View style={[styles.statBox, { borderColor: theme.colors.blue }]}>
             <Text style={[styles.statLabel, { color: theme.colors.blue }]}>
-             SUPAFAST
+              {t('quizComplete.stats.time')}
             </Text>
             <Timer 
               size={24} 
@@ -93,7 +95,7 @@ export default function QuizCompleteScreen({ route, navigation }: QuizCompleteSc
         style={styles.button}
         onPress={() => navigation.navigate('StudySet', { id: studySetId })}
       >
-        <Text style={styles.buttonText}>Back to lesson</Text>
+        <Text style={styles.buttonText}>{t('quizComplete.backToLesson')}</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );

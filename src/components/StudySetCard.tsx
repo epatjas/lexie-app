@@ -3,6 +3,7 @@ import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import theme from '../styles/theme';
 import { StudySet } from '../types/types';
 import { useFolders } from '../hooks/useFolders';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface StudySetCardProps {
   studySet: StudySet;
@@ -10,6 +11,7 @@ interface StudySetCardProps {
 }
 
 export default function StudySetCard({ studySet, onPress }: StudySetCardProps) {
+  const { t } = useTranslation();
   const { folders } = useFolders();
   
   const standardizeColor = (color: string | undefined): string => {
@@ -52,11 +54,11 @@ export default function StudySetCard({ studySet, onPress }: StudySetCardProps) {
     return null;
   };
   
-  const folderInfo = getFolderInfo(studySet.id);
+  const folderInfo = getFolderInfo(studySet.id ?? '');
   
   const formatDate = (timestamp: any) => {
     // Handle case where timestamp is invalid
-    if (!timestamp) return 'Date unavailable';
+    if (!timestamp) return t('lessonHistory.dateFormats.unknownDate');
     
     try {
       // Try to create a valid date object
@@ -74,21 +76,26 @@ export default function StudySetCard({ studySet, onPress }: StudySetCardProps) {
         }
       } else {
         // Unknown type
-        return 'Invalid date format';
+        return t('lessonHistory.dateFormats.invalidFormat');
       }
       
       // Check if the date object is valid
       if (isNaN(dateObj.getTime())) {
-        return 'Invalid date';
+        return t('lessonHistory.dateFormats.invalidDate');
       }
       
       // Format for StudySetCard - use full date including year
-      const months = ['January', 'February', 'March', 'April', 'May', 'June', 
-                      'July', 'August', 'September', 'October', 'November', 'December'];
-      return `${dateObj.getDate()} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+      // Use translated month names from our i18n system
+      const monthKey = [
+        'january', 'february', 'march', 'april', 'may', 'june',
+        'july', 'august', 'september', 'october', 'november', 'december'
+      ][dateObj.getMonth()];
+      
+      const monthName = t(`common.months.${monthKey}`);
+      return `${dateObj.getDate()} ${monthName} ${dateObj.getFullYear()}`;
     } catch (error) {
       console.error('Date formatting error:', error);
-      return 'Date error';
+      return t('lessonHistory.dateFormats.dateError');
     }
   };
 
@@ -97,9 +104,7 @@ export default function StudySetCard({ studySet, onPress }: StudySetCardProps) {
       <Text style={styles.title}>{studySet.title}</Text>
       <View style={styles.detailsContainer}>
         <Text style={styles.date}>{formatDate(studySet.created_at)}</Text>
-        {studySet.subject && (
-          <Text style={styles.subject}>• {studySet.subject}</Text>
-        )}
+        <SubjectText studySet={studySet} />
         {folderInfo && (
           <Text style={[
             styles.folder,
@@ -110,6 +115,21 @@ export default function StudySetCard({ studySet, onPress }: StudySetCardProps) {
     </TouchableOpacity>
   );
 }
+
+// Helper component to handle subject rendering while awaiting type updates
+const SubjectText = ({ studySet }: { studySet: StudySet }) => {
+  const { t } = useTranslation();
+  
+  // Access subject safely using any type assertion for now
+  // This is a temporary fix until the StudySet type is updated
+  const subject = (studySet as any).subject;
+  
+  if (!subject) {
+    return <Text style={styles.subject}>• {t('studySet.noSubject')}</Text>;
+  }
+  
+  return <Text style={styles.subject}>• {subject}</Text>;
+};
 
 const styles = StyleSheet.create({
   container: {

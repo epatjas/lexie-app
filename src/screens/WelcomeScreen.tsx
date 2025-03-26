@@ -4,10 +4,13 @@ import ParticleBackground from '../components/ParticleBackground';
 import theme from '../styles/theme';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
+import { useTranslation } from '../i18n/LanguageContext';
 
 type WelcomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
+  const { t } = useTranslation();
+  
   return (
     <SafeAreaView style={styles.container}>
       <ParticleBackground />
@@ -19,10 +22,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
               style={styles.icon}
               resizeMode="contain"
             />
-            <Text style={styles.welcomeText}>LexieLearn</Text>
+            <Text style={styles.welcomeText}>{t('welcome.title')}</Text>
             <Text style={styles.descriptionText}>
-            Take a photo of study material and Lexie turns it into quizzes, flashcards, and audio. 
-            Practice when you need to, how you need to.
+              {t('welcome.description')}
             </Text>
           </View>
         </View>
@@ -34,7 +36,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
               // Include any params you need here
             })}
           >
-            <Text style={styles.buttonText}>Let's start</Text>
+            <Text style={styles.buttonText}>{t('welcome.startButton')}</Text>
           </TouchableOpacity>
         </View>
       </View>

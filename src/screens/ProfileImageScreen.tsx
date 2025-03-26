@@ -12,6 +12,7 @@ import {
 import theme from '../styles/theme';
 import ParticleBackground from '../components/ParticleBackground';
 import { saveUserAvatar, getUserName, saveUserProfile, setActiveProfile } from '../utils/storage';
+import { useTranslation } from '../i18n/LanguageContext';
 
 const PROFILE_IMAGES = [
   { id: '1', source: require('../../assets/Account creation/profile 1.png') },
@@ -32,6 +33,7 @@ interface ProfileImageScreenProps {
 }
 
 const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) => {
+  const { t } = useTranslation();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const handleImageSelect = (imageId: string) => {
@@ -41,9 +43,9 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
   const handleContinue = async () => {
     if (!selectedImage) {
       Alert.alert(
-        "Valitse profiilikuva",
-        "Valitse profiilikuva jatkaaksesi",
-        [{ text: "OK" }]
+        t('profileImage.alerts.selectImageTitle'),
+        t('profileImage.alerts.selectImageMessage'),
+        [{ text: t('alerts.ok') }]
       );
       return;
     }
@@ -79,7 +81,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
     <SafeAreaView style={styles.container}>
       <ParticleBackground />
       <View style={styles.content}>
-        <Text style={styles.title}>Select profile picture</Text>
+        <Text style={styles.title}>{t('profileImage.title')}</Text>
 
         <FlatList
           data={PROFILE_IMAGES}
@@ -94,7 +96,7 @@ const ProfileImageScreen: React.FC<ProfileImageScreenProps> = ({ navigation }) =
           style={styles.button}
           onPress={handleContinue}
         >
-          <Text style={styles.buttonText}>Continue</Text>
+          <Text style={styles.buttonText}>{t('profileImage.continue')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

@@ -7,6 +7,7 @@ import theme from '../styles/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontSettings } from '../types/fontSettings';
 import Markdown from 'react-native-markdown-display';
+import { useTranslation } from '../i18n/LanguageContext';
 
 type ConceptCardScreenProps = NativeStackScreenProps<RootStackParamList, 'ConceptCardScreen'>;
 
@@ -22,6 +23,7 @@ const { width } = Dimensions.get('window');
 const cardWidth = width - 48; // 24px padding on each side
 
 export default function ConceptCardScreen({ route, navigation }: ConceptCardScreenProps) {
+  const { t } = useTranslation();
   console.log('[ConceptCardScreen] Component rendering');
   
   const { cards, title } = route.params;
@@ -274,11 +276,11 @@ export default function ConceptCardScreen({ route, navigation }: ConceptCardScre
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <ChevronLeft color={theme.colors.text} size={24} />
           </TouchableOpacity>
-          <Text style={styles.headerText}>Learn</Text>
+          <Text style={styles.headerText}>{t('flashcards.title')}</Text>
           <View style={styles.placeholderRight} />
         </View>
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No concept cards available.</Text>
+          <Text style={styles.emptyText}>{t('conceptCards.noCards')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -300,7 +302,7 @@ export default function ConceptCardScreen({ route, navigation }: ConceptCardScre
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <ChevronLeft color={theme.colors.text} size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerText}>Learn</Text>
+        <Text style={styles.headerText}>{t('flashcards.title')}</Text>
         <View style={styles.placeholderRight} />
       </View>
       
@@ -335,7 +337,7 @@ export default function ConceptCardScreen({ route, navigation }: ConceptCardScre
             {/* Hint Section */}
             <View style={styles.hintContainer}>
               <View style={styles.hintHeader}>
-                <Text style={styles.hintLabel}>Hint</Text>
+                <Text style={styles.hintLabel}>{t('conceptCards.hint')}</Text>
                 <Brain color={theme.colors.textSecondary} size={16} />
               </View>
               {/* Also use markdown for the hint */}
@@ -345,7 +347,7 @@ export default function ConceptCardScreen({ route, navigation }: ConceptCardScre
             {/* Card Navigation */}
             <View style={styles.cardNavigation}>
               <Text style={styles.paginationText}>
-                {currentIndex + 1} / {cards.length}
+                {t('conceptCards.counter', { current: currentIndex + 1, total: cards.length })}
               </Text>
               <TouchableOpacity>
                 <VolumeIcon color={theme.colors.text} size={20} />
