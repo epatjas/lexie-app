@@ -358,5 +358,8 @@
       "colorLabel": "Pick a color",
       "createButton": "Create new folder"
     }
+  },
+  "audio": {
+    "comingSoon": "Audio feature coming soon!"
   }
 } 

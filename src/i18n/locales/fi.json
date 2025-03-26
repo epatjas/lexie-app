@@ -366,5 +366,8 @@
       "colorLabel": "Valitse väri",
       "createButton": "Luo uusi kansio"
     }
+  },
+  "audio": {
+    "comingSoon": "Ääniominaisuus tulossa pian!"
   }
 } 
