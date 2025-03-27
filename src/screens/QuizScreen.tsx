@@ -6,8 +6,9 @@ import {
   StyleSheet,
   SafeAreaView,
   Alert,
+  Platform,
 } from 'react-native';
-import { ChevronLeft, Check, X } from 'lucide-react-native';
+import { ChevronLeft, Check, X, ThumbsUp, ThumbsDown } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
@@ -107,6 +108,10 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
     size: 16,
     isAllCaps: false
   });
+  
+  // Add new state variables for feedback
+  const [questionFeedbackSubmitted, setQuestionFeedbackSubmitted] = useState<Record<number, boolean>>({});
+  const [showFeedbackToast, setShowFeedbackToast] = useState(false);
   
   const currentQuestion = questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
@@ -223,6 +228,47 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
         setWrongAnswers(prev => prev + 1);
       }
       setAttempts(prev => prev + 1);
+    }
+  };
+
+  const handleQuestionFeedback = async (isPositive: boolean) => {
+    if (!currentQuestion) return;
+    
+    try {
+      // Store feedback in AsyncStorage
+      const feedbackData = {
+        studySetId,
+        questionIndex: currentQuestionIndex,
+        questionText: currentQuestion.question,
+        isPositive,
+        timestamp: new Date().toISOString(),
+      };
+      
+      // Get existing feedback data or initialize empty array
+      const existingDataJson = await AsyncStorage.getItem('quiz_feedback') || '[]';
+      const existingData = JSON.parse(existingDataJson);
+      
+      // Add new feedback and save back to AsyncStorage
+      existingData.push(feedbackData);
+      await AsyncStorage.setItem('quiz_feedback', JSON.stringify(existingData));
+      
+      // Update state to mark this question's feedback as submitted
+      setQuestionFeedbackSubmitted(prev => ({
+        ...prev,
+        [currentQuestionIndex]: true
+      }));
+      
+      // Show toast
+      setShowFeedbackToast(true);
+      
+      // Hide toast after 5 seconds
+      setTimeout(() => {
+        setShowFeedbackToast(false);
+      }, 5000);
+      
+      console.log('Quiz question feedback submitted:', feedbackData);
+    } catch (error) {
+      console.error('Error saving quiz question feedback:', error);
     }
   };
 
@@ -360,6 +406,31 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
               );
             })}
           </View>
+
+          <View style={styles.feedbackContainer}>
+            <View style={styles.feedbackButtons}>
+              <TouchableOpacity 
+                style={styles.feedbackButton} 
+                onPress={() => handleQuestionFeedback(true)}
+                disabled={questionFeedbackSubmitted[currentQuestionIndex]}
+              >
+                <ThumbsUp 
+                  color={theme.colors.textSecondary}
+                  size={16} 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.feedbackButton} 
+                onPress={() => handleQuestionFeedback(false)}
+                disabled={questionFeedbackSubmitted[currentQuestionIndex]}
+              >
+                <ThumbsDown 
+                  color={theme.colors.textSecondary}
+                  size={16} 
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </SafeAreaView>
 
@@ -443,6 +514,23 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Add feedback toast */}
+      {showFeedbackToast && (
+        <View style={styles.feedbackToast}>
+          <View style={styles.closeToastButtonContainer}>
+            <TouchableOpacity 
+              style={styles.closeToastButton}
+              onPress={() => setShowFeedbackToast(false)}
+            >
+              <X color="#FFFFFF" size={16} />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.feedbackToastText}>
+            {t('feedback.thankYou')}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -636,5 +724,66 @@ const styles = StyleSheet.create({
       justifyContent: 'center',
       alignItems: 'center',
       padding: theme.spacing.lg,
+    },
+    feedbackContainer: {
+      flexDirection: 'row',
+      justifyContent: 'flex-start',
+      alignItems: 'center',
+      marginTop: 8,
+      marginBottom: 16,
+    },
+    feedbackButtons: {
+      flexDirection: 'row',
+      justifyContent: 'flex-start',
+      gap: theme.spacing.sm,
+    },
+    feedbackButton: {
+      padding: 8,
+      borderRadius: 20,
+    },
+    feedbackToast: {
+      position: 'absolute',
+      top: Platform.OS === 'ios' ? 90 : 50,
+      left: theme.spacing.md,
+      right: theme.spacing.md,
+      backgroundColor: 'rgba(30, 30, 30, 0.85)',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      zIndex: 1000,
+      borderWidth: 1,
+      borderColor: 'rgba(60, 60, 60, 0.5)',
+      shadowColor: "#000",
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+    },
+    feedbackToastText: {
+      color: 'white',
+      fontSize: 16,
+      fontFamily: theme.fonts.regular,
+      flex: 1,
+      textAlign: 'left',
+      paddingLeft: 0,
+      marginRight: 0,
+    },
+    closeToastButtonContainer: {
+      marginRight: 4,
+      marginLeft: -4,
+    },
+    closeToastButton: {
+      padding: 5,
+      backgroundColor: 'rgba(80, 80, 80, 0.5)',
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: 24,
+      height: 24,
     },
   });

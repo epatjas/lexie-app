@@ -3,12 +3,9 @@ import { CreateStudySetInput, StudySet, Flashcard, QuizQuestion, Folder, Homewor
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
-let db: SQLite.SQLiteDatabase | null = null;
-let isInitializing = false;
-let initializationPromise: Promise<void> | null = null;
-let tablesInitialized = false;
-
-// Add this interface near the top of the file
+// =====================================
+// Types and Interfaces
+// =====================================
 interface TableColumn {
   cid: number;
   name: string;
@@ -18,7 +15,6 @@ interface TableColumn {
   pk: number;
 }
 
-// Add this type near the top of the file with other interfaces
 interface SQLTransaction {
   executeSql: (
     sqlStatement: string,
@@ -34,7 +30,69 @@ interface SQLTransaction {
   }>;
 }
 
-// Add this function near the top of the file, after the imports
+interface RawQuizQuestion {
+  id: string;
+  study_set_id: string;
+  question: string;
+  options: string; // JSON string in database
+  correct: string;
+}
+
+// =====================================
+// Database Configuration
+// =====================================
+let db: SQLite.SQLiteDatabase | null = null;
+let isInitializing = false;
+let initializationPromise: Promise<void> | null = null;
+let tablesInitialized = false;
+const DB_VERSION = 3;
+
+// =====================================
+// Database Initialization Functions
+// =====================================
+
+/**
+ * Initializes the database and creates necessary tables
+ */
+export const initDatabase = async (): Promise<void> => {
+  if (isInitializing) {
+    if (initializationPromise) {
+      return initializationPromise;
+    }
+    return;
+  }
+
+  try {
+    isInitializing = true;
+    
+    initializationPromise = (async () => {
+      if (db) {
+        await db.closeAsync();
+        db = null;
+      }
+
+      db = await SQLite.openDatabaseAsync('studysets.db');
+      
+      if (!tablesInitialized) {
+        await initTables(db);
+        tablesInitialized = true;
+      }
+    })();
+
+    await initializationPromise;
+  } catch (error) {
+    console.error('Database initialization failed:', error);
+    db = null;
+    throw error;
+  } finally {
+    isInitializing = false;
+    initializationPromise = null;
+  }
+};
+
+/**
+ * Verifies and updates the database schema if needed
+ */
 const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
   try {
     console.log('Verifying database schema...');
@@ -58,6 +116,7 @@ const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
     const hasContentType = studySetsInfo.some(column => column.name === 'content_type');
     const hasIntroduction = studySetsInfo.some(column => column.name === 'introduction');
     const hasSummary = studySetsInfo.some(column => column.name === 'summary');
+    const hasSubjectArea = studySetsInfo.some(column => column.name === 'subject_area');
     
     // Add homework_help column if missing
     if (!hasHomeworkHelp) {
@@ -98,135 +157,51 @@ const verifyAndUpdateSchema = async (db: SQLite.SQLiteDatabase) => {
       `);
       console.log('Added summary column successfully');
     }
+    
+    // Add subject_area column if missing
+    if (!hasSubjectArea) {
+      console.log('Adding subject_area column to study_sets table...');
+      await db.execAsync(`
+        ALTER TABLE study_sets
+        ADD COLUMN subject_area TEXT DEFAULT 'GENERAL';
+      `);
+      console.log('Added subject_area column successfully');
+    }
+    
+    // ===== NEW CODE: Check quiz_questions table structure =====
+    // Check if quiz_questions table exists
+    const quizTableExists = await db.getFirstAsync<{count: number}>(
+      "SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name='quiz_questions'"
+    );
+    
+    if (quizTableExists && quizTableExists.count > 0) {
+      // Check quiz_questions table structure
+      const quizQuestionsInfo = await db.getAllAsync<TableColumn>(
+        "PRAGMA table_info('quiz_questions')"
+      );
+      
+      const hasExplanation = quizQuestionsInfo.some(column => column.name === 'explanation');
+      
+      // Add explanation column if missing
+      if (!hasExplanation) {
+        console.log('Adding explanation column to quiz_questions table...');
+        await db.execAsync(`
+          ALTER TABLE quiz_questions
+          ADD COLUMN explanation TEXT DEFAULT '';
+        `);
+        console.log('Added explanation column successfully');
+      }
+    }
+    // ===== END NEW CODE =====
+    
   } catch (error) {
     console.error('Schema verification failed:', error);
   }
 };
 
-const DB_VERSION = 2; // Increment this when schema changes
-
 /**
- * Initializes the database schema.
- * Creates necessary tables if they don't exist.
- * @returns Promise<void>
+ * Creates all necessary database tables
  */
-export const initDatabase = async (): Promise<void> => {
-  if (isInitializing) {
-    if (initializationPromise) {
-      return initializationPromise;
-    }
-    return;
-  }
-
-  try {
-    isInitializing = true;
-    
-    initializationPromise = (async () => {
-      if (db) {
-        await db.closeAsync();
-        db = null;
-      }
-
-      db = await SQLite.openDatabaseAsync('studysets.db');
-      
-      if (!tablesInitialized) {
-        await initTables(db);
-        tablesInitialized = true;
-      }
-    })();
-
-    await initializationPromise;
-  } catch (error) {
-    console.error('Database initialization failed:', error);
-    db = null;
-    throw error;
-  } finally {
-    isInitializing = false;
-    initializationPromise = null;
-  }
-};
-
-// This function attaches custom methods to the database object
-const attachDatabaseMethods = (database: SQLite.SQLiteDatabase) => {
-  // Add the getStudySet method
-  database.getStudySet = async (id: string): Promise<StudySet> => {
-    const rawStudySet = await database.getFirstAsync<StudySet & { text_content: string }>(
-      'SELECT * FROM study_sets WHERE id = ?',
-      [id]
-    );
-    
-    if (!rawStudySet) {
-      throw new Error(`Study set with id ${id} not found`);
-    }
-
-    // Parse the text_content JSON string back to object
-    const studySet: StudySet = {
-      ...rawStudySet,
-      text_content: JSON.parse(rawStudySet.text_content)
-    };
-    
-    return studySet;
-  };
-
-  // Add the getHomeworkHelp method
-  database.getHomeworkHelp = async (id: string): Promise<HomeworkHelp | null> => {
-    const rawHelp = await database.getFirstAsync<{
-      id: string;
-      title: string;
-      type: string;
-      text_content: string;
-      help_content: string;
-      content_type: string;
-      created_at: number | string;
-      updated_at: number | string;
-      profile_id: string;
-    }>('SELECT * FROM homework_help WHERE id = ?', [id]);
-    
-    if (!rawHelp) return null;
-    
-    // Parse JSON strings back to objects
-    return {
-      id: rawHelp.id,
-      title: rawHelp.title,
-      contentType: 'homework-help' as const,
-      text_content: JSON.parse(rawHelp.text_content),
-      homeworkHelp: JSON.parse(rawHelp.help_content),
-      created_at: rawHelp.created_at,
-      updated_at: rawHelp.updated_at,
-      profile_id: rawHelp.profile_id
-    };
-  };
-};
-
-// Update the getDatabase function to attach methods
-export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
-  if (db) {
-    // Make sure methods are attached even if using cached instance
-    attachDatabaseMethods(db);
-    return db;
-  }
-  
-  // If initialization is in progress, wait for it to complete
-  if (initializationPromise) {
-    await initializationPromise;
-    if (db) {
-      attachDatabaseMethods(db);
-      return db;
-    }
-  }
-
-  // If no initialization is in progress, start a new one
-  if (!isInitializing) {
-    db = await SQLite.openDatabaseAsync('studysets.db');
-    await initTables(db);
-    attachDatabaseMethods(db); // Attach methods to the new instance
-    return db;
-  }
-
-  throw new Error('Database initialization failed');
-};
-
-// Separate table initialization into its own function
 const initTables = async (database: SQLite.SQLiteDatabase) => {
   try {
     console.log('Creating database tables if they don\'t exist...');
@@ -251,7 +226,8 @@ const initTables = async (database: SQLite.SQLiteDatabase) => {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         profile_id TEXT NOT NULL DEFAULT '',
         content_type TEXT DEFAULT 'study-set',
-        summary TEXT
+        summary TEXT,
+        subject_area TEXT DEFAULT 'GENERAL'
       );
       
       CREATE TABLE IF NOT EXISTS flashcards (
@@ -266,7 +242,8 @@ const initTables = async (database: SQLite.SQLiteDatabase) => {
         study_set_id TEXT NOT NULL REFERENCES study_sets(id),
         question TEXT NOT NULL,
         options TEXT NOT NULL,
-        correct TEXT NOT NULL
+        correct TEXT NOT NULL,
+        explanation TEXT
       );
 
       CREATE TABLE IF NOT EXISTS homework_help (
@@ -315,24 +292,137 @@ const initTables = async (database: SQLite.SQLiteDatabase) => {
   }
 };
 
-// Add a cleanup function to close the database
-export const closeDatabase = async () => {
-  if (db) {
-    try {
-      await db.closeAsync();
-      db = null;
-      console.log('Database connection closed');
-    } catch (error) {
-      console.error('Error closing database:', error);
-      throw error;
-    }
-  }
-};
+// =====================================
+// Study Set Operations
+// =====================================
 
 /**
- * Retrieves a specific study set by ID, handling both content types.
- * @param id - The unique identifier of the content
- * @returns Promise<StudyMaterials> - The content if found
+ * Creates a new study set with optional flashcards and quiz questions
+ */
+export const createStudySet = async (input: any): Promise<StudyMaterials> => {
+  try {
+    const db = await getDatabase();
+    console.log('=== Starting Content Creation ===');
+    console.log('Content Type from input:', input.contentType);
+
+    const now = Date.now();
+    const id = uuidv4();
+    console.log('Generated ID:', id);
+    
+    // Check if the subject_area column exists before attempting to insert
+    try {
+      const columns = await db.getAllAsync<TableColumn>("PRAGMA table_info('study_sets')");
+      const hasSubjectArea = columns.some(col => col.name === 'subject_area');
+      
+      if (hasSubjectArea) {
+        // SQL parameters array with subject_area
+        const sqlParams = [
+          id, 
+          input.title,
+          input.introduction || '', 
+          input.summary || '',
+          JSON.stringify(input.text_content),
+          input.contentType,
+          input.subject_area || 'GENERAL',
+          now,
+          now,
+          input.profile_id || ''
+        ];
+        
+        // Insert into study_sets table with subject_area
+        await db.runAsync(`
+          INSERT INTO study_sets (
+            id, title, introduction, summary, text_content, content_type, subject_area, created_at, updated_at, profile_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, sqlParams);
+      } else {
+        // SQL parameters array without subject_area
+        const sqlParams = [
+          id, 
+          input.title,
+          input.introduction || '', 
+          input.summary || '',
+          JSON.stringify(input.text_content),
+          input.contentType,
+          now,
+          now,
+          input.profile_id || ''
+        ];
+        
+        // Insert into study_sets table without subject_area
+        await db.runAsync(`
+          INSERT INTO study_sets (
+            id, title, introduction, summary, text_content, content_type, created_at, updated_at, profile_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, sqlParams);
+        
+        // Try to add the column for future use
+        try {
+          await db.execAsync(`ALTER TABLE study_sets ADD COLUMN subject_area TEXT DEFAULT 'GENERAL';`);
+          console.log('Added missing subject_area column on the fly');
+        } catch (alterError) {
+          console.warn('Could not add subject_area column:', alterError);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check or create schema:', error);
+      throw error;
+    }
+    
+    console.log('Added base content record');
+
+    // Handle specific content type data
+    if (input.contentType === 'study-set') {
+      // Create flashcards if they exist
+      if (input.flashcards && input.flashcards.length > 0) {
+        await createFlashcards(id, input.flashcards);
+        console.log('Added flashcards');
+      }
+
+      // Create quiz questions if they exist
+      if (input.quiz && input.quiz.length > 0) {
+        const quizWithIds = input.quiz.map(q => ({
+          id: uuidv4(),
+          study_set_id: id,
+          question: q.question,
+          options: q.options,
+          correct: q.correct
+        }));
+        
+        await createQuiz(id, quizWithIds);
+        console.log('Added quiz questions');
+      }
+    } else if (input.contentType === 'homework-help' && input.homeworkHelp) {
+      // Add introduction if it's not explicitly included
+      const introduction = input.introduction || 
+        `I analyzed this ${input.homeworkHelp.subject_area || 'problem'}. Here's some help to guide you.`;
+      
+      await db.runAsync(`
+        UPDATE study_sets 
+        SET homework_help = ?, introduction = ?
+        WHERE id = ?
+      `, [JSON.stringify(input.homeworkHelp), introduction, id]);
+      
+      console.log('Added homework help data with introduction');
+      console.log('Added homework help data with', 
+        input.homeworkHelp.concept_cards ? 
+        `${input.homeworkHelp.concept_cards.length} concept cards` : 
+        'no concept cards');
+    }
+
+    // Get the complete content record
+    const result = await getStudySet(id);
+    console.log('Retrieved created content with type:', result.contentType);
+    
+    return result;
+  } catch (error) {
+    console.error('Failed to create content:', error);
+    throw error;
+  }
+}
+
+/**
+ * Retrieves a study set by ID
  */
 export const getStudySet = async (id: string): Promise<StudyMaterials> => {
   try {
@@ -422,220 +512,8 @@ export const getStudySet = async (id: string): Promise<StudyMaterials> => {
 };
 
 /**
- * Creates a new study set in the database.
- * @param input - The content data to insert (title, flashcards, etc.)
- * @returns Promise<StudyMaterials> - The created content with generated ID and timestamps
+ * Gets all study sets for a profile
  */
-export const createStudySet = async (input: any): Promise<StudyMaterials & { id: string }> => {
-  try {
-    const db = await getDatabase();
-    console.log('=== Starting Content Creation ===');
-    console.log('Content Type from input:', input.contentType);
-
-    const now = Date.now();
-    const id = uuidv4();
-    console.log('Generated ID:', id);
-    
-    // SQL parameters array
-    const sqlParams = [
-      id, 
-      input.title,
-      input.introduction || '', 
-      input.summary || '',
-      JSON.stringify(input.text_content),
-      input.contentType, // Always use the provided content type
-      now,
-      now,
-      input.profile_id || ''
-    ];
-    
-    // Insert into study_sets table
-    await db.runAsync(`
-      INSERT INTO study_sets (
-        id, title, introduction, summary, text_content, content_type, created_at, updated_at, profile_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, sqlParams);
-    
-    console.log('Added base content record');
-
-    // Handle specific content type data
-    if (input.contentType === 'study-set') {
-      // Create flashcards if they exist
-      if (input.flashcards && input.flashcards.length > 0) {
-        await createFlashcards(id, input.flashcards);
-        console.log('Added flashcards');
-      }
-
-      // Create quiz questions if they exist
-      if (input.quiz && input.quiz.length > 0) {
-        const quizWithIds = input.quiz.map(q => ({
-          id: uuidv4(),
-          study_set_id: id,
-          question: q.question,
-          options: q.options,
-          correct: q.correct
-        }));
-        
-        await createQuiz(id, quizWithIds);
-        console.log('Added quiz questions');
-      }
-    } else if (input.contentType === 'homework-help' && input.homeworkHelp) {
-      // Add introduction if it's not explicitly included
-      const introduction = input.introduction || 
-        `I analyzed this ${input.homeworkHelp.subject_area || 'problem'}. Here's some help to guide you.`;
-      
-      await db.runAsync(`
-        UPDATE study_sets 
-        SET homework_help = ?, introduction = ?
-        WHERE id = ?
-      `, [JSON.stringify(input.homeworkHelp), introduction, id]);
-      
-      console.log('Added homework help data with introduction');
-      console.log('Added homework help data with', 
-        input.homeworkHelp.concept_cards ? 
-        `${input.homeworkHelp.concept_cards.length} concept cards` : 
-        'no concept cards');
-    }
-
-    // Get the complete content record
-    const result = await getStudySet(id);
-    console.log('Retrieved created content with type:', result.contentType);
-    
-    return {
-      ...result,
-      id
-    };
-  } catch (error) {
-    console.error('Failed to create content:', error);
-    throw error;
-  }
-}
-
-/**
- * Utility function to execute raw SQL queries.
- * @param query - The SQL query to execute
- * @param params - Array of parameters to bind to the query
- * @returns Promise<SQLite.SQLiteRunResult> - The result of the query execution
- */
-export const executeQuery = async (query: string, params: any[] = []): Promise<SQLite.SQLiteRunResult> => {
-  try {
-    const db = await getDatabase();
-    const result = await db.runAsync(query, params);
-    return result;
-  } catch (error) {
-    console.error('Query execution failed:', error);
-    throw error;
-  }
-};
-
-// First, let's create an interface for the raw database quiz question
-interface RawQuizQuestion {
-  id: string;
-  study_set_id: string;
-  question: string;
-  options: string; // JSON string in database
-  correct: string;
-}
-
-// Add this near the top of your file
-type DatabaseQuizQuestion = QuizQuestion & {
-  id: string;
-  study_set_id: string;
-};
-
-/**
- * Retrieves a complete study set with all materials by ID.
- * @param id - The unique identifier of the study set
- * @returns Promise<StudySet | null> - The complete study set if found, null otherwise
- */
-export const getCompleteStudySet = async (id: string): Promise<StudySet | null> => {
-  try {
-    const db = await getDatabase();
-    
-    const rawStudySet = await db.getFirstAsync<any>(
-      'SELECT * FROM study_sets WHERE id = ?',
-      [id]
-    );
-    
-    if (!rawStudySet) return null;
-    
-    // Parse the text_content JSON
-    const studySet: StudySet = {
-      ...rawStudySet,
-      text_content: JSON.parse(rawStudySet.text_content)
-    };
-    
-    // Get flashcards and quiz questions
-    const flashcards = await db.getAllAsync<Flashcard>(
-      'SELECT * FROM flashcards WHERE study_set_id = ?',
-      [id]
-    );
-    
-    const quizQuestions = await db.getAllAsync<RawQuizQuestion>(
-      'SELECT * FROM quiz_questions WHERE study_set_id = ?',
-      [id]
-    );
-    
-    const parsedQuizQuestions = quizQuestions.map(q => ({
-      ...q,
-      options: JSON.parse(q.options) as string[]
-    }));
-    
-    return {
-      ...studySet,
-      flashcards,
-      quiz: parsedQuizQuestions
-    };
-  } catch (error) {
-    console.error('Failed to get complete study set:', error);
-    throw error;
-  }
-};
-
-// Add this debug function to test database connection
-export const testDatabaseConnection = async (): Promise<void> => {
-  try {
-    console.log('Testing database connection...');
-    const db = await getDatabase();
-    console.log('Database connection successful');
-    
-    // Try a simple query
-    const result = await db.getFirstAsync('SELECT 1');
-    console.log('Test query result:', result);
-  } catch (error) {
-    console.error('Database test failed:', error);
-    throw error;
-  }
-};
-
-// Add this helper function to verify database state
-export const verifyDatabaseTables = async (): Promise<void> => {
-  try {
-    const db = await getDatabase();
-    
-    // Check if tables exist
-    const tables = await db.getAllAsync<{name: string}>(
-      "SELECT name FROM sqlite_master WHERE type='table'"
-    );
-    
-    console.log('Existing tables:', tables);
-    
-    // Try to get counts from each table
-    const studySetsCount = await db.getFirstAsync<{count: number}>(
-      'SELECT COUNT(*) as count FROM study_sets'
-    );
-    
-    console.log('Database verification:', {
-      tablesExist: tables.map(t => t.name),
-      studySetsCount: studySetsCount?.count
-    });
-    
-  } catch (error) {
-    console.error('Database verification failed:', error);
-    throw error;
-  }
-};
-
 export const getAllStudySets = async (profileId: string): Promise<StudySet[]> => {
   try {
     const db = await getDatabase();
@@ -667,402 +545,9 @@ export const getAllStudySets = async (profileId: string): Promise<StudySet[]> =>
   }
 };
 
-// Add this debug function to check table structure
-export const debugQuizTable = async () => {
-  try {
-    const db = await getDatabase();
-    console.log('Checking quiz_questions table structure...');
-    
-    // Check if table exists
-    const tableInfo = await db.getAllAsync<TableColumn>(
-      "PRAGMA table_info('quiz_questions')"
-    );
-    console.log('Quiz table structure:', tableInfo);
-    
-    // Check all quiz questions in the database
-    const allQuestions = await db.getAllAsync(
-      'SELECT * FROM quiz_questions'
-    );
-    console.log('All quiz questions in database:', allQuestions);
-    
-    // Check study set IDs that have questions
-    const studySetIds = await db.getAllAsync(
-      'SELECT DISTINCT study_set_id FROM quiz_questions'
-    );
-    console.log('Study set IDs with questions:', studySetIds);
-    
-  } catch (error) {
-    console.error('Error debugging quiz table:', error);
-  }
-};
-
-// Update getQuizFromStudySet to properly handle JSON string options
-export const getQuizFromStudySet = async (studySetId: string): Promise<QuizQuestion[]> => {
-  try {
-    console.log('Getting quiz for study set:', studySetId);
-    const db = await getDatabase();
-    
-    // Get raw questions with string options
-    const rawQuestions = await db.getAllAsync<RawQuizQuestion>(
-      'SELECT * FROM quiz_questions WHERE study_set_id = ?',
-      [studySetId]
-    );
-    
-    console.log('Raw questions from database:', rawQuestions);
-    
-    if (!rawQuestions || rawQuestions.length === 0) {
-      console.warn('No questions found for study set:', studySetId);
-      return [];
-    }
-    
-    // Parse the options JSON string into array with better error handling
-    const questions: QuizQuestion[] = [];
-    for (const q of rawQuestions) {
-      try {
-        let parsedOptions: string[];
-        try {
-          const parsed = JSON.parse(q.options);
-          parsedOptions = Array.isArray(parsed) ? parsed : [q.options];
-        } catch (parseError) {
-          console.error('Failed to parse options for question:', q.id, parseError);
-          parsedOptions = [q.options]; // Fallback
-        }
-        
-        // Make sure this object structure includes ALL required properties
-        const question: QuizQuestion = {
-          id: q.id,
-          study_set_id: q.study_set_id,
-          question: q.question,
-          options: parsedOptions,
-          correct: q.correct
-        };
-        
-        questions.push(question);
-      } catch (questionError) {
-        console.error('Error processing question:', q, questionError);
-      }
-    }
-    
-    console.log('Parsed questions:', questions);
-    return questions;
-  } catch (error) {
-    console.error('Failed to get quiz questions:', error);
-    throw error;
-  }
-};
-
-// Update the helper function to handle different option formats
-const stripOptionPrefix = (option: string): string => {
-  // Remove only the letter prefix formats: "A) ", "A. ", "A ", etc.
-  return option.replace(/^[A-D][\.\)]\s*/, '');
-};
-
-// Update createQuiz to handle the OpenAI response format
-export const createQuiz = async (studySetId: string, questions: Partial<QuizQuestion>[]): Promise<void> => {
-  try {
-    if (!questions || questions.length === 0) {
-      console.log('No quiz questions to create');
-      return;
-    }
-    
-    const db = await getDatabase();
-    console.log('Creating quiz for study set:', studySetId);
-    console.log('Questions to create:', questions.length);
-    
-    // First, clear existing questions
-    await db.runAsync(
-      'DELETE FROM quiz_questions WHERE study_set_id = ?',
-      [studySetId]
-    );
-    
-    // Insert each question
-    for (const q of questions) {
-      // Ensure we have all required fields
-      if (!q.question || !q.options || !q.correct) {
-        console.warn('Skipping invalid question:', q);
-        continue;
-      }
-      
-      // Clean up options if they have prefixes
-      const cleanOptions = Array.isArray(q.options) 
-        ? q.options.map(stripOptionPrefix)
-        : [];
-      
-      console.log('Processing question:', {
-        question: q.question,
-        optionsCount: cleanOptions.length,
-        correct: q.correct
-      });
-      
-      const optionsString = JSON.stringify(cleanOptions);
-      const questionId = q.id || uuidv4(); // Use existing ID or generate new one
-      
-      await db.runAsync(
-        `INSERT INTO quiz_questions (id, study_set_id, question, options, correct) 
-         VALUES (?, ?, ?, ?, ?)`,
-        [
-          questionId,
-          studySetId,
-          q.question,
-          optionsString,
-          q.correct
-        ]
-      );
-    }
-    
-    console.log('Quiz created successfully');
-  } catch (error) {
-    console.error('Failed to create quiz:', error);
-    throw error;
-  }
-};
-
-export const getFlashcardsFromStudySet = async (studySetId: string): Promise<Flashcard[]> => {
-  const db = await getDatabase();
-  
-  try {
-    console.log('Getting flashcards for study set:', studySetId);
-    
-    // First verify the study set exists
-    const studySet = await db.getFirstAsync(
-      'SELECT id FROM study_sets WHERE id = ?',
-      [studySetId]
-    );
-    console.log('Found study set:', studySet);
-
-    // Then get the flashcards
-    const results = await db.getAllAsync<Flashcard>(
-      `SELECT id, study_set_id, front, back 
-       FROM flashcards 
-       WHERE study_set_id = ?`,
-      [studySetId]
-    );
-    
-    console.log('Database query results:', results);
-    
-    if (!results || results.length === 0) {
-      console.log('No flashcards found in database for study set:', studySetId);
-    }
-    
-    return results;
-  } catch (error) {
-    console.error('Error in getFlashcardsFromStudySet:', error);
-    throw error;
-  }
-};
-
-export const createFlashcards = async (studySetId: string, flashcards: { front: string; back: string }[]): Promise<void> => {
-  if (!flashcards || !Array.isArray(flashcards)) {
-    console.error('Invalid flashcards input:', flashcards);
-    throw new Error('Invalid flashcards input');
-  }
-
-  try {
-    const db = await getDatabase();
-    console.log('Creating flashcards for study set:', studySetId);
-    console.log('Flashcards to create:', JSON.stringify(flashcards, null, 2));
-    
-    // First, clear any existing flashcards for this study set
-    await db.runAsync(
-      'DELETE FROM flashcards WHERE study_set_id = ?',
-      [studySetId]
-    );
-    console.log('Cleared existing flashcards');
-    
-    // Insert each flashcard
-    for (const card of flashcards) {
-      console.log('Inserting flashcard:', JSON.stringify(card, null, 2));
-      await db.runAsync(
-        `INSERT INTO flashcards (id, study_set_id, front, back) 
-         VALUES (?, ?, ?, ?)`,
-        [uuidv4(), studySetId, card.front, card.back]
-      );
-    }
-    
-    console.log('Flashcards created successfully');
-  } catch (error) {
-    console.error('Failed to create flashcards:', error);
-    throw error;
-  }
-};
-
-// Add folder-related database functions
-export const createFolder = async (folder: { name: string; color: string }): Promise<Folder> => {
-  try {
-    const db = await getDatabase();
-    const id = uuidv4();
-    const now = Date.now(); // Use timestamp instead of ISO string for consistency
-    
-    await db.runAsync(
-      `INSERT INTO folders (id, name, color, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [id, folder.name, folder.color, now, now]
-    );
-    
-    return {
-      id,
-      ...folder,
-      created_at: now.toString(),
-      updated_at: now.toString(),
-    };
-  } catch (error) {
-    console.error('Failed to create folder:', error);
-    throw error;
-  }
-};
-
-export const getFolders = async (): Promise<Folder[]> => {
-  try {
-    const db = await getDatabase();
-    const folders = await db.getAllAsync<Folder>(
-      'SELECT * FROM folders ORDER BY created_at DESC'
-    );
-    return folders;
-  } catch (error) {
-    console.error('Failed to get folders:', error);
-    throw error;
-  }
-};
-
-export const updateStudySetFolder = async (studySetId: string, folderId: string | null): Promise<void> => {
-  try {
-    const db = await getDatabase();
-    console.log(`Assigning study set ${studySetId} to folder ${folderId}`);
-    
-    await db.runAsync(
-      'UPDATE study_sets SET folder_id = ? WHERE id = ?',
-      [folderId, studySetId]
-    );
-
-    // Verify the update
-    const updatedSet = await db.getFirstAsync(
-      'SELECT * FROM study_sets WHERE id = ?',
-      [studySetId]
-    );
-    console.log('Updated study set:', updatedSet);
-  } catch (error) {
-    console.error('Failed to update study set folder:', error);
-    throw error;
-  }
-};
-
-export const updateFolder = async (folderId: string, updates: { name?: string; color?: string }): Promise<void> => {
-  try {
-    const db = await getDatabase();
-    const now = Date.now();
-    
-    // Fix the array types by adding explicit type annotations
-    const updateFields: string[] = [];
-    const values: (string | number)[] = [];
-    
-    if (updates.name) {
-      updateFields.push('name = ?');
-      values.push(updates.name);
-    }
-    if (updates.color) {
-      updateFields.push('color = ?');
-      values.push(updates.color);
-    }
-    
-    updateFields.push('updated_at = ?');
-    values.push(now);
-    values.push(folderId);
-
-    await db.runAsync(
-      `UPDATE folders SET ${updateFields.join(', ')} WHERE id = ?`,
-      values
-    );
-  } catch (error) {
-    console.error('Failed to update folder:', error);
-    throw error;
-  }
-};
-
-export const clearDatabase = async (): Promise<void> => {
-  try {
-    const db = await getDatabase();
-    
-    // Drop all tables in the correct order (due to foreign key constraints)
-    await db.execAsync('DROP TABLE IF EXISTS quiz_questions;');
-    await db.execAsync('DROP TABLE IF EXISTS flashcards;');
-    await db.execAsync('DROP TABLE IF EXISTS study_sets;');
-    await db.execAsync('DROP TABLE IF EXISTS folders;');
-    
-    // Reinitialize the database with fresh tables
-    await initDatabase();
-    
-    console.log('Database cleared successfully');
-  } catch (error) {
-    console.error('Failed to clear database:', error);
-    throw error;
-  }
-};
-
-// Update createQuizQuestions to properly format questions from flashcards
-export const createQuizQuestions = async (studySetId: string, flashcards: { front: string; back: string }[]): Promise<void> => {
-  try {
-    const db = await getDatabase();
-    console.log('Creating quiz questions from flashcards for study set:', studySetId);
-    
-    const questions: QuizQuestion[] = flashcards.map(card => {
-      // Create wrong answers (you might want to improve this logic)
-      const wrongAnswers = [
-        'Incorrect answer 1',
-        'Incorrect answer 2',
-        'Incorrect answer 3'
-      ];
-      
-      // Create options array without the A), B), etc. prefixes
-      const options = [
-        card.back, // Correct answer without prefix
-        wrongAnswers[0],
-        wrongAnswers[1],
-        wrongAnswers[2]
-      ];
-      
-      // Include ALL required properties for QuizQuestion
-      return {
-        id: uuidv4(), // Generate a unique ID
-        study_set_id: studySetId,
-        question: card.front,
-        options: options,
-        correct: card.back // The correct answer is the 'back' content
-      };
-    });
-    
-    // Use createQuiz to store the questions
-    await createQuiz(studySetId, questions);
-    
-  } catch (error) {
-    console.error('Failed to create quiz questions from flashcards:', error);
-    throw error;
-  }
-};
-
-export const deleteFolder = async (folderId: string): Promise<void> => {
-  try {
-    const db = await getDatabase();
-    
-    // First, remove folder_id from all study sets in this folder
-    await db.runAsync(
-      'UPDATE study_sets SET folder_id = NULL WHERE folder_id = ?',
-      [folderId]
-    );
-    
-    // Then delete the folder
-    await db.runAsync(
-      'DELETE FROM folders WHERE id = ?',
-      [folderId]
-    );
-    
-    console.log('Folder deleted successfully:', folderId);
-  } catch (error) {
-    console.error('Error deleting folder:', error);
-    throw error;
-  }
-};
-
-// Add this function to Database.ts
+/**
+ * Deletes a study set and its associated content
+ */
 export const deleteStudySet = async (id: string): Promise<void> => {
   try {
     const db = await getDatabase();
@@ -1081,64 +566,13 @@ export const deleteStudySet = async (id: string): Promise<void> => {
   }
 };
 
-export const debugDatabase = async () => {
-  try {
-    const db = await getDatabase();
-    console.log('Checking database contents...');
-    
-    const studySets = await db.getAllAsync('SELECT * FROM study_sets');
-    console.log('Study sets in DB:', studySets);
-    
-    const folders = await db.getAllAsync('SELECT * FROM folders');
-    console.log('Folders in DB:', folders);
-    
-  } catch (error) {
-    console.error('Error debugging database:', error);
-  }
-};
+// =====================================
+// Homework Help Operations
+// =====================================
 
-export const debugDatabaseState = async () => {
-  try {
-    const db = await getDatabase();
-    console.log('=== Database Debug Info ===');
-    
-    // Check tables
-    const tables = await db.getAllAsync(
-      "SELECT name FROM sqlite_master WHERE type='table'"
-    );
-    console.log('Tables:', tables);
-    
-    // Check study sets
-    const studySets = await db.getAllAsync('SELECT * FROM study_sets');
-    console.log('Study Sets:', studySets);
-    
-    // Check database connection
-    const testQuery = await db.getFirstAsync('SELECT 1');
-    console.log('Database connection test:', testQuery);
-    
-  } catch (error) {
-    console.error('Database debug error:', error);
-  }
-};
-
-export const forceInitDatabase = async (): Promise<void> => {
-  console.log('Force initializing database...');
-  tablesInitialized = false;
-  if (db) {
-    await db.closeAsync();
-    db = null;
-  }
-  await initDatabase();
-  
-  // Verify tables were created
-  const database = await getDatabase();
-  const tables = await database.getAllAsync<{name: string}>(
-    "SELECT name FROM sqlite_master WHERE type='table'"
-  );
-  console.log('Tables after initialization:', tables.map(t => t.name));
-};
-
-// Update saveHomeworkHelp to handle both old and new formats
+/**
+ * Saves homework help content to the database
+ */
 export const saveHomeworkHelp = async (homeworkHelp: HomeworkHelp): Promise<string> => {
   try {
     const db = await getDatabase();
@@ -1204,7 +638,9 @@ export const saveHomeworkHelp = async (homeworkHelp: HomeworkHelp): Promise<stri
   }
 };
 
-// Fix the getHomeworkHelp method to handle new format
+/**
+ * Retrieves homework help by ID
+ */
 export const getHomeworkHelp = async (id: string): Promise<HomeworkHelp | null> => {
   try {
     const db = await getDatabase();
@@ -1255,7 +691,9 @@ export const getHomeworkHelp = async (id: string): Promise<HomeworkHelp | null> 
   }
 };
 
-// Fix the getAllHomeworkHelp method
+/**
+ * Gets all homework help for a profile
+ */
 export const getAllHomeworkHelp = async (profileId: string): Promise<HomeworkHelp[]> => {
   try {
     const db = await getDatabase();
@@ -1284,86 +722,279 @@ export const getAllHomeworkHelp = async (profileId: string): Promise<HomeworkHel
   }
 };
 
-// Update the type declaration at the bottom of Database.ts
-declare module 'expo-sqlite' {
-  interface SQLiteDatabase {
-    getStudySet(id: string): Promise<StudySet>;
-    getHomeworkHelp(id: string): Promise<HomeworkHelp | null>; // Allow null return
-    // Add other methods as needed
-  }
-}
+// =====================================
+// Flashcard Operations
+// =====================================
 
-// Add a function to detect what type of content we're saving and route it appropriately
-export const saveContent = async (content: StudyMaterials | HomeworkHelp): Promise<string> => {
+/**
+ * Creates flashcards for a study set
+ */
+export const createFlashcards = async (studySetId: string, flashcards: { front: string; back: string }[]): Promise<void> => {
+  if (!flashcards || !Array.isArray(flashcards)) {
+    console.error('Invalid flashcards input:', flashcards);
+    throw new Error('Invalid flashcards input');
+  }
+
   try {
-    console.log('Saving content with type:', content.contentType);
+    const db = await getDatabase();
+    console.log('Creating flashcards for study set:', studySetId);
+    console.log('Flashcards to create:', JSON.stringify(flashcards, null, 2));
     
-    if (content.contentType === 'homework-help') {
-      // This is homework help, save it as such
-      return await saveHomeworkHelp(content as HomeworkHelp);
-    } else {
-      // This is a study set, save it normally
-      const studySet = await createStudySet(content as unknown as CreateStudySetInput);
-      return studySet.id;
+    // First, clear any existing flashcards for this study set
+    await db.runAsync(
+      'DELETE FROM flashcards WHERE study_set_id = ?',
+      [studySetId]
+    );
+    console.log('Cleared existing flashcards');
+    
+    // Insert each flashcard
+    for (const card of flashcards) {
+      console.log('Inserting flashcard:', JSON.stringify(card, null, 2));
+      await db.runAsync(
+        `INSERT INTO flashcards (id, study_set_id, front, back) 
+         VALUES (?, ?, ?, ?)`,
+        [uuidv4(), studySetId, card.front, card.back]
+      );
     }
+    
+    console.log('Flashcards created successfully');
   } catch (error) {
-    console.error('Failed to save content:', error);
+    console.error('Failed to create flashcards:', error);
     throw error;
   }
 };
 
-// Add this function to fix existing records with wrong content type
-export const fixRecordContentType = async (id: string): Promise<void> => {
+/**
+ * Gets flashcards for a study set
+ */
+export const getFlashcardsFromStudySet = async (studySetId: string): Promise<Flashcard[]> => {
+  const db = await getDatabase();
+  
   try {
-    const db = await getDatabase();
+    console.log('Getting flashcards for study set:', studySetId);
     
-    // First, check if this looks like a homework help record
-    const record = await db.getFirstAsync<{ text_content: string, id: string }>(
-      'SELECT * FROM study_sets WHERE id = ?', 
-      [id]
+    // First verify the study set exists
+    const studySet = await db.getFirstAsync(
+      'SELECT id FROM study_sets WHERE id = ?',
+      [studySetId]
+    );
+    console.log('Found study set:', studySet);
+
+    // Then get the flashcards
+    const results = await db.getAllAsync<Flashcard>(
+      `SELECT id, study_set_id, front, back 
+       FROM flashcards 
+       WHERE study_set_id = ?`,
+      [studySetId]
     );
     
-    if (!record) {
-      console.error('Record not found:', id);
+    console.log('Database query results:', results);
+    
+    if (!results || results.length === 0) {
+      console.log('No flashcards found in database for study set:', studySetId);
+    }
+    
+    return results;
+  } catch (error) {
+    console.error('Error in getFlashcardsFromStudySet:', error);
+    throw error;
+  }
+};
+
+// =====================================
+// Quiz Operations
+// =====================================
+
+/**
+ * Creates quiz questions for a study set
+ */
+export const createQuiz = async (studySetId: string, questions: Partial<QuizQuestion>[]): Promise<void> => {
+  try {
+    if (!questions || questions.length === 0) {
+      console.log('No quiz questions to create');
       return;
     }
     
-    // Check content to detect homework-help content
-    try {
-      const textContent = JSON.parse(record.text_content);
+    const db = await getDatabase();
+    console.log('Creating quiz for study set:', studySetId);
+    console.log('Questions to create:', questions.length);
+    
+    // First, clear existing questions
+    await db.runAsync(
+      'DELETE FROM quiz_questions WHERE study_set_id = ?',
+      [studySetId]
+    );
+    
+    // Check if the explanation column exists
+    const quizQuestionsInfo = await db.getAllAsync<TableColumn>(
+      "PRAGMA table_info('quiz_questions')"
+    );
+    const hasExplanation = quizQuestionsInfo.some(column => column.name === 'explanation');
+    
+    // Insert each question
+    for (const q of questions) {
+      // Ensure we have all required fields
+      if (!q.question || !q.options || !q.correct) {
+        console.warn('Skipping invalid question:', q);
+        continue;
+      }
       
-      // Patterns that suggest this is homework help
-      const isLikelyHomework = 
-        textContent.raw_text.includes('PiiX-alus') || // Your specific problem
-        textContent.raw_text.includes('Mikä on PiiX-aluksen nopeus?') || 
-        (textContent.sections && 
-         textContent.sections.some(s => 
-           s.type === 'list' && 
-           s.items && 
-           s.items.some(i => i.includes('PiiX-alus'))
-         ));
+      // Clean up options if they have prefixes
+      const cleanOptions = Array.isArray(q.options) 
+        ? q.options.map(stripOptionPrefix)
+        : [];
       
-      if (isLikelyHomework) {
-        console.log('This appears to be homework help, updating content_type...');
-        
-        // Update the content_type to homework-help
+      console.log('Processing question:', {
+        question: q.question,
+        optionsCount: cleanOptions.length,
+        correct: q.correct
+      });
+      
+      const optionsString = JSON.stringify(cleanOptions);
+      const questionId = q.id || uuidv4(); // Use existing ID or generate new one
+      
+      if (hasExplanation) {
+        // Insert with explanation column
         await db.runAsync(
-          'UPDATE study_sets SET content_type = ? WHERE id = ?',
-          ['homework-help', id]
+          `INSERT INTO quiz_questions (id, study_set_id, question, options, correct, explanation) 
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            questionId,
+            studySetId,
+            q.question,
+            optionsString,
+            q.correct,
+            q.explanation || ''
+          ]
+        );
+      } else {
+        // Insert without explanation column
+        console.log('Explanation column missing, inserting without it');
+        await db.runAsync(
+          `INSERT INTO quiz_questions (id, study_set_id, question, options, correct) 
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            questionId,
+            studySetId,
+            q.question,
+            optionsString,
+            q.correct
+          ]
         );
         
-        console.log('Updated content type to homework-help for:', id);
+        // Try to add the column for future use
+        try {
+          await db.execAsync(`ALTER TABLE quiz_questions ADD COLUMN explanation TEXT DEFAULT '';`);
+          console.log('Added missing explanation column on the fly');
+        } catch (alterError) {
+          console.warn('Could not add explanation column:', alterError);
+        }
       }
-    } catch (e) {
-      console.error('Error parsing record content:', e);
     }
+    
+    console.log('Quiz created successfully');
   } catch (error) {
-    console.error('Failed to fix record content type:', error);
+    console.error('Failed to create quiz:', error);
+    throw error;
   }
 };
 
 /**
- * Creates a new chat session for a specific content
+ * Gets quiz questions for a study set
+ */
+export const getQuizFromStudySet = async (studySetId: string): Promise<QuizQuestion[]> => {
+  try {
+    console.log('Getting quiz for study set:', studySetId);
+    const db = await getDatabase();
+    
+    // Get raw questions with string options
+    const rawQuestions = await db.getAllAsync<RawQuizQuestion>(
+      'SELECT * FROM quiz_questions WHERE study_set_id = ?',
+      [studySetId]
+    );
+    
+    console.log('Raw questions from database:', rawQuestions);
+    
+    if (!rawQuestions || rawQuestions.length === 0) {
+      console.warn('No questions found for study set:', studySetId);
+      return [];
+    }
+    
+    // Parse the options JSON string into array with better error handling
+    const questions: QuizQuestion[] = [];
+    for (const q of rawQuestions) {
+      try {
+        let parsedOptions: string[];
+        try {
+          const parsed = JSON.parse(q.options);
+          parsedOptions = Array.isArray(parsed) ? parsed : [q.options];
+        } catch (parseError) {
+          console.error('Failed to parse options for question:', q.id, parseError);
+          parsedOptions = [q.options]; // Fallback
+        }
+        
+        // Make sure this object structure includes ALL required properties
+        const question: QuizQuestion = {
+          id: q.id,
+          study_set_id: q.study_set_id,
+          question: q.question,
+          options: parsedOptions,
+          correct: q.correct
+        };
+        
+        questions.push(question);
+      } catch (questionError) {
+        console.error('Error processing question:', q, questionError);
+      }
+    }
+    
+    console.log('Parsed questions:', questions);
+    return questions;
+  } catch (error) {
+    console.error('Failed to get quiz questions:', error);
+    throw error;
+  }
+};
+
+// =====================================
+// Folder Operations
+// =====================================
+
+/**
+ * Creates a new folder
+ */
+export const createFolder = async (folder: { name: string; color: string }): Promise<Folder> => {
+  try {
+    const db = await getDatabase();
+    const id = uuidv4();
+    const now = Date.now(); // Use timestamp instead of ISO string for consistency
+    
+    await db.runAsync(
+      `INSERT INTO folders (id, name, color, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, folder.name, folder.color, now, now]
+    );
+    
+    return {
+      id,
+      ...folder,
+      created_at: now.toString(),
+      updated_at: now.toString(),
+    };
+  } catch (error) {
+    console.error('Failed to create folder:', error);
+    throw error;
+  }
+};
+
+// ... other folder operations ...
+
+// =====================================
+// Chat Operations
+// =====================================
+
+/**
+ * Creates a new chat session
  */
 export const createChatSession = async (
   contentId: string, 
@@ -1398,68 +1029,9 @@ export const createChatSession = async (
 };
 
 /**
- * Retrieves chat sessions for a specific content
- */
-export const getChatSessionsForContent = async (
-  contentId: string
-): Promise<ChatSession[]> => {
-  try {
-    const db = await getDatabase();
-    const sessions = await db.getAllAsync<ChatSession>(
-      'SELECT * FROM chat_sessions WHERE content_id = ? ORDER BY updated_at DESC',
-      [contentId]
-    );
-    return sessions;
-  } catch (error) {
-    console.error('Failed to get chat sessions:', error);
-    throw error;
-  }
-};
-
-/**
- * Adds a message to a chat session
- */
-export const addChatMessage = async (
-  sessionId: string,
-  role: MessageRole,
-  content: string
-): Promise<ChatMessage> => {
-  try {
-    const db = await getDatabase();
-    const id = uuidv4();
-    const now = Date.now();
-    
-    await db.runAsync(
-      `INSERT INTO chat_messages (id, session_id, role, content, timestamp) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [id, sessionId, role, content, now]
-    );
-    
-    // Update the session's updated_at time
-    await db.runAsync(
-      'UPDATE chat_sessions SET updated_at = ? WHERE id = ?',
-      [now, sessionId]
-    );
-    
-    return {
-      id,
-      session_id: sessionId,
-      role,
-      content,
-      timestamp: now
-    };
-  } catch (error) {
-    console.error('Failed to add chat message:', error);
-    throw error;
-  }
-};
-
-/**
  * Retrieves all messages for a specific chat session
  */
-export const getChatMessages = async (
-  sessionId: string
-): Promise<ChatMessage[]> => {
+export const getChatMessages = async (sessionId: string): Promise<ChatMessage[]> => {
   try {
     const db = await getDatabase();
     const messages = await db.getAllAsync<ChatMessage>(
@@ -1469,6 +1041,174 @@ export const getChatMessages = async (
     return messages;
   } catch (error) {
     console.error('Failed to get chat messages:', error);
+    throw error;
+  }
+};
+
+// =====================================
+// Utility Functions
+// =====================================
+
+/**
+ * Strips option prefix (A), B), etc.) from quiz options
+ */
+const stripOptionPrefix = (option: string): string => {
+  // Remove only the letter prefix formats: "A) ", "A. ", "A ", etc.
+  return option.replace(/^[A-D][\.\)]\s*/, '');
+};
+
+/**
+ * Attaches custom methods to the database instance
+ */
+const attachDatabaseMethods = (database: SQLite.SQLiteDatabase) => {
+  // Add the getStudySet method
+  database.getStudySet = async (id: string): Promise<StudySet> => {
+    const rawStudySet = await database.getFirstAsync<StudySet & { text_content: string }>(
+      'SELECT * FROM study_sets WHERE id = ?',
+      [id]
+    );
+    
+    if (!rawStudySet) {
+      throw new Error(`Study set with id ${id} not found`);
+    }
+
+    // Parse the text_content JSON string back to object
+    const studySet: StudySet = {
+      ...rawStudySet,
+      text_content: JSON.parse(rawStudySet.text_content)
+    };
+    
+    return studySet;
+  };
+
+  // Add the getHomeworkHelp method
+  database.getHomeworkHelp = async (id: string): Promise<HomeworkHelp | null> => {
+    const rawHelp = await database.getFirstAsync<{
+      id: string;
+      title: string;
+      type: string;
+      text_content: string;
+      help_content: string;
+      content_type: string;
+      created_at: number | string;
+      updated_at: number | string;
+      profile_id: string;
+    }>('SELECT * FROM homework_help WHERE id = ?', [id]);
+    
+    if (!rawHelp) return null;
+    
+    // Parse JSON strings back to objects
+    return {
+      id: rawHelp.id,
+      title: rawHelp.title,
+      contentType: 'homework-help' as const,
+      text_content: JSON.parse(rawHelp.text_content),
+      homeworkHelp: JSON.parse(rawHelp.help_content),
+      created_at: rawHelp.created_at,
+      updated_at: rawHelp.updated_at,
+      profile_id: rawHelp.profile_id
+    };
+  };
+};
+
+/**
+ * Gets database instance, creating it if necessary
+ */
+export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
+  if (db) {
+    // Make sure methods are attached even if using cached instance
+    attachDatabaseMethods(db);
+    return db;
+  }
+  
+  // If initialization is in progress, wait for it to complete
+  if (initializationPromise) {
+    await initializationPromise;
+    if (db) {
+      attachDatabaseMethods(db);
+      return db;
+    }
+  }
+
+  // If no initialization is in progress, start a new one
+  if (!isInitializing) {
+    db = await SQLite.openDatabaseAsync('studysets.db');
+    await initTables(db);
+    attachDatabaseMethods(db); // Attach methods to the new instance
+    return db;
+  }
+
+  throw new Error('Database initialization failed');
+};
+
+/**
+ * Closes the database connection
+ */
+export const closeDatabase = async () => {
+  if (db) {
+    try {
+      await db.closeAsync();
+      db = null;
+      console.log('Database connection closed');
+    } catch (error) {
+      console.error('Error closing database:', error);
+      throw error;
+    }
+  }
+};
+
+// =====================================
+// Debug Functions
+// =====================================
+
+/**
+ * Debug function to test database connection
+ */
+export const testDatabaseConnection = async (): Promise<void> => {
+  try {
+    console.log('Testing database connection...');
+    const db = await getDatabase();
+    console.log('Database connection successful');
+    
+    // Try a simple query
+    const result = await db.getFirstAsync('SELECT 1');
+    console.log('Test query result:', result);
+  } catch (error) {
+    console.error('Database test failed:', error);
+    throw error;
+  }
+};
+
+// ... other debug functions ...
+
+// =====================================
+// Type Declarations
+// =====================================
+declare module 'expo-sqlite' {
+    interface SQLiteDatabase {
+        getStudySet(id: string): Promise<StudySet>;
+        getHomeworkHelp(id: string): Promise<HomeworkHelp | null>;
+    }
+}
+
+export const clearDatabase = async (): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    
+    // Drop all tables in the correct order (due to foreign key constraints)
+    await db.execAsync('DROP TABLE IF EXISTS quiz_questions;');
+    await db.execAsync('DROP TABLE IF EXISTS flashcards;');
+    await db.execAsync('DROP TABLE IF EXISTS study_sets;');
+    await db.execAsync('DROP TABLE IF EXISTS folders;');
+    await db.execAsync('DROP TABLE IF EXISTS chat_sessions;');
+    await db.execAsync('DROP TABLE IF EXISTS chat_messages;');
+    
+    // Reinitialize the database with fresh tables
+    await initDatabase();
+    
+    console.log('Database cleared successfully');
+  } catch (error) {
+    console.error('Failed to clear database:', error);
     throw error;
   }
 };

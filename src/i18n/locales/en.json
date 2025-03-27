@@ -7,6 +7,7 @@
     "back": "Back",
     "close": "Close",
     "loading": "Loading...",
+    "ok": "OK",
     "months": {
       "january": "January",
       "february": "February",
@@ -110,8 +111,8 @@
   "chat": {
     "askLexie": "Ask Lexie...",
     "addPhoto": "Add a photo",
-    "takePhoto": "Take Photo",
-    "chooseFromLibrary": "Choose from Library",
+    "takePhoto": "Snap a photo",
+    "chooseFromLibrary": "Choose from library",
     "cancel": "Cancel"
   },
   "feedback": {
@@ -161,10 +162,12 @@
     "deleteConfirmation": "Are you sure you want to delete this study set? This action cannot be undone.",
     "delete": "Delete",
     "deleteError": "Failed to delete study set",
-    "takePictureError": "Failed to take picture. Please try again."
+    "takePictureError": "Failed to take picture. Please try again.",
+    "permission": "Camera access needed",
+    "cameraAccess": "Lexie needs camera access to capture study materials"
   },
   "scanPage": {
-    "title": "Take photo",
+    "title": "Snap a photo",
     "cameraError": "Camera Error",
     "checkingPermission": "Checking camera permission...",
     "permissionRequired": "Camera permission is required to scan photos",

@@ -138,31 +138,33 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
     try {
       setIsProcessing(true);
       setProcessingStartTime(Date.now());
-      console.log('[Timing] Starting analysis process...');
-
+      
       // Get active profile first
       const activeProfile = await getActiveProfile();
       if (!activeProfile) {
         throw new Error('No active profile found');
       }
 
-      // Image formatting timing
-      const formatStartTime = Date.now();
-      const formattedImages = photos.map(photo => ({
-        uri: photo.uri,
-        base64: photo.base64
-      }));
-      console.log('[Timing] Image formatting completed in:', Date.now() - formatStartTime, 'ms');
+      // Add validation for image sizes
+      const totalSize = photos.reduce((acc, photo) => {
+        if (photo.base64) {
+          return acc + calculateBase64Size(photo.base64);
+        }
+        return acc;
+      }, 0) / (1024 * 1024); // Convert to MB
 
-      // Server analysis timing
-      console.log('[Timing] Sending images to server...');
-      const analysisStartTime = Date.now();
-      const result = await analyzeImages(formattedImages);
-      const analysisEndTime = Date.now();
-      console.log('[Timing] Analysis breakdown:', {
-        serverProcessingTime: analysisEndTime - analysisStartTime,
-        resultSize: JSON.stringify(result).length
-      });
+      console.log('[Client] Total image size before compression:', totalSize.toFixed(2) + 'MB');
+
+      if (totalSize > 50) { // 50MB limit
+        throw new Error('Total image size is too large. Please select fewer images.');
+      }
+
+      const result = await analyzeImages(photos);
+      
+      // Add validation for result
+      if (!result || !result.text_content) {
+        throw new Error('Invalid response format from server');
+      }
 
       // Database timing
       console.log('[Timing] Creating study set in database...');
@@ -198,7 +200,6 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       // Final timing summary
       console.log('[Timing] Process completed. Full breakdown:', {
         totalTime: dbEndTime - startTime,
-        serverProcessing: analysisEndTime - analysisStartTime,
         databaseOperation: dbEndTime - dbStartTime,
       });
 
@@ -217,35 +218,29 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       }
     } catch (error) {
       setIsProcessing(false);
-      console.error('Error details:', error);
       
+      // Enhanced error handling
+      console.error('[Error] Analysis failed:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined
+      });
+
       let errorMessage = t('alerts.processingError');
-      
-      if (axios.isAxiosError(error)) {
-        switch (error.response?.status) {
-          case 400:
-            errorMessage = t('alerts.imageSendingFailed');
-            break;
-          case 413:
-            errorMessage = t('alerts.imagesTooLarge');
-            break;
-          case 429:
-            errorMessage = t('alerts.tooManyAttempts');
-            break;
-          case 500:
-          case 502:
-          case 503:
-            errorMessage = t('alerts.serverUnavailable');
-            break;
-          default:
-            if (!navigator.onLine) {
-              errorMessage = t('alerts.checkConnection');
-            }
+      let errorTitle = t('alerts.error');
+
+      if (error instanceof Error) {
+        if (error.message.includes('too large')) {
+          errorMessage = t('alerts.imagesTooLarge');
+          errorTitle = t('alerts.sizeError');
+        } else if (error.message.includes('No active profile')) {
+          errorMessage = t('alerts.noProfile');
+          errorTitle = t('alerts.profileError');
         }
       }
 
       Alert.alert(
-        t('alerts.error'),
+        errorTitle,
         errorMessage,
         [{ 
           text: t('alerts.ok'),

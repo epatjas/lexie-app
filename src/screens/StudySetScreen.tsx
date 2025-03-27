@@ -80,17 +80,30 @@ const getChatHistoryKey = (studySetId: string) => `chat_history_${studySetId}`;
 const isVocabularyContent = (content: any): boolean => {
   if (!content) return false;
   
-  // Check if text_content contains vocabulary indicators
+  // First check if we have vocabulary_tables data
+  if (content.vocabulary_tables && 
+      Array.isArray(content.vocabulary_tables) && 
+      content.vocabulary_tables.length > 0) {
+    return true;
+  }
+  
+  // Then check if text_content contains vocabulary indicators
   const rawText = content.text_content?.raw_text || '';
+  const summary = content.summary || '';
+  
+  // Check if either summary or raw text has table markdown
+  const hasMarkdownTable = /\|[^|]+\|[^|]+\|/.test(summary) || /\|[^|]+\|[^|]+\|/.test(rawText);
   
   // Look for patterns that suggest vocabulary lists
   const hasVocabularyPatterns = 
+    // Markdown table pattern
+    hasMarkdownTable ||
     // Table-like structure with multiple columns separated by whitespace
     /\w+\s+\([^)]+\)\s+\w+/.test(rawText) || 
     // Common vocabulary section headers
     /vocabulaire|vocabulary|sanasto|ordlista|wörter/i.test(rawText) ||
     // Language pairs
-    /english.*french|french.*english|suomi.*english|english.*suomi/i.test(rawText);
+    /english.*finnish|finnish.*english|suomi.*english|english.*suomi/i.test(rawText);
     
   return hasVocabularyPatterns;
 };

@@ -1,3 +1,6 @@
+// =====================================
+// Imports and Configuration
+// =====================================
 import axios from 'axios';
 import { StudyMaterials, StudySet, HomeworkHelp } from '../types/types';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
@@ -6,11 +9,7 @@ import { getDatabase } from '../services/Database';
 // Server configuration
 const DEV_API_URL = 'http://192.168.178.27:3000';
 const PROD_API_URL = 'https://lexie-server.onrender.com';
-
-// Determine if we're in development or production
 const isDevelopment = __DEV__;
-
-// Export the API URL based on environment
 export const API_URL = isDevelopment ? DEV_API_URL : PROD_API_URL;
 
 // Add this debug log to verify the environment
@@ -19,6 +18,10 @@ console.log('[Client] Environment:', {
   apiUrl: API_URL,
   buildDate: new Date().toISOString()
 });
+
+// =====================================
+// Image Processing Utilities
+// =====================================
 
 // Helper function to calculate size of base64 string
 // Used for logging compression results
@@ -114,9 +117,12 @@ const compressImage = async (base64Image: string): Promise<string> => {
   }
 };
 
+// =====================================
+// Core API Functions
+// =====================================
+
 /**
- * Public API function to analyze images
- * Returns study materials or homework help based on content
+ * Main function to analyze images and create study materials
  */
 export const analyzeImages = async (
   images: Array<{ uri: string; base64?: string }>
@@ -155,14 +161,19 @@ export const analyzeImages = async (
       throw new Error('No valid images after processing');
     }
 
-    // Send to server for analysis
+    // Add more detailed logging before server request
+    console.log('[Client] Sending request to server with payload:', {
+      imageCount: validImages.length,
+      totalSize: validImages.reduce((acc, img) => acc + (img ? calculateBase64Size(img) : 0), 0) / (1024 * 1024)
+    });
+
     const response = await axios.post(`${API_URL}/analyze`, {
       images: validImages
     }, {
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: 120000, // 2 minute timeout
+      timeout: 180000, // Increase timeout to 3 minutes
       onUploadProgress: (progressEvent) => {
         console.log('[Client] Upload progress:', {
           loaded: progressEvent.loaded,
@@ -172,44 +183,24 @@ export const analyzeImages = async (
       }
     });
 
-    console.log('[Client] Server response received, content type:', response.data.contentType);
-    
-    // Ensure proper type discrimination with contentType
-    if (response.data.contentType === 'study-set') {
-      const studyMaterials: StudySet = {
-        id: response.data.id || `study-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        title: response.data.title,
-        text_content: response.data.text_content,
-        contentType: 'study-set' as const,
-        introduction: response.data.introduction || '',
-        summary: response.data.summary || '',
-        flashcards: response.data.flashcards || [],
-        quiz: response.data.quiz || [],
-        created_at: response.data.created_at || Date.now(),
-        updated_at: response.data.updated_at,
-        processingId: response.data.processingId
-      };
-      
-      return studyMaterials;
-    } else if (response.data.contentType === 'homework-help') {
-      const homeworkHelp: HomeworkHelp = {
-        title: response.data.title,
-        text_content: response.data.text_content,
-        contentType: 'homework-help' as const,
-        introduction: response.data.introduction || '',
-        homeworkHelp: response.data.homeworkHelp,
-        created_at: response.data.created_at,
-        updated_at: response.data.updated_at,
-        processingId: response.data.processingId
-      };
-      
-      // Log to verify correct content type is being returned
-      console.log('[Client] Returning homework help with content type:', homeworkHelp.contentType);
-      
-      return homeworkHelp;
+    // Add validation for response data
+    if (!response.data) {
+      throw new Error('Empty response from server');
     }
-    
-    // Default fallback
+
+    // Log the response structure for debugging
+    console.log('[Client] Response structure:', {
+      hasTitle: !!response.data.title,
+      hasContentType: !!response.data.contentType,
+      hasTextContent: !!response.data.text_content,
+      contentType: response.data.contentType
+    });
+
+    // Validate required fields before returning
+    if (!response.data.title || !response.data.text_content) {
+      throw new Error('Invalid response format: missing required fields');
+    }
+
     return response.data;
   } catch (error) {
     // Enhanced error logging
@@ -218,38 +209,26 @@ export const analyzeImages = async (
         status: error.response?.status,
         statusText: error.response?.statusText,
         data: error.response?.data,
-        message: error.message
+        message: error.message,
+        responseData: error.response?.data // Log full response data for debugging
       });
-    } else {
-      console.error('[Client] Non-Axios error:', error);
+
+      // Provide more specific error messages based on status codes
+      switch (error.response?.status) {
+        case 413:
+          throw new Error('Images are too large. Please try with fewer or smaller images.');
+        case 500:
+          throw new Error('Server encountered an error processing the content. Please try again.');
+        default:
+          throw new Error(`Failed to analyze images: ${error.message}`);
+      }
     }
     throw error;
   }
 };
 
 /**
- * Tests basic server connectivity
- * Useful for debugging connection issues
- */
-export const testServerConnection = async () => {
-  try {
-    const response = await axios.get(`${API_URL}/ping`);
-    console.log('[Client] Server test response:', response.data);
-    return true;
-  } catch (error) {
-    console.error('[Client] Server test failed:', error);
-    return false;
-  }
-};
-
-export const getProcessingStatus = async (processingId: string) => {
-  const response = await fetch(`${API_URL}/processing-status/${processingId}`);
-  return response.json();
-};
-
-/**
- * Processes images for homework help
- * Uses the same image processing pipeline as analyzeImages
+ * Processes images specifically for homework help
  */
 export const getHomeworkHelp = async (
   images: Array<{ uri: string; base64?: string }>
@@ -328,30 +307,80 @@ export const getHomeworkHelp = async (
   }
 };
 
-// Add a helper method to get the next concept card (for progressive revelation)
-export const getNextConceptCard = async (homeworkHelpId: string, currentCardNumber: number) => {
+// =====================================
+// Chat Related Functions
+// =====================================
+
+// Add this helper function at the top with other utilities
+const simulateTypingDelay = async (text: string) => {
+  // Increased base delay and per-character delay
+  const baseDelay = 1000;  // Increased from 500ms to 1000ms
+  const perCharacterDelay = 2;  // Increased from 0.5ms to 2ms per character
+  const maxDelay = 3000;  // Increased max delay from 1500ms to 3000ms
+  
+  // Calculate delay with new parameters
+  const delay = Math.min(maxDelay, Math.max(baseDelay, text.length * perCharacterDelay + baseDelay));
+  await new Promise(resolve => setTimeout(resolve, delay));
+};
+
+/**
+ * Sends a chat message to the server and gets a response
+ */
+export const sendChatMessage = async (
+  message: string,
+  sessionId: string,
+  contentId: string,
+  contentType: 'study-set' | 'homework-help',
+  contentContext: StudySet | HomeworkHelp,
+  messageHistory: Array<{ role: 'user' | 'assistant', content: string }> = []
+): Promise<{response: string}> => {
   try {
-    const response = await axios.get(`${API_URL}/next-concept-card/${homeworkHelpId}/${currentCardNumber}`);
+    console.log('[API] Sending chat message:', {
+      messagePreview: message.substring(0, 50),
+      contentType,
+      contentId,
+      hasContext: !!contentContext,
+      messageCount: messageHistory.length
+    });
+
+    const response = await axios.post(`${API_URL}/chat`, {
+      message,
+      sessionId,
+      contentId,
+      contentType,
+      contentContext,
+      messageHistory
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 30000,
+    });
+
+    console.log('[API] Chat response received');
+    
+    // Add typing delay before returning response
+    await simulateTypingDelay(response.data.response);
+    
     return response.data;
   } catch (error) {
-    console.error('[Client] Failed to get next concept card:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('[API] Chat API Error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+    } else {
+      console.error('[API] Non-Axios error:', error);
+    }
     throw error;
   }
 };
 
-// Add a method to request a hint for a specific concept
-export const getAdditionalHint = async (homeworkHelpId: string, cardNumber: number) => {
-  try {
-    const response = await axios.post(`${API_URL}/additional-hint`, {
-      homeworkHelpId,
-      cardNumber
-    });
-    return response.data;
-  } catch (error) {
-    console.error('[Client] Failed to get additional hint:', error);
-    throw error;
-  }
-};
+// =====================================
+// Audio Related Functions
+// =====================================
 
 // Function to get audio content - update to handle new format
 export const getAudioContent = async (
@@ -449,69 +478,51 @@ export const getAudioContent = async (
   }
 }
 
-// Add this helper function at the top with other utilities
-const simulateTypingDelay = async (text: string) => {
-  // Increased base delay and per-character delay
-  const baseDelay = 1000;  // Increased from 500ms to 1000ms
-  const perCharacterDelay = 2;  // Increased from 0.5ms to 2ms per character
-  const maxDelay = 3000;  // Increased max delay from 1500ms to 3000ms
-  
-  // Calculate delay with new parameters
-  const delay = Math.min(maxDelay, Math.max(baseDelay, text.length * perCharacterDelay + baseDelay));
-  await new Promise(resolve => setTimeout(resolve, delay));
+// =====================================
+// Helper Functions
+// =====================================
+
+export const getProcessingStatus = async (processingId: string) => {
+  const response = await fetch(`${API_URL}/processing-status/${processingId}`);
+  return response.json();
+};
+
+// Add a helper method to get the next concept card (for progressive revelation)
+export const getNextConceptCard = async (homeworkHelpId: string, currentCardNumber: number) => {
+  try {
+    const response = await axios.get(`${API_URL}/next-concept-card/${homeworkHelpId}/${currentCardNumber}`);
+    return response.data;
+  } catch (error) {
+    console.error('[Client] Failed to get next concept card:', error);
+    throw error;
+  }
+};
+
+// Add a method to request a hint for a specific concept
+export const getAdditionalHint = async (homeworkHelpId: string, cardNumber: number) => {
+  try {
+    const response = await axios.post(`${API_URL}/additional-hint`, {
+      homeworkHelpId,
+      cardNumber
+    });
+    return response.data;
+  } catch (error) {
+    console.error('[Client] Failed to get additional hint:', error);
+    throw error;
+  }
 };
 
 /**
- * Sends a chat message to the server and gets a response
+ * Tests basic server connectivity
+ * Useful for debugging connection issues
  */
-export const sendChatMessage = async (
-  message: string,
-  sessionId: string,
-  contentId: string,
-  contentType: 'study-set' | 'homework-help',
-  contentContext: StudySet | HomeworkHelp,
-  messageHistory: Array<{ role: 'user' | 'assistant', content: string }> = []
-): Promise<{response: string}> => {
+export const testServerConnection = async () => {
   try {
-    console.log('[API] Sending chat message:', {
-      messagePreview: message.substring(0, 50),
-      contentType,
-      contentId,
-      hasContext: !!contentContext,
-      messageCount: messageHistory.length
-    });
-
-    const response = await axios.post(`${API_URL}/chat`, {
-      message,
-      sessionId,
-      contentId,
-      contentType,
-      contentContext,
-      messageHistory
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      timeout: 30000,
-    });
-
-    console.log('[API] Chat response received');
-    
-    // Add typing delay before returning response
-    await simulateTypingDelay(response.data.response);
-    
-    return response.data;
+    const response = await axios.get(`${API_URL}/ping`);
+    console.log('[Client] Server test response:', response.data);
+    return true;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      console.error('[API] Chat API Error:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        message: error.message
-      });
-    } else {
-      console.error('[API] Non-Axios error:', error);
-    }
-    throw error;
+    console.error('[Client] Server test failed:', error);
+    return false;
   }
 };

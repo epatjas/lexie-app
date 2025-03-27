@@ -7,6 +7,7 @@
     "back": "Takaisin",
     "close": "Sulje",
     "loading": "Ladataan...",
+    "ok": "OK",
     "months": {
       "january": "Tammikuu",
       "february": "Helmikuu",
@@ -78,7 +79,7 @@
     "language": "Kieli",
     "profile": "Profiili",
     "about": "Tietoja",
-    "profileSettings": "Profiiliasetukset",
+    "profileSettings": "Profiilin asetukset",
     "termsConditions": "Käyttöehdot",
     "giveFeedback": "Anna palautetta",
     "comingSoon": "Tulossa pian",
@@ -104,8 +105,8 @@
     "title": "Esikatselu",
     "imageCounter": "{current}/{total}",
     "readyButton": "Valmis",
-    "takeMore": "Ota lisää",
-    "chooseMore": "Valitse lisää"
+    "takeMore": "Kuvaa lisää",
+    "chooseMore": "Lisää kuvia"
   },
   "chat": {
     "askLexie": "Kysy Lexieltä...",
@@ -161,7 +162,9 @@
     "deleteConfirmation": "Haluatko varmasti poistaa tämän harjoittelusetin? Tätä toimintoa ei voi kumota.",
     "delete": "Poista",
     "deleteError": "Harjoittelusetin poistaminen epäonnistui",
-    "takePictureError": "Kuvan ottaminen epäonnistui. Yritä uudelleen."
+    "takePictureError": "Kuvan ottaminen epäonnistui. Yritä uudelleen.",
+    "permission": "Kameran käyttöoikeus",
+    "cameraAccess": "Anna Lexielle lupa käyttää kameraa."
   },
   "scanPage": {
     "title": "Ota kuva",
@@ -185,7 +188,7 @@
       "incorrectFinal": "Se meni väärin. Oikea vastaus on {answer}."
     },
     "buttons": {
-      "submit": "Lähetä",
+      "submit": "Vastaa",
       "ok": "OK",
       "continue": "Jatka",
       "skip": "Ohita kysymys"
@@ -205,24 +208,24 @@
     },
     "results": {
       "perfect": {
-        "title": "Kaikki oikein",
-        "subtitle": "Osaat tämän jo hyvin"
+        "title": "Kaikki oikein.",
+        "subtitle": "Osaat tämän jo hyvin."
       },
       "excellent": {
-        "title": "Hienosti tehty",
-        "subtitle": "Lähes kaikki oikein"
+        "title": "Hienosti meni.",
+        "subtitle": "Lähes kaikki oikein."
       },
       "good": {
-        "title": "Hyvä suoritus",
-        "subtitle": "Kertaa vielä hankalammat kohdat"
+        "title": "Hyvä suoritus.",
+        "subtitle": "Kertaa vielä hankalammat kohdat."
       },
       "average": {
-        "title": "Hyvä alku",
-        "subtitle": "Käy materiaali uudelleen läpi"
+        "title": "Hyvä alk.",
+        "subtitle": "Käy materiaali uudelleen läpi."
       },
       "needsImprovement": {
-        "title": "Harjoitus tekee mestarin",
-        "subtitle": "Palaa ensin perusasioihin"
+        "title": "Harjoitus tekee mestarin.",
+        "subtitle": "Palaa ensin perusasioihin."
       }
     }
   },
@@ -314,7 +317,7 @@
     "counter": "{current} / {total}"
   },
   "flashcardResults": {
-    "congratsTitle": "Hienosti tehty!",
+    "congratsTitle": "Hyvä suoritus.",
     "progressTitle": "Edistymisesi",
     "termsMastered": "Asioita\nhallussa",
     "masteredLabel": "Osaat jo",

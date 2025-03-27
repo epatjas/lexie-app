@@ -85,6 +85,7 @@ export interface QuizQuestion {
   question: string;
   options: string[];
   correct: string;
+  explanation?: string;
 }
 
 export interface TextSection {
@@ -213,3 +214,47 @@ export const isChatSession = (obj: any): obj is ChatSession => {
   return obj && typeof obj.id === 'string' && 
     (obj.content_type === 'study-set' || obj.content_type === 'homework-help');
 };
+
+interface AnalysisResponse {
+  title: string;
+  text_content: {
+    raw_text: string;
+    sections: Array<{
+      type: 'heading' | 'paragraph' | 'list' | 'quote' | 'definition';
+      level?: number;
+      content?: string;
+      style?: 'bullet' | 'numbered';
+      items?: string[];
+      term?: string;
+      definition?: string;
+    }>;
+  };
+  contentType: 'study-set' | 'homework-help';
+  flashcards?: Array<{ front: string; back: string }>;
+  quiz?: Array<{ 
+    question: string; 
+    options: string[]; 
+    correct: string;
+    explanation?: string;
+  }>;
+  introduction?: string;
+  summary?: string;
+}
+
+export interface StudyMaterials {
+  id?: string;
+  title: string;
+  contentType: 'study-set' | 'homework-help';
+  introduction: string;
+  text_content: TextContent;
+  summary?: string;
+  subject_area?: string;
+  flashcards?: Flashcard[];
+  quiz?: QuizQuestion[];
+  vocabulary_tables?: any[];
+  created_at?: number | string;
+  updated_at?: number | string;
+  profile_id?: string;
+  folder_id?: string;
+  processingId?: string;
+}

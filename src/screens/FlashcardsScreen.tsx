@@ -8,8 +8,9 @@ import {
   Animated,
   Dimensions,
   PanResponder,
+  Platform,
 } from 'react-native';
-import { ChevronLeft, Volume2, RotateCcw, X, Check } from 'lucide-react-native';
+import { ChevronLeft, Volume2, RotateCcw, X, Check, ThumbsUp, ThumbsDown } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
@@ -148,11 +149,59 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
     console.log('State updated - currentIndex:', currentIndex);
   }, [currentIndex]);
 
-  // Add this helper function to handle index changes
+  // Add these new state variables
+  const [cardFeedbackSubmitted, setCardFeedbackSubmitted] = useState<Record<number, boolean>>({});
+  const [showFeedbackToast, setShowFeedbackToast] = useState(false);
+
+  // Add this function to handle flashcard feedback
+  const handleFlashcardFeedback = async (isPositive: boolean) => {
+    if (flashcards.length === 0) return;
+    
+    try {
+      // Store feedback in AsyncStorage with modified data structure
+      const feedbackData = {
+        studySetId,
+        flashcardIndex: currentIndex,
+        flashcardFront: flashcards[currentIndex].front,
+        flashcardBack: flashcards[currentIndex].back,
+        isPositive,
+        timestamp: new Date().toISOString(),
+      };
+      
+      // Get existing feedback data or initialize empty array
+      const existingDataJson = await AsyncStorage.getItem('flashcard_feedback') || '[]';
+      const existingData = JSON.parse(existingDataJson);
+      
+      // Add new feedback and save back to AsyncStorage
+      existingData.push(feedbackData);
+      await AsyncStorage.setItem('flashcard_feedback', JSON.stringify(existingData));
+      
+      // Update state to mark this card's feedback as submitted
+      setCardFeedbackSubmitted(prev => ({
+        ...prev,
+        [currentIndex]: true
+      }));
+      
+      // Show toast
+      setShowFeedbackToast(true);
+      
+      // Hide toast after 5 seconds
+      setTimeout(() => {
+        setShowFeedbackToast(false);
+      }, 5000);
+      
+      console.log('Flashcard feedback submitted:', feedbackData);
+    } catch (error) {
+      console.error('Error saving flashcard feedback:', error);
+    }
+  };
+
+  // Modify the handleIndexChange function to ensure we handle feedback state correctly
   const handleIndexChange = (newIndex: number) => {
     setCurrentIndex(newIndex);
     setIsFlipped(false);  // Always show front side
     flipAnim.setValue(0); // Reset flip animation
+    // We don't reset feedback state as we want to remember which cards received feedback
   };
 
   const panResponder = useRef(
@@ -433,17 +482,13 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
               {t('flashcards.iKnowThis')}
             </Animated.Text>
             
-            {/* Card footer with counter and sound button */}
+            {/* Card footer with counter */}
             <View style={styles.cardFooter}>
               <View style={styles.cardCounter}>
                 <Text style={styles.cardCounterText}>
                   {t('flashcards.counter', { current: currentIndex + 1, total: flashcards.length })}
                 </Text>
               </View>
-              
-              <TouchableOpacity style={styles.soundButton}>
-                <Volume2 color={theme.colors.text} size={20} />
-              </TouchableOpacity>
             </View>
 
             {/* Status indicator for cards already categorized */}
@@ -457,7 +502,7 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
             )}
           </Animated.View>
           
-          {/* Back of card - same approach for consistency */}
+          {/* Back of card - remove feedback buttons here too */}
           <Animated.View style={[
             styles.cardFace,
             styles.cardBack, 
@@ -472,10 +517,6 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
                   {t('flashcards.counter', { current: currentIndex + 1, total: flashcards.length })}
                 </Text>
               </View>
-              
-              <TouchableOpacity style={styles.soundButton}>
-                <Volume2 color={theme.colors.text} size={20} />
-              </TouchableOpacity>
             </View>
 
             {(isKnown || isLearning) && (
@@ -622,6 +663,34 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
         )}
       </View>
 
+      {/* Add feedback buttons below card but above control buttons */}
+      {flashcards.length > 0 && (
+        <View style={styles.feedbackContainer}>
+          <View style={styles.feedbackButtons}>
+            <TouchableOpacity 
+              style={styles.feedbackButton} 
+              onPress={() => handleFlashcardFeedback(true)}
+              disabled={cardFeedbackSubmitted[currentIndex]}
+            >
+              <ThumbsUp 
+                color={theme.colors.textSecondary}
+                size={20} 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.feedbackButton} 
+              onPress={() => handleFlashcardFeedback(false)}
+              disabled={cardFeedbackSubmitted[currentIndex]}
+            >
+              <ThumbsDown 
+                color={theme.colors.textSecondary}
+                size={20} 
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Updated control buttons */}
       <View style={styles.controlButtons}>
         {/* "Still learning" button with updated color */}
@@ -658,6 +727,23 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
           </View>
         </TouchableOpacity>
       </View>
+
+      {/* Toast notification remains unchanged */}
+      {showFeedbackToast && (
+        <View style={styles.feedbackToast}>
+          <View style={styles.closeToastButtonContainer}>
+            <TouchableOpacity 
+              style={styles.closeToastButton}
+              onPress={() => setShowFeedbackToast(false)}
+            >
+              <X color="#FFFFFF" size={16} />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.feedbackToastText}>
+            {t('feedback.thankYou')}
+          </Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -736,8 +822,8 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
   },
   cardCounter: {
     position: 'relative',
@@ -854,4 +940,66 @@ const styles = StyleSheet.create({
     zIndex: -3, // Behind everything else
   },
   ...additionalStyles,
+  feedbackContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 16, // Add top margin to move buttons lower
+  },
+  feedbackButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+  },
+  feedbackButton: {
+    padding: 10,
+    borderRadius: 20,
+    marginHorizontal: 0,
+  },
+  feedbackToast: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 90 : 50,
+    left: theme.spacing.md,
+    right: theme.spacing.md,
+    backgroundColor: 'rgba(30, 30, 30, 0.85)',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1000,
+    borderWidth: 1,
+    borderColor: 'rgba(60, 60, 60, 0.5)',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  feedbackToastText: {
+    color: 'white',
+    fontSize: 16,
+    fontFamily: theme.fonts.regular,
+    flex: 1,
+    textAlign: 'left',
+    paddingLeft: 0,
+    marginRight: 0,
+  },
+  closeToastButtonContainer: {
+    marginRight: 4,
+    marginLeft: -4,
+  },
+  closeToastButton: {
+    padding: 5,
+    backgroundColor: 'rgba(80, 80, 80, 0.5)',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 24,
+    height: 24,
+  },
 });

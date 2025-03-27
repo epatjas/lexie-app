@@ -18,10 +18,7 @@ type ScanPageRouteParams = {
 export default function ScanPageScreen({ route, navigation }: ScanPageScreenProps) {
   const { t } = useTranslation();
   const cameraRef = useRef<any>(null);
-  const [permission, requestPermission] = useCameraPermissions();
-  const [isCapturing, setIsCapturing] = useState(false);
   const [isCameraReady, setCameraReady] = useState(false);
-  const [permissionError, setPermissionError] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const progressAnimation = useRef(new Animated.Value(0)).current;
   const cameraInitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -29,40 +26,24 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
   // Get existing photos from route params
   const existingPhotos = route.params?.existingPhotos || [];
 
-  // Add logging to debug camera initialization
+  // Remove permission checking logic since we handle it before navigation
   useEffect(() => {
     console.log('ScanPageScreen mounted');
-    console.log('Camera permission status:', permission);
-    
-    // Request camera permission if not already granted
-    const checkPermission = async () => {
-      if (!permission?.granted) {
-        console.log('Requesting camera permission...');
-        const result = await requestPermission();
-        console.log('Permission request result:', result);
-        if (!result.granted) {
-          setPermissionError(t('scanPage.permissionRequired'));
-        }
-      }
-    };
-    
-    checkPermission();
     
     // Set a timeout to detect camera initialization problems
     cameraInitTimeoutRef.current = setTimeout(() => {
       if (!isCameraReady) {
-        console.log('Camera initialization timeout - camera not ready after 10 seconds');
-        setCameraError(t('scanPage.cameraError') + '. ' + t('alerts.tryAgain'));
+        console.log('Camera initialization timeout');
+        setCameraError(t('scanPage.cameraError'));
       }
-    }, 10000); // 10 second timeout
+    }, 10000);
     
     return () => {
-      console.log('ScanPageScreen unmounting');
       if (cameraInitTimeoutRef.current) {
         clearTimeout(cameraInitTimeoutRef.current);
       }
     };
-  }, [permission, requestPermission, t]);
+  }, []);
 
   // Add this function to handle camera ready state
   const onCameraReady = () => {
@@ -85,14 +66,12 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
       return;
     }
     
-    setIsCapturing(true);
     Animated.timing(progressAnimation, {
       toValue: 1,
       duration: 1000,
       useNativeDriver: true,
     }).start(async () => {
       await takePicture();
-      setIsCapturing(false);
       progressAnimation.setValue(0);
     });
   };
@@ -125,65 +104,6 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
 
   // Add this state to force camera component re-mount when needed
   const [forceReset, setForceReset] = useState(0);
-
-  // Enhanced permission handling UI
-  if (!permission || permissionError) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          {!permission && <ActivityIndicator size="large" color={theme.colors.primary} />}
-          <Text style={styles.permissionText}>
-            {permissionError || t('scanPage.checkingPermission')}
-          </Text>
-          {permissionError && (
-            <TouchableOpacity 
-              style={styles.permissionButton} 
-              onPress={() => requestPermission()}
-            >
-              <Text style={styles.permissionButtonText}>{t('scanPage.grantPermission')}</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity 
-            style={[styles.permissionButton, {marginTop: 10}]} 
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.permissionButtonText}>{t('scanPage.goBack')}</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Show error state if camera fails to initialize
-  if (cameraError) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <ChevronLeft size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('scanPage.cameraError')}</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        
-        <View style={styles.loadingContainer}>
-          <Text style={styles.permissionText}>{cameraError}</Text>
-          <TouchableOpacity 
-            style={styles.permissionButton} 
-            onPress={resetCamera}
-          >
-            <Text style={styles.permissionButtonText}>{t('scanPage.tryAgain')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.permissionButton, {marginTop: 10, backgroundColor: theme.colors.background02}]} 
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.permissionButtonText}>{t('scanPage.goBack')}</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -226,7 +146,7 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
           <TouchableOpacity 
             style={[styles.captureButton, !isCameraReady && styles.disabledButton]} 
             onPress={startCapture}
-            disabled={isCapturing || !isCameraReady}
+            disabled={!isCameraReady}
           >
             <View style={styles.captureButtonOuterRing}>
               <Camera size={24} color={theme.colors.text} />
@@ -235,7 +155,7 @@ export default function ScanPageScreen({ route, navigation }: ScanPageScreenProp
               style={[
                 styles.progressRing,
                 {
-                  borderWidth: isCapturing ? 3 : 0,
+                  borderWidth: isCameraReady ? 3 : 0,
                   borderColor: theme.colors.text,
                   transform: [{
                     rotate: progressAnimation.interpolate({

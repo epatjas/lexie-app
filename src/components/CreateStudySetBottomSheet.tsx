@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, SafeAreaView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, SafeAreaView, Platform, Alert, Linking } from 'react-native';
 import { Camera, Image as ImageIcon } from 'lucide-react-native';
 import theme from '../styles/theme';
 import * as ImagePicker from 'expo-image-picker';
@@ -9,6 +9,7 @@ import { RootStackParamList } from '../types/navigation';
 import { getActiveProfile } from '../utils/storage';
 import { createStudySet } from '../services/Database';
 import { useTranslation } from '../i18n/LanguageContext';
+import { Camera as ExpoCamera } from 'expo-camera';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -26,6 +27,45 @@ export default function CreateStudySetBottomSheet({ onClose, visible, existingPh
   
   const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
+
+  const handleScanPress = async () => {
+    console.log('handleScanPress called');
+    
+    // Request camera permission using native dialog
+    const { status } = await ExpoCamera.requestCameraPermissionsAsync();
+    console.log('Camera permission status:', status);
+    
+    if (status === 'granted') {
+      onClose();
+      requestAnimationFrame(() => {
+        navigation.navigate('ScanPage', { 
+          existingPhotos: existingPhotos 
+        });
+      });
+    } else {
+      // Close the bottom sheet first
+      onClose();
+      
+      // Then show the alert
+      Alert.alert(
+        t('alerts.permission'),
+        t('alerts.cameraAccess'),
+        [
+          { 
+            text: t('common.ok'),
+            onPress: () => {
+              // If user taps OK, open device settings
+              if (Platform.OS === 'ios') {
+                Linking.openURL('app-settings:');
+              } else {
+                Linking.openSettings();
+              }
+            }
+          }
+        ]
+      );
+    }
+  };
 
   const handleImagePicker = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -49,24 +89,12 @@ export default function CreateStudySetBottomSheet({ onClose, visible, existingPh
       }));
       
       onClose();
-      navigation.navigate('Preview', { 
-        photos: [...(existingPhotos || []), ...photos]
+      requestAnimationFrame(() => {
+        navigation.navigate('Preview', { 
+          photos: [...(existingPhotos || []), ...photos]
+        });
       });
     }
-  };
-
-  const handleScanPress = () => {
-    console.log('handleScanPress called, navigating to ScanPage');
-    
-    const navigateToScan = () => {
-      navigation.navigate('ScanPage', { 
-        openBottomSheet: false,
-        existingPhotos: existingPhotos 
-      });
-    };
-    
-    onClose();
-    setTimeout(navigateToScan, 100);
   };
 
   return (
@@ -89,25 +117,19 @@ export default function CreateStudySetBottomSheet({ onClose, visible, existingPh
           <View style={styles.handle} />
           <TouchableOpacity style={styles.option} onPress={handleScanPress}>
             <View style={[styles.iconContainer, { backgroundColor: '#D9EAFD' }]}>
-              <Camera size={24} color={theme.colors.background} />
+              <Camera size={20} color={theme.colors.background} />
             </View>
             <View style={styles.textContainer}>
               <Text style={styles.optionTitle}>{t('scanPage.title')}</Text>
-              <Text style={styles.optionDescription}>
-                {t('chat.takePhoto')}
-              </Text>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.option} onPress={handleImagePicker}>
             <View style={[styles.iconContainer, { backgroundColor: '#FFEBA1' }]}>
-              <ImageIcon size={24} color={theme.colors.background} />
+              <ImageIcon size={20} color={theme.colors.background} />
             </View>
             <View style={styles.textContainer}>
               <Text style={styles.optionTitle}>{t('chat.chooseFromLibrary')}</Text>
-              <Text style={styles.optionDescription}>
-                {t('preview.chooseMore')}
-              </Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -149,13 +171,13 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.md,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
     borderRadius: 20,
     backgroundColor: theme.colors.background02,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.md,
+    marginRight: theme.spacing.sm,
   },
   textContainer: {
     flex: 1,
