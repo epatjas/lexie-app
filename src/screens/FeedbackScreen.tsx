@@ -188,6 +188,7 @@ export default function FeedbackScreen({
         has_screenshot: !!screenshot,
         feedback_length: feedbackText.length,
         feedback_text: feedbackText,
+        screenshot: screenshot,
       }
     );
     
