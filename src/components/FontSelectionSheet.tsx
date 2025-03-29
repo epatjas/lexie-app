@@ -155,7 +155,7 @@ const FontSelectionSheet: React.FC<FontSelectionSheetProps> = ({
                   onPress={() => handleFontSelect(font)}
                 >
                   <Text style={getFontStyle(font)}>
-                    {t(`fontSettings.${font.toLowerCase().replace('-', '')}`)}
+                    {t(`fontSettings.${font.toLowerCase().replace('-', 'Friendly')}`)}
                   </Text>
                   {selectedFont === font && (
                     <View style={styles.selectedIndicator}>

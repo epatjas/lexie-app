@@ -41,6 +41,8 @@ import Animated, {
   SlideOutUp,
 } from 'react-native-reanimated';
 import DragHandle from '../components/DragHandle';
+import { SimpleAnalytics, EventType } from '../services/SimpleAnalytics';
+import { Analytics, FeedbackType } from '../services/AnalyticsService';
 
 type FeedbackCategory = {
   id: string;
@@ -177,6 +179,18 @@ export default function FeedbackScreen({
 
     console.log('Feedback data:', feedbackData);
     
+    // Log feedback to analytics
+    await Analytics.logFeedback(
+      FeedbackType.APP_FEEDBACK,
+      true,
+      {
+        category: selectedCategory,
+        has_screenshot: !!screenshot,
+        feedback_length: feedbackText.length,
+        feedback_text: feedbackText,
+      }
+    );
+    
     // Show thank you message
     setShowThankYou(true);
     
@@ -193,6 +207,11 @@ export default function FeedbackScreen({
       onClose();
     }
   };
+
+  useEffect(() => {
+    // Track screen view
+    Analytics.logScreenView('Feedback');
+  }, []);
 
   return (
     <View style={StyleSheet.absoluteFill}>

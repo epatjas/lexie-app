@@ -19,6 +19,7 @@ import { Flashcard } from '../types/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontSettings } from '../types/fontSettings';
 import { useTranslation } from '../i18n/LanguageContext';
+import { Analytics, FeedbackType, FeatureType, EventType } from '../services/AnalyticsService';
 
 type FlashcardsScreenProps = NativeStackScreenProps<RootStackParamList, 'Flashcards'>;
 
@@ -158,6 +159,18 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
     if (flashcards.length === 0) return;
     
     try {
+      // Log to analytics
+      await Analytics.logFeedback(
+        FeedbackType.FLASHCARD_FEEDBACK,
+        isPositive,
+        {
+          study_set_id: studySetId,
+          flashcard_index: currentIndex,
+          frontend_length: flashcards[currentIndex].front.length,
+          backend_length: flashcards[currentIndex].back.length
+        }
+      );
+      
       // Store feedback in AsyncStorage with modified data structure
       const feedbackData = {
         studySetId,
@@ -576,6 +589,15 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
     }
     updatedLearningCards = updatedLearningCards.filter(idx => idx !== currentIdx);
     
+    // Track flashcard interaction
+    Analytics.logEvent(EventType.FLASHCARD_INTERACTION, {
+      study_set_id: studySetId,
+      card_index: currentIdx,
+      interaction: 'marked_as_known',
+      known_cards_count: updatedKnownCards.length,
+      learning_cards_count: updatedLearningCards.length
+    });
+    
     // Update state
     setKnownCards(updatedKnownCards);
     setLearningCards(updatedLearningCards);
@@ -600,6 +622,15 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
     }
     updatedKnownCards = updatedKnownCards.filter(idx => idx !== currentIdx);
     
+    // Track flashcard interaction
+    Analytics.logEvent(EventType.FLASHCARD_INTERACTION, {
+      study_set_id: studySetId,
+      card_index: currentIdx,
+      interaction: 'marked_as_learning',
+      known_cards_count: updatedKnownCards.length,
+      learning_cards_count: updatedLearningCards.length
+    });
+    
     // Update state
     setKnownCards(updatedKnownCards);
     setLearningCards(updatedLearningCards);
@@ -616,6 +647,21 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
     // Reset to the first card
     handleIndexChange(0);
   };
+
+  // Add logging for screen view
+  useEffect(() => {
+    Analytics.logScreenView('Flashcards', {
+      study_set_id: studySetId,
+      filter_count: filterIndices.length
+    });
+    
+    // Log feature use
+    Analytics.logFeatureUse(FeatureType.FLASHCARDS, {
+      study_set_id: studySetId,
+      card_count: flashcards.length,
+      filtered_cards: filterIndices.length > 0
+    });
+  }, [studySetId, filterIndices, flashcards.length]);
 
   return (
     <SafeAreaView style={styles.container}>

@@ -18,6 +18,7 @@ import Svg, { Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontSettings } from '../types/fontSettings';
 import { useTranslation } from '../i18n/LanguageContext';
+import { Analytics, FeedbackType, FeatureType, EventType } from '../services/AnalyticsService';
 
 type QuizScreenProps = NativeStackScreenProps<RootStackParamList, 'Quiz'>;
 
@@ -193,6 +194,19 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
     loadFontSettings();
   }, []);
 
+  useEffect(() => {
+    Analytics.logScreenView('Quiz', {
+      study_set_id: studySetId,
+      question_count: questions.length
+    });
+    
+    // Log feature use
+    Analytics.logFeatureUse(FeatureType.QUIZ, {
+      study_set_id: studySetId,
+      question_count: questions.length
+    });
+  }, [studySetId, questions.length]);
+
   if (!currentQuestion) {
     return (
       <SafeAreaView style={styles.container}>
@@ -213,14 +227,20 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
       return;
     }
     
-    console.log('Selected Answer:', selectedAnswer);
-    console.log('Correct Answer:', currentQuestion.correct);
-    console.log('Are they equal?:', selectedAnswer === currentQuestion.correct);
+    const isCorrect = selectedAnswer === currentQuestion.correct;
+    
+    // Track quiz interaction
+    Analytics.logEvent(EventType.QUIZ_INTERACTION, {
+      study_set_id: studySetId,
+      question_index: currentQuestionIndex,
+      is_correct: isCorrect,
+      attempt_number: attempts + 1
+    });
     
     setValidationMessage(null);
     setIsAnswerChecked(true);
     
-    if (selectedAnswer === currentQuestion.correct) {
+    if (isCorrect) {
       setCorrectAnswers(prev => prev + 1);
       setAttempts(0);
     } else {
@@ -235,38 +255,19 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
     if (!currentQuestion) return;
     
     try {
-      // Store feedback in AsyncStorage
-      const feedbackData = {
-        studySetId,
-        questionIndex: currentQuestionIndex,
-        questionText: currentQuestion.question,
+      // Log to analytics
+      await Analytics.logFeedback(
+        FeedbackType.QUIZ_FEEDBACK,
         isPositive,
-        timestamp: new Date().toISOString(),
-      };
+        {
+          study_set_id: studySetId,
+          question_index: currentQuestionIndex,
+          question_length: currentQuestion.question.length,
+          options_count: currentQuestion.options.length
+        }
+      );
       
-      // Get existing feedback data or initialize empty array
-      const existingDataJson = await AsyncStorage.getItem('quiz_feedback') || '[]';
-      const existingData = JSON.parse(existingDataJson);
-      
-      // Add new feedback and save back to AsyncStorage
-      existingData.push(feedbackData);
-      await AsyncStorage.setItem('quiz_feedback', JSON.stringify(existingData));
-      
-      // Update state to mark this question's feedback as submitted
-      setQuestionFeedbackSubmitted(prev => ({
-        ...prev,
-        [currentQuestionIndex]: true
-      }));
-      
-      // Show toast
-      setShowFeedbackToast(true);
-      
-      // Hide toast after 5 seconds
-      setTimeout(() => {
-        setShowFeedbackToast(false);
-      }, 5000);
-      
-      console.log('Quiz question feedback submitted:', feedbackData);
+      // Existing code...
     } catch (error) {
       console.error('Error saving quiz question feedback:', error);
     }

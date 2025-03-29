@@ -43,6 +43,7 @@ import AudioPlayer from '../components/AudioPlayer';
 import { sendChatMessage } from '../services/api';
 import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-context';
 import { useTranslation } from '../i18n/LanguageContext'; // Ensure this is imported
+import { Analytics, FeedbackType, FeatureType, EventType } from '../services/AnalyticsService';
 
 type StudySetScreenProps = NativeStackScreenProps<RootStackParamList, 'StudySet'>;
 type ContentType = 'study-set' | 'homework-help';
@@ -432,6 +433,10 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
   const handleCreateQuiz = () => {
     if (id) {
+      Analytics.logFeatureUse(FeatureType.QUIZ, {
+        content_id: id,
+        content_type: content?.contentType || 'study-set'
+      });
       navigation.navigate('Quiz', {
         quiz: [],
         studySetId: id
@@ -441,6 +446,10 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
   const handleFlashcardsPress = () => {
     if (id) {
+      Analytics.logFeatureUse(FeatureType.FLASHCARDS, {
+        content_id: id,
+        content_type: content?.contentType || 'study-set'
+      });
       navigationNative.navigate('Flashcards', { studySetId: id });
     }
   };
@@ -474,6 +483,10 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
   const handleListenPress = () => {
     if (content) {
+      Analytics.logFeatureUse(FeatureType.AUDIO, {
+        content_id: id,
+        content_type: content.contentType || 'study-set'
+      });
       setShowAudioPlayer(true);
     } else {
       Alert.alert(t('alerts.error'), t('studySet.noContentToPlay'));
@@ -560,6 +573,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   };
 
   const handleChangeFontPress = () => {
+    Analytics.logFeatureUse(FeatureType.FONT_SELECTION);
     setShowSettingsSheet(false);
     setTimeout(() => {
       setFontSheetVisible(true);
@@ -1088,6 +1102,18 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     if (!content || feedbackSubmitted) return;
     
     try {
+      // Log content feedback
+      await Analytics.logContentFeedback(
+        content.contentType || 'study-set',
+        id,
+        isPositive,
+        {
+          page: selectedTab,
+          has_flashcards: content.contentType === 'study-set' && Array.isArray((content as StudySet).flashcards),
+          has_quiz: content.contentType === 'study-set' && Array.isArray((content as StudySet).quiz),
+        }
+      );
+      
       // Store feedback in AsyncStorage
       const feedbackData = {
         studySetId: id,
@@ -1307,6 +1333,13 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     
+    // Track chat usage
+    Analytics.logFeatureUse(FeatureType.CHAT, {
+      content_id: id,
+      content_type: content.contentType || 'study-set',
+      message_length: message.length
+    });
+    
     try {
       setIsLexieTyping(true);
       
@@ -1323,7 +1356,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         id,
         content.contentType,
         content,
-        messageHistory // Add this parameter
+        messageHistory
       );
       
       // Create assistant message
@@ -1344,6 +1377,13 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       }, 100);
     } catch (error) {
       console.error('[Chat] Failed to get chat response:', error);
+      
+      // Log error to analytics
+      Analytics.logEvent(EventType.ERROR, {
+        feature: 'chat',
+        error_message: (error as Error).message || 'Unknown error',
+        content_id: id
+      });
     } finally {
       setIsLexieTyping(false);
     }
@@ -1472,6 +1512,16 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     // Add recording logic here
     console.log('Record pressed');
   };
+
+  // Add logging for screen view
+  useEffect(() => {
+    if (content) {
+      Analytics.logScreenView('StudySet', {
+        content_id: id,
+        content_type: content.contentType || 'study-set'
+      });
+    }
+  }, [content, id]);
 
   return (
     <KeyboardAvoidingView 

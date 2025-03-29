@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../../../lexie-server"
+		},
+		{
+			"path": "../../../lexie-analytics-server"
 		}
 	],
 	"settings": {}

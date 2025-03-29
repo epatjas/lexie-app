@@ -86,6 +86,7 @@ export type RootStackParamList = {
     contentType?: string;
   };
   Feedback: undefined;
+  AnalyticsManager: undefined;
 };
 
 console.log('[navigation.ts] RootStackParamList defined with these screens:', 

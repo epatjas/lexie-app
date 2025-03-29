@@ -46,7 +46,8 @@
         {
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-build-properties"
     ],
     "extra": {
       "eas": {

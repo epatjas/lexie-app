@@ -36,6 +36,9 @@ import {
   IBMPlexMono_400Regular
 } from '@expo-google-fonts/ibm-plex-mono';
 import { LanguageProvider } from './src/i18n/LanguageContext';
+import { Analytics, EventType } from './src/services/AnalyticsService';
+import { SimpleAnalytics } from './src/services/SimpleAnalytics';
+import DevMenu from './src/components/DevMenu';
 
 LogBox.ignoreLogs([
   "It looks like you might be using shared value's .value inside reanimated inline style"
@@ -138,6 +141,51 @@ export default function App() {
     };
   }, []);
 
+  // Add this useEffect to initialize analytics
+  useEffect(() => {
+    const initializeAnalytics = async () => {
+      try {
+        // Start a new session
+        await Analytics.startSession();
+        
+        // Log app open event
+        await Analytics.logEvent(EventType.APP_OPEN);
+        
+        console.log('Analytics initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize analytics:', error);
+      }
+    };
+    
+    initializeAnalytics();
+    
+    // Track app state changes
+    const appStateSubscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        // App came to foreground
+        Analytics.startSession();
+      } else if (nextAppState === 'background' || nextAppState === 'inactive') {
+        // App went to background
+        Analytics.endSession();
+      }
+    });
+    
+    // Attempt to sync any stored analytics data
+    Analytics.syncEvents();
+    
+    // Setup periodic sync every 5 minutes
+    const syncInterval = setInterval(() => {
+      Analytics.syncEvents();
+    }, 5 * 60 * 1000);
+    
+    // Cleanup function
+    return () => {
+      Analytics.endSession();
+      appStateSubscription.remove();
+      clearInterval(syncInterval);
+    };
+  }, []);
+
   // Add a fallback UI for troubleshooting
   if ((!fontsLoaded || !appIsReady) && !forceReady) {
     console.log("Still loading - fonts loaded:", fontsLoaded, "app ready:", appIsReady);
@@ -183,6 +231,15 @@ export default function App() {
 
   console.log("Rendering main navigation, isFirstTime:", isFirstTime);
   
+  const linking = {
+    prefixes: ['lexielearn://'],
+    config: {
+      screens: {
+        AnalyticsManager: 'analytics',
+      },
+    },
+  };
+
   return (
     <LanguageProvider>
       <ProfileProvider>
@@ -198,8 +255,10 @@ export default function App() {
                 console.log('[App] Navigation state changed:', 
                   state?.routes?.map(r => r.name) || 'No routes');
               }}
+              linking={linking}
             >
               <AppNavigator initialRouteName={isFirstTime ? "Welcome" : "ProfileSelection"} />
+              {__DEV__ && <DevMenu />}
             </NavigationContainer>
           </GestureHandlerRootView>
         </View>

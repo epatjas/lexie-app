@@ -29,6 +29,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from '../i18n/LanguageContext';
 import LanguageSelector from '../components/LanguageSelector';
 import FeedbackScreen from './FeedbackScreen';
+import { NavigationProp } from '@react-navigation/native';
 
 export default function SettingsScreen({ 
   navigation, 
@@ -298,6 +299,18 @@ export default function SettingsScreen({
             <Text style={{flex: 1, color: 'white', fontSize: 16}}>{t('settings.giveFeedback')}</Text>
             <ChevronRight color={theme.colors.text} size={16} />
           </TouchableOpacity>
+
+          {/* Analytics Dashboard */}
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('AnalyticsManager')}
+          >
+            <View style={styles.settingContent}>
+              <Text style={styles.settingTitle}>Analytics Dashboard</Text>
+              <Text style={styles.settingDescription}>View app usage statistics</Text>
+            </View>
+            <ChevronRight color={theme.colors.text} size={20} />
+          </TouchableOpacity>
           
           <View style={{
             marginTop: 'auto', 
@@ -414,5 +427,26 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontFamily: theme.fonts.regular,
     marginBottom: 4,
+  },
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  settingContent: {
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: theme.fontSizes.md,
+    color: theme.colors.text,
+    fontFamily: theme.fonts.medium,
+  },
+  settingDescription: {
+    fontSize: theme.fontSizes.sm,
+    color: theme.colors.text,
+    opacity: 0.7,
+    fontFamily: theme.fonts.regular,
   },
 }); 
