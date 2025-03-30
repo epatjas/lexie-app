@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { analyzeImages, getProcessingStatus } from '../services/api';
 import { createStudySet } from '../services/Database';
+import { Analytics, EventType } from '../services/AnalyticsService';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { ArrowLeft, Search, Brain, Sparkles, Trash2, FileText, ListChecks } from 'lucide-react-native';
@@ -194,6 +195,9 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       const studySet = await createStudySet(studySetData);
       const dbEndTime = Date.now();
       
+      // Track study set creation in analytics
+      Analytics.logEvent(EventType.STUDY_SET_CREATED, { study_set_id: studySet.id });
+
       // Add post-creation log to verify content type was saved
       console.log('[Debug] Created study set with content type:', studySet.contentType);
       

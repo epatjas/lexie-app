@@ -15,6 +15,7 @@ export enum EventType {
   QUIZ_INTERACTION = 'quiz_interaction',
   SETTINGS_CHANGE = 'settings_change',
   ERROR = 'error',
+  ACTIVE_WEEK = 'active_week',
 }
 
 // Feature types
@@ -65,6 +66,7 @@ class AnalyticsService {
   private userId: string | null = null;
   private deviceId: string = '';
   private appVersion: string = '';
+  private sessionStartTime: number = 0;
 
   constructor() {
     // No initialization to avoid hooks issues
@@ -80,12 +82,16 @@ class AnalyticsService {
       await AsyncStorage.setItem(SESSION_ID_KEY, this.sessionId);
       await AsyncStorage.setItem(LAST_SESSION_TIME_KEY, nowIso);
       
-      // Track active weeks for retention calculation
-      const weekNumber = this.getWeekNumber(now);
-      const activeWeeksStr = await AsyncStorage.getItem(ACTIVE_WEEKS_KEY) || '[]';
-      const activeWeeks = new Set(JSON.parse(activeWeeksStr));
-      activeWeeks.add(weekNumber);
-      await AsyncStorage.setItem(ACTIVE_WEEKS_KEY, JSON.stringify([...activeWeeks]));
+      // Update active weeks tracking whenever a session starts
+      await this.updateActiveWeeks();
+      
+      // Record session start time
+      this.sessionStartTime = Date.now();
+      
+      // Log session start event
+      await this.logEvent(EventType.SESSION_START, {
+        start_time: new Date().toISOString()
+      });
       
       return this.sessionId;
     } catch (error) {
@@ -97,7 +103,26 @@ class AnalyticsService {
 
   // End the current session
   public async endSession() {
-    this.sessionId = null;
+    try {
+      if (this.sessionId) {
+        const endTime = Date.now();
+        const sessionDuration = this.sessionStartTime > 0 ? 
+          (endTime - this.sessionStartTime) / 1000 : 0; // duration in seconds
+        
+        // Log session end with duration
+        await this.logEvent(EventType.SESSION_END, {
+          end_time: new Date().toISOString(),
+          duration_seconds: sessionDuration,
+          session_id: this.sessionId
+        });
+        
+        this.sessionId = null;
+        this.sessionStartTime = 0;
+      }
+    } catch (error) {
+      console.error('Failed to end session:', error);
+      this.sessionId = null;
+    }
   }
 
   // Set user ID
@@ -209,9 +234,59 @@ class AnalyticsService {
     return allEvents.filter(event => event.type === type);
   }
 
-  // Calculate average session time (placeholder)
+  // Calculate average session time
   public async getAverageSessionTime(): Promise<number> {
-    return 0; // Simplified
+    try {
+      // Get all session end events that have duration data
+      const sessionEndEvents = await this.getEventsByType(EventType.SESSION_END);
+      const sessionsWithDuration = sessionEndEvents.filter(
+        event => event.properties?.duration_seconds
+      );
+      
+      if (sessionsWithDuration.length === 0) return 0;
+      
+      // Calculate average duration
+      const totalDuration = sessionsWithDuration.reduce(
+        (sum, event) => sum + (event.properties?.duration_seconds || 0), 
+        0
+      );
+      
+      return totalDuration / sessionsWithDuration.length;
+    } catch (error) {
+      console.error('Failed to calculate average session time:', error);
+      return 0;
+    }
+  }
+
+  // Get average session time per user
+  public async getAverageSessionTimePerUser(): Promise<Record<string, number>> {
+    try {
+      // Get all session end events with duration and user data
+      const sessionEndEvents = await this.getEventsByType(EventType.SESSION_END);
+      const userSessions: Record<string, number[]> = {};
+      
+      // Group durations by user
+      sessionEndEvents.forEach(event => {
+        if (event.userId && event.properties?.duration_seconds) {
+          if (!userSessions[event.userId]) {
+            userSessions[event.userId] = [];
+          }
+          userSessions[event.userId].push(event.properties.duration_seconds);
+        }
+      });
+      
+      // Calculate average for each user
+      const userAverages: Record<string, number> = {};
+      Object.entries(userSessions).forEach(([userId, durations]) => {
+        const total = durations.reduce((sum, duration) => sum + duration, 0);
+        userAverages[userId] = total / durations.length;
+      });
+      
+      return userAverages;
+    } catch (error) {
+      console.error('Failed to calculate per-user session times:', error);
+      return {};
+    }
   }
 
   // Get feature usage counts
@@ -255,14 +330,84 @@ class AnalyticsService {
     }
   }
 
-  // Get weekly retention rate (placeholder)
-  public async getWeeklyRetentionRate(): Promise<number> {
-    return 0; // Simplified
+  // Get weekly retention rate
+  public async getWeeklyRetentionRate(): Promise<{ rate: number, data: any }> {
+    try {
+      // Get active weeks data
+      const activeWeeksStr = await AsyncStorage.getItem(ACTIVE_WEEKS_KEY) || '[]';
+      const activeWeeks = JSON.parse(activeWeeksStr);
+      
+      if (!activeWeeks.length || activeWeeks.length < 2) {
+        return { rate: 0, data: { message: 'Not enough data to calculate retention' } };
+      }
+      
+      // Sort weeks chronologically
+      activeWeeks.sort((a: number, b: number) => a - b);
+      
+      // Count consecutive weeks
+      let consecutiveCount = 0;
+      for (let i = 1; i < activeWeeks.length; i++) {
+        if (activeWeeks[i] === activeWeeks[i-1] + 1) {
+          consecutiveCount++;
+        }
+      }
+      
+      // Calculate retention rate (consecutive weeks / total weeks - 1)
+      const rate = activeWeeks.length > 1 ? 
+        consecutiveCount / (activeWeeks.length - 1) : 0;
+      
+      return { 
+        rate, 
+        data: {
+          activeWeeks,
+          consecutiveCount,
+          totalWeeks: activeWeeks.length
+        }
+      };
+    } catch (error) {
+      console.error('Error calculating weekly retention:', error);
+      return { 
+        rate: 0, 
+        data: { 
+          error: error instanceof Error ? error.message : 'Unknown error' 
+        }
+      };
+    }
   }
 
-  // Get study sets per user (placeholder)
+  // Get study sets per user
   public async getStudySetsPerUser(): Promise<number> {
-    return 0; // Simplified
+    try {
+      // Get all study set created events
+      const studySetEvents = await this.getEventsByType(EventType.STUDY_SET_CREATED);
+      
+      // Count unique users who have been active
+      const userIds = new Set();
+      const allEvents = await this.getAllEvents();
+      
+      allEvents.forEach(event => {
+        if (event.userId) {
+          userIds.add(event.userId);
+        }
+      });
+      
+      // Check if we have users and study sets
+      if (userIds.size === 0) return 0;
+      
+      // Calculate average study sets per user
+      return studySetEvents.length / userIds.size;
+    } catch (error) {
+      console.error('Failed to calculate study sets per user:', error);
+      return 0;
+    }
+  }
+
+  // Add a method to track study set creation
+  public async logStudySetCreated(studySetId: string, metadata: Record<string, any> = {}) {
+    return this.logEvent(EventType.STUDY_SET_CREATED, {
+      study_set_id: studySetId,
+      ...metadata
+    });
   }
 
   // Get week number helper
@@ -274,8 +419,37 @@ class AnalyticsService {
     return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   }
 
+  // Update user's active weeks tracking
+  private async updateActiveWeeks(): Promise<void> {
+    try {
+      const now = new Date();
+      const weekNumber = this.getWeekNumber(now);
+      const year = now.getFullYear();
+      const weekKey = `${year}-${weekNumber}`;
+      
+      const activeWeeksStr = await AsyncStorage.getItem(ACTIVE_WEEKS_KEY) || '[]';
+      const activeWeeks = JSON.parse(activeWeeksStr);
+      
+      // Only add the week if it's not already recorded
+      if (!activeWeeks.includes(weekKey)) {
+        activeWeeks.push(weekKey);
+        await AsyncStorage.setItem(ACTIVE_WEEKS_KEY, JSON.stringify(activeWeeks));
+        
+        // Also send this data to the server
+        this.logEvent(EventType.ACTIVE_WEEK, { 
+          week_number: weekNumber,
+          year: year,
+          week_key: weekKey
+        });
+      }
+    } catch (error) {
+      console.error('Failed to update active weeks:', error);
+    }
+  }
+
   private async sendEventsToServer(events: AnalyticsEvent[]) {
     try {
+      console.log('Sending events to server:', events.length);
       const response = await fetch('https://lexie-analytics-server.vercel.app/analytics', {
         method: 'POST',
         headers: {
@@ -289,10 +463,16 @@ class AnalyticsService {
         }),
       });
       
+      // Add detailed logging
+      const responseText = await response.text();
+      console.log('Server response:', response.status, responseText);
+      
       if (response.ok) {
         console.log('Analytics data sent successfully');
         // Clear local events after successful send
         await AsyncStorage.setItem(ANALYTICS_EVENTS_KEY, '[]');
+      } else {
+        console.error('Server returned error:', response.status, responseText);
       }
     } catch (error) {
       console.error('Failed to send analytics data:', error);
