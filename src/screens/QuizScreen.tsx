@@ -114,6 +114,8 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
   const [questionFeedbackSubmitted, setQuestionFeedbackSubmitted] = useState<Record<number, boolean>>({});
   const [showFeedbackToast, setShowFeedbackToast] = useState(false);
   
+  const [sessionStartTime, setSessionStartTime] = useState<number>(0);
+  
   const currentQuestion = questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
@@ -206,6 +208,32 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
       question_count: questions.length
     });
   }, [studySetId, questions.length]);
+
+  useEffect(() => {
+    // Start timing when component mounts
+    const startTime = Date.now();
+    setSessionStartTime(startTime);
+    
+    // Clean up when component unmounts
+    return () => {
+      // Calculate duration in seconds
+      const endTime = Date.now();
+      const durationSeconds = (endTime - startTime) / 1000;
+      
+      // Only log if duration is reasonable (more than 3 seconds)
+      if (durationSeconds > 3) {
+        console.log('[Analytics] Logging quiz session duration:', durationSeconds.toFixed(1) + 's');
+        
+        // Log as SESSION_END event with quiz context
+        Analytics.logEvent(EventType.SESSION_END, {
+          duration_seconds: durationSeconds,
+          context: 'quiz',
+          study_set_id: studySetId,
+          questions_count: questions?.length || 0
+        });
+      }
+    };
+  }, [studySetId]); // Only re-run if study set ID changes
 
   if (!currentQuestion) {
     return (

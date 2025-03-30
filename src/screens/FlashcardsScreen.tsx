@@ -663,6 +663,39 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
     });
   }, [studySetId, filterIndices, flashcards.length]);
 
+  // Add this with your other state variables
+  const [sessionStartTime, setSessionStartTime] = useState<number>(0);
+  
+  // Add this useEffect for timing
+  useEffect(() => {
+    // Start timing when component mounts
+    const startTime = Date.now();
+    setSessionStartTime(startTime);
+    
+    // Log screen view
+    Analytics.logScreenView('Flashcards', { study_set_id: studySetId });
+    
+    // Clean up when component unmounts
+    return () => {
+      // Calculate duration in seconds
+      const endTime = Date.now();
+      const durationSeconds = (endTime - startTime) / 1000;
+      
+      // Only log if duration is reasonable (more than 3 seconds)
+      if (durationSeconds > 3) {
+        console.log('[Analytics] Logging flashcard session duration:', durationSeconds.toFixed(1) + 's');
+        
+        // Log as SESSION_END event with flashcards context
+        Analytics.logEvent(EventType.SESSION_END, {
+          duration_seconds: durationSeconds,
+          context: 'flashcards',
+          study_set_id: studySetId,
+          cards_count: flashcards?.length || 0
+        });
+      }
+    };
+  }, [studySetId]); // Only re-run if study set ID changes
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>

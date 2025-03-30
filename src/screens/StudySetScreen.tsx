@@ -1523,6 +1523,38 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     }
   }, [content, id]);
 
+  // At the top of your imports
+  const [sessionStartTime, setSessionStartTime] = useState<number>(0);
+  
+  // Add this useEffect to track session duration
+  useEffect(() => {
+    // Start timing when component mounts
+    const startTime = Date.now();
+    setSessionStartTime(startTime);
+    
+    // Log screen view
+    Analytics.logScreenView('StudySet', { study_set_id: id });
+    
+    // Clean up when component unmounts
+    return () => {
+      // Calculate duration in seconds
+      const endTime = Date.now();
+      const durationSeconds = (endTime - startTime) / 1000;
+      
+      // Only log if duration is reasonable (more than 3 seconds to avoid false data)
+      if (durationSeconds > 3) {
+        console.log('[Analytics] Logging study session duration:', durationSeconds.toFixed(1) + 's');
+        
+        // Log as SESSION_END event with study_set context
+        Analytics.logEvent(EventType.SESSION_END, {
+          duration_seconds: durationSeconds,
+          context: 'study_set',
+          study_set_id: id
+        });
+      }
+    };
+  }, [id]); // Only re-run if study set ID changes
+
   return (
     <KeyboardAvoidingView 
       style={styles.container}
