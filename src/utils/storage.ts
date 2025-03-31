@@ -118,7 +118,24 @@ export const getUserProfiles = async (): Promise<Profile[]> => {
 
 export const setActiveProfile = async (profileId: string) => {
   try {
+    // Set the active profile ID
     await AsyncStorage.setItem('@active_profile', profileId);
+    
+    // Get the full profile data from user_profiles
+    const profilesJson = await AsyncStorage.getItem('@user_profiles');
+    if (profilesJson) {
+      const profiles = JSON.parse(profilesJson);
+      const selectedProfile = profiles.find(p => p.id === profileId);
+      
+      if (selectedProfile) {
+        // Store the full profile data in active_profile_data
+        await AsyncStorage.setItem('@active_profile_data', JSON.stringify(selectedProfile));
+        console.log('Profile switch complete:', {
+          id: profileId,
+          profile: selectedProfile
+        });
+      }
+    }
   } catch (error) {
     console.error('Error setting active profile:', error);
     throw error;

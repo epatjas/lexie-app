@@ -93,28 +93,37 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   useFocusEffect(
     React.useCallback(() => {
+      let isActive = true; // Flag to prevent setting state if component is unmounted
+      
       console.log("HomeScreen got focus - refreshing profile");
       const loadProfile = async () => {
         try {
-          console.log('Loading profile on screen focus');
           const profileId = await AsyncStorage.getItem('@active_profile');
+          console.log('Retrieved profile ID:', profileId);
+          
+          if (!isActive) return; // Check if component is still mounted
+          
           if (profileId) {
-            // First try to get from active_profile_data for immediate updates
             const profileDataJson = await AsyncStorage.getItem('@active_profile_data');
-            if (profileDataJson) {
-              console.log('Found profile data in @active_profile_data');
-              setActiveProfile(JSON.parse(profileDataJson));
+            console.log('Profile data from @active_profile_data:', profileDataJson);
+            
+            if (profileDataJson && isActive) {
+              const profileData = JSON.parse(profileDataJson);
+              console.log('Setting active profile to:', profileData);
+              setActiveProfile(profileData);
               return;
             }
             
-            // Fall back to loading from user_profiles
+            // Only try this if we haven't set the profile yet
             const profilesJson = await AsyncStorage.getItem('@user_profiles');
-            if (profilesJson) {
+            if (profilesJson && isActive) {
               const profiles = JSON.parse(profilesJson);
               const profile = profiles.find(p => p.id === profileId);
               if (profile) {
-                console.log('Found profile in @user_profiles');
+                console.log('Setting active profile from user_profiles:', profile);
                 setActiveProfile(profile);
+                // Also update active_profile_data for consistency
+                await AsyncStorage.setItem('@active_profile_data', JSON.stringify(profile));
               }
             }
           }
@@ -124,6 +133,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       };
       
       loadProfile();
+      
+      return () => {
+        isActive = false; // Cleanup to prevent setting state after unmount
+      };
     }, [])
   );
 

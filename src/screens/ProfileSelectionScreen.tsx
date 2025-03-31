@@ -91,8 +91,23 @@ const ProfileSelectionScreen: React.FC<ProfileSelectionScreenProps> = ({ navigat
 
   const handleSelectProfile = async (profile: Profile) => {
     try {
+      console.log('Switching to profile:', profile);
       await setActiveProfile(profile.id);
-      navigation.replace('Home');
+      
+      // Verify the profile was set correctly before navigation
+      const storedProfileId = await AsyncStorage.getItem('@active_profile');
+      const storedProfileData = await AsyncStorage.getItem('@active_profile_data');
+      
+      console.log('Profile switch verification:', {
+        storedId: storedProfileId,
+        storedData: storedProfileData
+      });
+      
+      if (storedProfileId === profile.id) {
+        navigation.replace('Home');
+      } else {
+        console.error('Profile switch verification failed');
+      }
     } catch (error) {
       console.error('Error selecting profile:', error);
     }

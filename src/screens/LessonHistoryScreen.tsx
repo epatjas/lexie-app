@@ -28,6 +28,8 @@ import { Plus, ChevronLeft } from 'lucide-react-native';
 import SettingsScreen from './SettingsScreen';
 import ProfileBadge from '../components/ProfileBadge';
 import { useTranslation } from '../i18n/LanguageContext';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 type LessonHistoryScreenProps = NativeStackScreenProps<RootStackParamList, 'LessonHistory'>;
@@ -79,19 +81,57 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
     };
   });
 
+  useFocusEffect(
+    React.useCallback(() => {
+      let isActive = true;
+      
+      console.log("LessonHistoryScreen got focus - refreshing profile");
+      const loadProfile = async () => {
+        try {
+          const profileId = await AsyncStorage.getItem('@active_profile');
+          console.log('LessonHistory - Retrieved profile ID:', profileId);
+          
+          if (!isActive) return;
+          
+          if (profileId) {
+            const profileDataJson = await AsyncStorage.getItem('@active_profile_data');
+            console.log('LessonHistory - Profile data from @active_profile_data:', profileDataJson);
+            
+            if (profileDataJson && isActive) {
+              const profileData = JSON.parse(profileDataJson);
+              console.log('LessonHistory - Setting active profile to:', profileData);
+              setActiveProfile(profileData);
+              return;
+            }
+            
+            // Fallback to user_profiles if needed
+            const profilesJson = await AsyncStorage.getItem('@user_profiles');
+            if (profilesJson && isActive) {
+              const profiles = JSON.parse(profilesJson);
+              const profile = profiles.find(p => p.id === profileId);
+              if (profile) {
+                console.log('LessonHistory - Setting active profile from user_profiles:', profile);
+                setActiveProfile(profile);
+                // Update active_profile_data for consistency
+                await AsyncStorage.setItem('@active_profile_data', JSON.stringify(profile));
+              }
+            }
+          }
+        } catch (error) {
+          console.error('LessonHistory - Error loading profile:', error);
+        }
+      };
+      
+      loadProfile();
+      
+      return () => {
+        isActive = false;
+      };
+    }, [])
+  );
+
   useEffect(() => {
     refreshStudySets();
-    
-    const loadActiveProfile = async () => {
-      try {
-        const profile = await getActiveProfile();
-        setActiveProfile(profile);
-      } catch (error) {
-        console.error('Error loading active profile:', error);
-      }
-    };
-
-    loadActiveProfile();
   }, []);
 
   useEffect(() => {
