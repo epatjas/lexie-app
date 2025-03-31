@@ -5,14 +5,14 @@
     "version": "3.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon_opaque.png",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.epatjas.lexieapp",
       "buildNumber": "4",
-      "icon": "./assets/icon.png",
+      "icon": "./assets/icon_opaque.png",
       "icons": {
-        "app": "./assets/icon.png"
+        "app": "./assets/icon_opaque.png"
       }
     },
     "android": {
