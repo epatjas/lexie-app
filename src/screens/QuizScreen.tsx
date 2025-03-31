@@ -295,7 +295,20 @@ export default function QuizScreen({ route, navigation }: QuizScreenProps) {
         }
       );
       
-      // Existing code...
+      // Mark this question as having received feedback
+      setQuestionFeedbackSubmitted(prev => ({
+        ...prev,
+        [currentQuestionIndex]: true
+      }));
+      
+      // Show the feedback toast
+      setShowFeedbackToast(true);
+      
+      // Automatically hide the toast after 3 seconds
+      setTimeout(() => {
+        setShowFeedbackToast(false);
+      }, 3000);
+      
     } catch (error) {
       console.error('Error saving quiz question feedback:', error);
     }
