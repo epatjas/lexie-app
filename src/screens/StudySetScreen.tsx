@@ -27,7 +27,7 @@ import { useFolders } from '../hooks/useFolders';
 import FolderSelectModal from '../components/FolderSelectModal';
 import FolderCreationModal from '../components/FolderCreationModal';
 import Markdown from 'react-native-markdown-display';
-import { useAudioPlayback } from '../hooks/useAudioPlayback';
+import { useAudio } from '../hooks/useAudio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontSettings } from '../types/fontSettings';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
@@ -38,7 +38,6 @@ import { StudySet, HomeworkHelp } from '../types/types';
 import { getStudySet } from '../services/Database';
 import { isStudySet, isHomeworkHelp, getCardCountText, hasSummary, getSummary } from '../utils/contentTypeHelpers';
 import * as NavigationService from '../navigation/NavigationService';
-import { useAudio } from '../hooks/useAudio';
 import AudioPlayer from '../components/AudioPlayer';
 import { sendChatMessage } from '../services/api';
 import { SafeAreaView as SafeAreaViewContext } from 'react-native-safe-area-context';
@@ -109,6 +108,25 @@ const isVocabularyContent = (content: any): boolean => {
   return hasVocabularyPatterns;
 };
 
+const cleanTextForSpeech = (text: string): string => {
+  if (!text) return '';
+  
+  return text
+    // Remove markdown headings
+    .replace(/#{1,6}\s/g, '')
+    // Remove markdown links
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove markdown bold/italic
+    .replace(/[*_`~]/g, '')
+    // Remove extra spaces
+    .replace(/\s+/g, ' ')
+    // Clean up punctuation spacing
+    .replace(/\s*([.,!?])\s*/g, '$1 ')
+    // Remove any remaining markdown symbols
+    .replace(/[#>|-]/g, '')
+    .trim();
+};
+
 export default function StudySetScreen({ route, navigation }: StudySetScreenProps): React.JSX.Element {
   const { t } = useTranslation(); // Add this near the top with other hooks
   const { id, contentType = 'study-set' } = route.params;
@@ -136,7 +154,18 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [showFeedbackToast, setShowFeedbackToast] = useState(false);
   const [selectedTab, setSelectedTab] = useState('summary');
-  const { playAudio, pauseAudio, isPlaying, isLoading: audioIsLoading } = useAudio();
+  const { 
+    playAudio, 
+    pauseAudio, 
+    resumeAudio,
+    seekAudio,
+    isPlaying, 
+    isLoading: audioIsLoading,
+    position,
+    duration,
+    formattedPosition,
+    formattedDuration
+  } = useAudio();
   const [showDebugBorder, setShowDebugBorder] = useState(false); // Change to false
   const [isActive, setIsActive] = useState(false);
   const inputRef = useRef<TextInput>(null);
@@ -171,82 +200,86 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
   const { studySet, refreshStudySet, loading, deleteStudySet } = useStudySetDetails(id);
   
+  // Update the constructAudioText function
   const constructAudioText = (studySet: any): string => {
     if (!studySet) return '';
     
-    let audioText = `${studySet.title}, , , \u2003 \u2003 \u2003`;
+    console.log('[Audio] Starting text construction:', {
+      contentType: studySet.contentType,
+      selectedTab,
+      hasTitle: !!studySet.title,
+      hasSummary: hasSummary(studySet),
+      hasSections: !!studySet.text_content?.sections,
+      sectionCount: studySet.text_content?.sections?.length || 0
+    });
+
+    let audioText = `${studySet.title}. `;
     
-    // Handle study set content
-    if (studySet.text_content?.sections) {
-      studySet.text_content.sections.forEach((section: any) => {
-        if (section.type === 'heading') {
-          audioText += `\u2003 \u2003 \u2003 ${section.raw_text}, , , \u2003 \u2003 \u2003`;
-        } else if (section.type === 'paragraph' || section.type === 'definition') {
-          audioText += `${section.raw_text}, , \u2003 \u2003`;
-        } else if (section.type === 'list' && Array.isArray(section.items)) {
-          audioText += section.items.map((item: string): string => 
-            `${item}, \u2003`
-          ).join('') + ', \u2003 \u2003';
-        }
-      });
-    }
-    
-    // Handle homework help content
-    if (isHomeworkHelp(studySet) && studySet.homeworkHelp) {
-      // Support both formats
-      if (studySet.homeworkHelp.problem_summary) {
-        // New format
-        audioText += `${studySet.homeworkHelp.problem_summary}, , , \u2003 \u2003 \u2003`;
-        
-        // Add approach guidance if available
-        if (studySet.homeworkHelp.approach_guidance) {
-          audioText += `How to approach: ${studySet.homeworkHelp.approach_guidance}, , , \u2003 \u2003 \u2003`;
-        }
-        
-        // Add concept cards
-        if (Array.isArray(studySet.homeworkHelp.concept_cards) && studySet.homeworkHelp.concept_cards.length > 0) {
-          audioText += `Concept cards: \u2003 \u2003 \u2003`;
-          studySet.homeworkHelp.concept_cards.forEach((card: any, index: number) => {
-            audioText += `Card ${index + 1}: ${card.title}, , \u2003`;
-            if (card.explanation) {
-              audioText += `${card.explanation}, \u2003 \u2003`;
-            }
-          });
-        }
-      } else {
-        // Old format
-        if (studySet.homeworkHelp?.assignment) {
-          if (studySet.homeworkHelp?.assignment?.objective) {
-            audioText += `Objective: ${studySet.homeworkHelp.assignment.objective}, , , \u2003 \u2003 \u2003`;
+    if (selectedTab === 'summary' && hasSummary(studySet)) {
+      const summary = getSummary(studySet);
+      audioText += cleanTextForSpeech(summary);
+    } else if (studySet.text_content?.sections) {
+      // Process all sections
+      audioText += studySet.text_content.sections
+        .map((section: TextSection) => {
+          switch (section.type) {
+            case 'heading':
+              return `${section.raw_text}. `;
+              
+            case 'paragraph':
+            case 'definition':
+              return `${cleanTextForSpeech(section.raw_text)}. `;
+              
+            case 'list':
+              if (!section.items?.length) return '';
+              const listItems = section.items
+                .map((item, index) => {
+                  const cleanItem = item.replace(/^\s*[•*-]\s*/, '').trim();
+                  return `${index + 1}. ${cleanItem}`;
+                })
+                .join('. ');
+              return `${listItems}. `;
+              
+            default:
+              return `${cleanTextForSpeech(section.raw_text)}. `;
           }
-          
-          if (Array.isArray(studySet.homeworkHelp?.assignment?.facts)) {
-            audioText += `Important facts: \u2003 \u2003`;
-            studySet.homeworkHelp.assignment.facts.forEach((fact: string) => {
-              audioText += `${fact}, \u2003 \u2003`;
-            });
-          }
-        }
-        
-        // Old format concept cards
-        if (Array.isArray(studySet.homeworkHelp.concept_cards) && studySet.homeworkHelp.concept_cards.length > 0) {
-          audioText += `Concept cards: \u2003 \u2003 \u2003`;
-          studySet.homeworkHelp.concept_cards.forEach((card: any, index: number) => {
-            audioText += `Card ${index + 1}: ${card.title}, , \u2003`;
-            if (card.explanation) {
-              audioText += `${card.explanation}, \u2003 \u2003`;
-            }
-          });
-        }
-      }
+        })
+        .join(' ');
     }
 
-    return audioText;
+    // Add vocabulary content if present
+    if (studySet.vocabulary_tables?.length > 0) {
+      audioText += ' Vocabulary section. ';
+      studySet.vocabulary_tables.forEach((table: any, tableIndex: number) => {
+        if (tableIndex > 0) audioText += ' Next table. ';
+        
+        table.rows.forEach((row: any) => {
+          audioText += `${row.term}. ${row.definition}. `;
+        });
+      });
+    }
+
+    // Clean up the text
+    const cleanedText = audioText
+      // Ensure proper sentence endings
+      .replace(/([^.!?])\s*\n+\s*/g, '$1. ')
+      // Clean up multiple periods
+      .replace(/\.+/g, '.')
+      // Clean up spaces
+      .replace(/\s+/g, ' ')
+      // Add pauses after sentences
+      .replace(/([.!?])\s*/g, '$1 \u2003 ')
+      .trim();
+
+    console.log('[Audio] Text construction complete:', {
+      originalLength: audioText.length,
+      cleanedLength: cleanedText.length,
+      preview: cleanedText.substring(0, 100) + '...',
+      sections: cleanedText.split('\u2003').length
+    });
+
+    return cleanedText;
   };
-  
-  const { currentTime, seek } = useAudioPlayback({
-    text: studySet ? constructAudioText(studySet) : '',
-  });
   
   // Effects
   useEffect(() => {
@@ -481,18 +514,33 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     );
   };
 
-  const handleListenPress = () => {
-    if (content) {
+  // Update the handleListenPress function
+  const handleListenPress = async () => {
+    if (!content) {
+      Alert.alert(t('alerts.error'), t('studySet.noContentToPlay'));
+      return;
+    }
+
+    try {
+      // Just show the audio player - don't play audio directly
+      setShowAudioPlayer(true);
+
       Analytics.logFeatureUse(FeatureType.AUDIO, {
         content_id: id,
-        content_type: content.contentType || 'study-set'
+        content_type: content.contentType || 'study-set',
+        selectedTab,
       });
-      setShowAudioPlayer(true);
-    } else {
-      Alert.alert(t('alerts.error'), t('studySet.noContentToPlay'));
+    } catch (error) {
+      console.error('[Audio] Error preparing audio content:', error);
+      Alert.alert(
+        t('alerts.error'), 
+        t('studySet.audioPreparationError')
+      );
     }
   };
 
+
+  // Add cleanup when audio player is closed
   const handleCloseAudio = () => {
     setShowAudioPlayer(false);
   };
@@ -552,16 +600,16 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   };
   
   const skipBackward = async () => {
-    const newTime = Math.max(0, currentTime - 15);
-    if (typeof seek === 'function') {
-      await seek(newTime);
+    const newTime = Math.max(0, position - 15);
+    if (seekAudio) {
+      await seekAudio(newTime);
     }
   };
 
   const skipForward = async () => {
-    const newTime = currentTime + 15;
-    if (typeof seek === 'function') {
-      await seek(newTime);
+    const newTime = position + 15;
+    if (seekAudio) {
+      await seekAudio(newTime);
     }
   };
   
@@ -1995,6 +2043,13 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
             content={content}
             selectedTab={selectedTab}
             onClose={handleCloseAudio}
+            isPlaying={isPlaying}
+            onPlayPause={isPlaying ? pauseAudio : resumeAudio}
+            onSeek={seekAudio}
+            currentTime={position}
+            duration={duration}
+            formattedPosition={formattedPosition}
+            formattedDuration={formattedDuration}
           />
         )}
 

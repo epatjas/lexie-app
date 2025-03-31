@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { X, Play, Pause, Rewind, FastForward } from 'lucide-react-native';
 import { useAudio } from '../hooks/useAudio';
 import { StudyMaterials } from '../types/types';
@@ -10,6 +10,13 @@ interface AudioPlayerProps {
   content: StudyMaterials;
   selectedTab: string;
   onClose: () => void;
+  isPlaying: boolean;
+  onPlayPause: () => Promise<void>;
+  onSeek: (millis: number) => Promise<void>;
+  currentTime: number;
+  duration: number;
+  formattedPosition: string;
+  formattedDuration: string;
 }
 
 const AudioPlayer: React.FC<AudioPlayerProps> = ({ content, selectedTab, onClose }) => {
@@ -51,64 +58,71 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ content, selectedTab, onClose
     }
   };
 
-  // Skip functionality - would need to be connected to actual seek functions
+  // Skip functionality
   const skipBackward = () => {
+    // Implement the skip backward functionality
     console.log('Skip backward not implemented');
   };
 
   const skipForward = () => {
+    // Implement the skip forward functionality
     console.log('Skip forward not implemented');
   };
 
   return (
     <View style={styles.audioPlayerOverlay}>
-      <View style={styles.audioPlayerControls}>
-        <TouchableOpacity 
-          style={styles.playButton}
-          onPress={handlePlayPause}
-          accessibilityLabel={isPlaying ? t('common.pause') : t('common.play')}
-        >
-          {isPlaying ? (
-            <Pause color="#FFF" size={24} />
-          ) : (
-            <Play color="#FFF" size={24} />
-          )}
-        </TouchableOpacity>
-        <Text style={styles.audioTimer}>
-          {formattedPosition} / {formattedDuration}
-        </Text>
-      </View>
-      
-      <View style={styles.audioRightControls}>
-        <TouchableOpacity 
-          style={styles.skipButton} 
-          onPress={skipBackward}
-          accessibilityLabel={t('common.back')}
-        >
-          <Rewind color="#FFF" size={16} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.skipButton} 
-          onPress={skipForward}
-          accessibilityLabel={t('common.next')}
-        >
-          <FastForward color="#FFF" size={16} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.closeButton} 
-          onPress={onClose}
-          accessibilityLabel={t('common.close')}
-        >
-          <X color="#FFF" size={24} />
-        </TouchableOpacity>
-      </View>
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color="#FFFFFF" size="small" />
+          <Text style={styles.loadingText}>Generating audio...</Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.audioPlayerControls}>
+            <TouchableOpacity 
+              style={styles.playButton}
+              onPress={handlePlayPause}
+            >
+              {isPlaying ? (
+                <Pause color="#FFF" size={24} />
+              ) : (
+                <Play color="#FFF" size={24} />
+              )}
+            </TouchableOpacity>
+            <Text style={styles.audioTimer}>
+              {formattedPosition}
+            </Text>
+          </View>
+          
+          <View style={styles.audioRightControls}>
+            <TouchableOpacity 
+              style={styles.skipButton} 
+              onPress={skipBackward}
+            >
+              <Rewind color="#FFF" size={16} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.skipButton} 
+              onPress={skipForward}
+            >
+              <FastForward color="#FFF" size={16} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.closeButton} 
+              onPress={onClose}
+            >
+              <X color="#FFF" size={24} />
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
     </View>
   );
 };
 
-// Styles copied exactly from StudySetScreen.tsx to maintain original styling
+// Styles with adjusted timer style
 const styles = StyleSheet.create({
   audioPlayerOverlay: {
     position: 'absolute',
@@ -139,9 +153,10 @@ const styles = StyleSheet.create({
   },
   audioTimer: {
     color: '#FFF',
-    fontSize: 13,
+    fontSize: 14, // Slightly larger now that it's only showing one time
     fontFamily: theme.fonts.regular,
-    marginLeft: 4,
+    marginLeft: 8,
+    minWidth: 45, // Add minimum width to prevent layout shifts
   },
   audioRightControls: {
     flexDirection: 'row',
@@ -164,6 +179,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  loadingText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontFamily: theme.fonts.medium,
+    marginLeft: 12,
+  }
 });
 
 export default AudioPlayer; 

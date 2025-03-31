@@ -257,4 +257,8 @@ export interface StudyMaterials {
   profile_id?: string;
   folder_id?: string;
   processingId?: string;
+  homeworkHelp?: {
+    language?: string;
+    subject_area?: string;
+  };
 }

@@ -1,0 +1,10 @@
+{
+  "audio": {
+    "play": "Toista",
+    "pause": "Tauko",
+    "back": "Takaisin",
+    "next": "Seuraava",
+    "close": "Sulje"
+  }
+  // ... rest of your translations
+} 

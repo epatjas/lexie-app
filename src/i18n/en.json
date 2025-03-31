@@ -1,0 +1,9 @@
+{
+  "audio": {
+    "play": "Play",
+    "pause": "Pause",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close"
+  }
+} 

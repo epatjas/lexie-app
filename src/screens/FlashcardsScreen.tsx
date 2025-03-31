@@ -9,8 +9,9 @@ import {
   Dimensions,
   PanResponder,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
-import { ChevronLeft, Volume2, RotateCcw, X, Check, ThumbsUp, ThumbsDown } from 'lucide-react-native';
+import { ChevronLeft, RotateCcw, X, Check, ThumbsUp, ThumbsDown } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import theme from '../styles/theme';
@@ -343,6 +344,16 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
     outputRange: ['180deg', '360deg'],
   });
 
+  const frontZIndexInterpolate = flipAnim.interpolate({
+    inputRange: [0, 0.5, 0.51, 1],
+    outputRange: [2, 2, -1, -1]  // Front has higher z-index when showing, lower when flipped
+  });
+
+  const backZIndexInterpolate = flipAnim.interpolate({
+    inputRange: [0, 0.5, 0.51, 1],
+    outputRange: [-1, -1, 2, 2]  // Back has lower z-index when hidden, higher when showing
+  });
+
   const frontAnimatedStyle = {
     transform: [
       { perspective: 1000 },
@@ -449,7 +460,8 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
         >
           <Animated.View style={[
             styles.cardFace, 
-            frontAnimatedStyle
+            frontAnimatedStyle,
+            { zIndex: frontZIndexInterpolate }
           ]}>
             {/* Apply custom font to card text */}
             <Animated.Text 
@@ -515,11 +527,12 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
             )}
           </Animated.View>
           
-          {/* Back of card - remove feedback buttons here too */}
+          {/* Back of card */}
           <Animated.View style={[
             styles.cardFace,
             styles.cardBack, 
-            backAnimatedStyle
+            backAnimatedStyle,
+            { zIndex: backZIndexInterpolate }
           ]}>
             {/* Apply custom font to back card text */}
             <Text style={customTextStyle}>{flashcards[index].back}</Text>
@@ -666,7 +679,7 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
   // Add this with your other state variables
   const [sessionStartTime, setSessionStartTime] = useState<number>(0);
   
-  // Add this useEffect for timing
+  // Update the useEffect that tracks session time to also handle audio cleanup
   useEffect(() => {
     // Start timing when component mounts
     const startTime = Date.now();
@@ -694,7 +707,7 @@ export default function FlashcardsScreen({ route, navigation }: FlashcardsScreen
         });
       }
     };
-  }, [studySetId]); // Only re-run if study set ID changes
+  }, [studySetId]);
 
   return (
     <SafeAreaView style={styles.container}>

@@ -300,18 +300,6 @@ export default function SettingsScreen({
             <ChevronRight color={theme.colors.text} size={16} />
           </TouchableOpacity>
 
-          {/* Analytics Dashboard */}
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => navigation.navigate('AnalyticsManager')}
-          >
-            <View style={styles.settingContent}>
-              <Text style={styles.settingTitle}>Analytics Dashboard</Text>
-              <Text style={styles.settingDescription}>View app usage statistics</Text>
-            </View>
-            <ChevronRight color={theme.colors.text} size={20} />
-          </TouchableOpacity>
-          
           <View style={{
             marginTop: 'auto', 
             alignItems: 'center', 

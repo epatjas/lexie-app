@@ -385,20 +385,35 @@ export const sendChatMessage = async (
 // Function to get audio content - update to handle new format
 export const getAudioContent = async (
   content: StudyMaterials,
-  selectedTab: string = 'summary'
+  selectedTab: string = 'summary',
+  type: 'chunk' | 'full' = 'chunk'
 ): Promise<ArrayBuffer> => {
   let textToSpeak = '';
   let language = 'en'; // Default language
+  
+  // First determine the language regardless of content type
+  // Type guard to check if content is HomeworkHelp
+  function isHomeworkHelp(content: StudyMaterials): content is HomeworkHelp {
+    return content.contentType === 'homework-help';
+  }
+
+  const hasFinnishCharacters = content.text_content.raw_text.match(/[äöåÄÖÅ]/) || 
+    (isHomeworkHelp(content) && content.homeworkHelp?.language === 'fi') || 
+    (isHomeworkHelp(content) && content.homeworkHelp?.subject_area?.toLowerCase().includes('suomi'));
+  
+  if (hasFinnishCharacters) {
+    language = 'fi';
+  }
   
   // Determine which text to speak based on content type and tab
   if (content.contentType === 'study-set') {
     // For study sets, use different text based on selected tab
     if (selectedTab === 'summary') {
       textToSpeak = content.summary || '';
-      console.log('[Client] Playing summary audio');
+      console.log('[Client] Playing summary audio, length:', textToSpeak.length);
     } else if (selectedTab === 'original') {
       textToSpeak = content.text_content.raw_text || '';
-      console.log('[Client] Playing transcription audio');
+      console.log('[Client] Playing original text audio, length:', textToSpeak.length);
     }
   } else if (content.contentType === 'homework-help') {
     // Check if content is Finnish
@@ -460,13 +475,62 @@ export const getAudioContent = async (
     }
   }
   
+  // For chunks, make sure they're not too long
+  if (type === 'chunk') {
+    // Get smaller chunk for original text which tends to be longer
+    if (selectedTab === 'original') {
+      // For original text, just take first paragraph or approx. 200 chars
+      const firstParagraphEnd = textToSpeak.indexOf('\n\n');
+      if (firstParagraphEnd > 0 && firstParagraphEnd < 500) {
+        textToSpeak = textToSpeak.substring(0, firstParagraphEnd);
+      } else {
+        // If no paragraph break or too large, take first ~200 chars ending at a sentence
+        const truncatedText = textToSpeak.substring(0, Math.min(300, textToSpeak.length));
+        const sentenceEnd = Math.max(
+          truncatedText.lastIndexOf('. '),
+          truncatedText.lastIndexOf('! '),
+          truncatedText.lastIndexOf('? ')
+        );
+        
+        if (sentenceEnd > 100) {
+          textToSpeak = textToSpeak.substring(0, sentenceEnd + 1);
+        } else if (truncatedText.length < textToSpeak.length) {
+          textToSpeak = truncatedText;
+        }
+      }
+      console.log('[Client] Chunk size for original text:', textToSpeak.length);
+    } else if (textToSpeak.length > 500) {
+      // For summary or other tabs, still limit chunk size but less aggressively
+      const firstParagraphEnd = textToSpeak.indexOf('\n\n');
+      if (firstParagraphEnd > 0 && firstParagraphEnd < 800) {
+        textToSpeak = textToSpeak.substring(0, firstParagraphEnd);
+      } else {
+        const truncatedText = textToSpeak.substring(0, Math.min(500, textToSpeak.length));
+        const sentenceEnd = Math.max(
+          truncatedText.lastIndexOf('. '),
+          truncatedText.lastIndexOf('! '),
+          truncatedText.lastIndexOf('? ')
+        );
+        
+        if (sentenceEnd > 150) {
+          textToSpeak = textToSpeak.substring(0, sentenceEnd + 1);
+        } else if (truncatedText.length < textToSpeak.length) {
+          textToSpeak = truncatedText;
+        }
+      }
+      console.log('[Client] Chunk size for summary:', textToSpeak.length);
+    }
+  }
+  
   // Call the TTS endpoint
   try {
+    console.log(`[Client] Requesting ${type} audio for ${selectedTab}`);
     const response = await axios.post(
       `${API_URL}/tts`,
       { 
         text: textToSpeak,
-        language: language 
+        language: language,
+        type: type  // Pass the type parameter as given
       },
       { responseType: 'arraybuffer' }
     );

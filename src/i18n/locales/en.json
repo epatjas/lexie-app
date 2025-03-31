@@ -363,6 +363,7 @@
     }
   },
   "audio": {
-    "comingSoon": "Audio feature coming soon!"
+    "comingSoon": "Audio feature coming soon!",
+    "generating": "Generating audio..."
   }
 } 
