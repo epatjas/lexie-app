@@ -61,6 +61,54 @@ interface TextSection {
   style?: 'bullet' | 'numbered';
 }
 
+// First, let's add a type definition for vocabulary data
+// Add this near the top where other interfaces are defined
+interface VocabularyItem {
+  source_term: string;
+  target_term: string;
+}
+
+interface LanguageInfo {
+  detected: string[];
+  source_language: string;
+  target_language: string;
+}
+
+// Add this interface near your other interfaces at the top of the file
+interface WithOriginalText {
+  original_text?: string;
+}
+
+// Add this type guard function to safely check for original_text property
+const hasOriginalText = (content: any): content is { original_text: string } => {
+  return content && typeof content.original_text === 'string';
+};
+
+// Update the helper function to be more type-safe
+const getVocabularyData = (content: any): VocabularyItem[] | null => {
+  if (!content) return null;
+  
+  // Safely check for vocabulary_data with proper typing
+  if (content.vocabulary_data && 
+      Array.isArray(content.vocabulary_data) && 
+      content.vocabulary_data.length > 0) {
+    return content.vocabulary_data;
+  }
+  
+  return null;
+};
+
+// Similarly, let's add a helper for language information
+const getLanguageInfo = (content: any): LanguageInfo | null => {
+  if (!content || !content.languages) return null;
+  
+  if (content.languages?.source_language && content.languages?.target_language) {
+    return content.languages as LanguageInfo;
+  }
+  
+  return null;
+};
+
 const FONT_SETTINGS_KEY = 'global_font_settings';
 
 // Add these helper functions near the top of the file
@@ -80,33 +128,57 @@ const getChatHistoryKey = (studySetId: string) => `chat_history_${studySetId}`;
 const isVocabularyContent = (content: any): boolean => {
   if (!content) return false;
   
-  // First check if we have vocabulary_tables data
-  if (content.vocabulary_tables && 
-      Array.isArray(content.vocabulary_tables) && 
-      content.vocabulary_tables.length > 0) {
-    return true;
-  }
-  
-  // Then check if text_content contains vocabulary indicators
-  const rawText = content.text_content?.raw_text || '';
-  const summary = content.summary || '';
-  
-  // Check if either summary or raw text has table markdown
-  const hasMarkdownTable = /\|[^|]+\|[^|]+\|/.test(summary) || /\|[^|]+\|[^|]+\|/.test(rawText);
-  
-  // Look for patterns that suggest vocabulary lists
-  const hasVocabularyPatterns = 
-    // Markdown table pattern
-    hasMarkdownTable ||
-    // Table-like structure with multiple columns separated by whitespace
-    /\w+\s+\([^)]+\)\s+\w+/.test(rawText) || 
-    // Common vocabulary section headers
-    /vocabulaire|vocabulary|sanasto|ordlista|wörter/i.test(rawText) ||
-    // Language pairs
-    /english.*finnish|finnish.*english|suomi.*english|english.*suomi/i.test(rawText);
+  // Log detailed check results for debugging
+  const checkResult = {
+    hasOriginalText: false,
+    hasTableMarkers: false,
+    hasTableHeader: false,
+    hasVocabularyData: false,
+    hasVocabularyTables: false,
+    contentType: content.contentType || 'unknown',
+  };
+
+  if (hasOriginalText(content)) {
+    checkResult.hasOriginalText = true;
+    // Only check for table markers if there are multiple lines starting with |
+    // and there aren't many long paragraphs (vocabulary typically has short entries)
+    const lines = content.original_text.split('\n');
+    const tableLineCount = lines.filter(line => line.trim().startsWith('|')).length;
+    const longParagraphCount = lines.filter(line => line.trim().length > 100).length;
     
-  return hasVocabularyPatterns;
-};
+    checkResult.hasTableMarkers = tableLineCount > 3; // Multiple table rows
+    checkResult.hasTableHeader = content.original_text.includes('--|--');
+    
+    // If there are many long paragraphs, this is likely not vocabulary content
+    if (longParagraphCount > 5) {
+      console.log('Content has many long paragraphs, likely not vocabulary');
+      return false;
+    }
+  }
+
+  // Check explicit vocabulary data
+  checkResult.hasVocabularyData = !!(content.vocabulary_data && 
+    Array.isArray(content.vocabulary_data) && 
+    content.vocabulary_data.length > 0);
+
+  checkResult.hasVocabularyTables = !!(content.vocabulary_tables && 
+    Array.isArray(content.vocabulary_tables) && 
+    content.vocabulary_tables.length > 0);
+
+  // Check content_type property if available
+  const explicitVocabularyType = content.content_type === 'vocabulary';
+
+  console.log('Vocabulary content check:', {
+    ...checkResult,
+    explicitVocabularyType,
+    decision: explicitVocabularyType || checkResult.hasVocabularyData || checkResult.hasVocabularyTables
+  });
+
+  // Prioritize explicit content type markers and vocabulary data
+  return explicitVocabularyType || 
+         checkResult.hasVocabularyData || 
+         checkResult.hasVocabularyTables;
+}
 
 const cleanTextForSpeech = (text: string): string => {
   if (!text) return '';
@@ -125,6 +197,33 @@ const cleanTextForSpeech = (text: string): string => {
     // Remove any remaining markdown symbols
     .replace(/[#>|-]/g, '')
     .trim();
+};
+
+// Add this new component near the top of the file
+const VocabularyTable = ({ data }: { 
+  data: { 
+    source_terms: string[],
+    target_terms: string[],
+    headers: [string, string] 
+  }
+}) => {
+  return (
+    <View style={styles.vocabularyTable}>
+      {/* Header */}
+      <View style={styles.tableHeader}>
+        <Text style={styles.tableHeaderCell}>{data.headers[0]}</Text>
+        <Text style={styles.tableHeaderCell}>{data.headers[1]}</Text>
+      </View>
+      
+      {/* Rows */}
+      {data.source_terms.map((term, index) => (
+        <View key={index} style={styles.tableRow}>
+          <Text style={[styles.tableCell, styles.sourceTermCell]}>{term}</Text>
+          <Text style={styles.tableCell}>{data.target_terms[index]}</Text>
+        </View>
+      ))}
+    </View>
+  );
 };
 
 export default function StudySetScreen({ route, navigation }: StudySetScreenProps): React.JSX.Element {
@@ -657,10 +756,68 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     }
   };
 
+  // Now let's fix the convertSectionsToMarkdown function to be type-safe
   const convertSectionsToMarkdown = (sections: TextSection[]): string => {
     if (!sections || !Array.isArray(sections)) return '';
     
+    // Use our helper functions to safely extract data
+    const vocabularyData = getVocabularyData(content);
+    const languageInfo = getLanguageInfo(content);
+    
+    // First process vocabulary data if present - with proper type safety
+    if (vocabularyData && vocabularyData.length > 0) {
+      // Get language info for table headers
+      const sourceLanguage = languageInfo?.source_language || 'Source';
+      const targetLanguage = languageInfo?.target_language || 'Target';
+      
+      // Create a markdown table from vocabulary data
+      let vocabularyTable = `| ${sourceLanguage} | ${targetLanguage} |\n|------------|------------|\n`;
+      
+      vocabularyData.forEach(item => {
+        vocabularyTable += `| **${item.source_term}** | ${item.target_term} |\n`;
+      });
+      
+      // Return the table as markdown
+      return vocabularyTable + '\n\n' + sections.map(section => {
+        // Process section content as before
+        switch (section.type) {
+          case 'heading':
+            const headingMarker = '#'.repeat(section.level || 1);
+            return `${headingMarker} ${section.raw_text}\n\n`;
+            
+          case 'paragraph':
+            return `${section.raw_text}\n\n`;
+            
+          case 'list':
+            if (!section.items || !Array.isArray(section.items)) return '';
+            
+            if (section.style === 'numbered') {
+              return section.items.map((item, index) => {
+                const cleanItem = item.replace(/^\s*\d+\.\s*/, '');
+                return `${index + 1}. ${cleanItem}`;
+              }).join('\n') + '\n\n';
+            } else {
+              return section.items.map(item => {
+                const cleanItem = item.replace(/^\s*[•*-]\s*/, '');
+                return `* ${cleanItem}`;
+              }).join('\n') + '\n\n';
+            }
+            
+          case 'definition':
+            return `**${section.raw_text}**\n\n`;
+            
+          case 'quote':
+            return `> ${section.raw_text}\n\n`;
+            
+          default:
+            return `${section.raw_text}\n\n`;
+        }
+      }).join('');
+    }
+    
+    // If no vocabulary data, just process sections as before
     return sections.map(section => {
+      // Same section processing as above
       switch (section.type) {
         case 'heading':
           const headingMarker = '#'.repeat(section.level || 1);
@@ -786,16 +943,15 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       
       // Add these table styles
       table: {
+        width: '100%',
         borderWidth: 1,
         borderColor: theme.colors.stroke,
+        marginVertical: 16,
         borderRadius: 8,
-        marginBottom: 16,
-        marginTop: 8,
-        overflow: 'hidden',
-        width: '100%', // Ensure table takes full width
+        backgroundColor: 'transparent', // Changed from background02 to transparent
       },
       thead: {
-        backgroundColor: theme.colors.background02,
+        backgroundColor: theme.colors.background02, // Keep header background
         borderBottomWidth: 1,
         borderBottomColor: theme.colors.stroke,
       },
@@ -803,30 +959,23 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         backgroundColor: 'transparent',
       },
       th: {
-        padding: 8, // Slightly reduced padding
+        flex: 1, // Change from width to flex
+        padding: 12,
         fontFamily: theme.fonts.medium,
-        fontSize: fontSize - 2, // Smaller font for headers
+        fontSize: fontSize,
         color: theme.colors.text,
-        textAlign: 'left',
-        textTransform: textTransform,
-        flex: 1, // Equal width columns
-        minWidth: '50%', // Ensure minimum width
-        maxWidth: '50%', // Ensure maximum width
       },
       tr: {
+        flexDirection: 'row',
         borderBottomWidth: 1,
         borderBottomColor: theme.colors.stroke,
-        flexDirection: 'row',
       },
       td: {
-        padding: 8, // Slightly reduced padding
+        flex: 1, // Change from width to flex
+        padding: 12,
         fontFamily: fontFamily,
-        fontSize: fontSize - 2, // Smaller font for better fitting
+        fontSize: fontSize,
         color: theme.colors.text,
-        textTransform: textTransform,
-        flex: 1, // Equal width columns
-        minWidth: '50%', // Ensure minimum width
-        maxWidth: '50%', // Ensure maximum width
       },
     };
   };
@@ -939,118 +1088,244 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   // Fix for duplicate 'markdownRules' declarations - create one comprehensive rule set
   // Add this after all helper functions but before the return statement
   const createMarkdownRules = () => {
-    // Add this component for scrollable tables
-    const ScrollableTable = ({children}: {children: React.ReactNode}) => {
-      return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
-          <View style={{minWidth: '100%', paddingBottom: 5}}>
-            {children}
-          </View>
-        </ScrollView>
-      );
-    };
-
     return {
-      bullet_list_icon: () => {
-        return (
-          <View
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: theme.colors.primary,
-              marginTop: 10,
-              marginRight: 10,
-            }}
-          />
-        );
-      },
       table: (node: any, children: React.ReactNode, parent: any, styles: any) => {
         return (
-          <ScrollableTable key={node.key}>
-            <View style={styles.table}>
-              {children}
-            </View>
-          </ScrollableTable>
+          <View key={`table-${node.key}`} style={styles.table}>
+            {children}
+          </View>
         );
       },
-      // Add other custom rules as needed
+      thead: (node: any, children: React.ReactNode, parent: any, styles: any) => {
+        return (
+          <View key={`thead-${node.key}`} style={styles.thead}>
+            {children}
+          </View>
+        );
+      },
+      tr: (node: any, children: React.ReactNode, parent: any, styles: any) => {
+        return (
+          <View key={`tr-${node.key}`} style={styles.tr}>
+            {children}
+          </View>
+        );
+      },
+      td: (node: any, children: React.ReactNode, parent: any, styles: any) => {
+        return (
+          <View key={`td-${node.key}`} style={[styles.td, { flex: 1 }]}>
+            {children}
+          </View>
+        );
+      },
+      th: (node: any, children: React.ReactNode, parent: any, styles: any) => {
+        return (
+          <View key={`th-${node.key}`} style={[styles.th, { flex: 1 }]}>
+            {children}
+          </View>
+        );
+      }
     };
   };
 
-  // In the renderContent function, change how Markdown is used
+  // First, let's define an interface for vocabulary data
+  interface VocabularyData {
+    source_term: string;
+    target_term: string;
+  }
+
+  // Update the type guard to check for vocabulary data
+  const hasVocabularyData = (content: any): content is { vocabulary_data: VocabularyData[] } => {
+    return content && Array.isArray(content.vocabulary_data) && content.vocabulary_data.length > 0;
+  };
+
+  // Add this helper function to parse vocabulary text
+  const parseVocabularyText = (text: string): { source_terms: string[], target_terms: string[] } => {
+    const source_terms: string[] = [];
+    const target_terms: string[] = [];
+    
+    // Split text into lines and process each line
+    const lines = text.split('\n');
+    
+    lines.forEach(line => {
+      // Skip empty lines
+      if (!line.trim()) return;
+      
+      // Look for patterns like "word /pronunciation/ translation"
+      // or "word translation /pronunciation/"
+      const parts = line.split('/');
+      if (parts.length >= 2) {
+        // Get the text before the first pronunciation guide
+        let sourceTerm = parts[0].trim();
+        
+        // Find the translation after the last pronunciation guide
+        let targetTerm = parts[parts.length - 1].trim();
+        
+        // If there's text between pronunciation guides, it's probably the translation
+        if (parts.length > 2) {
+          const middlePart = parts[1].split(' ').filter(p => p.trim()).pop() || '';
+          if (middlePart) {
+            targetTerm = middlePart + ' ' + targetTerm;
+          }
+        }
+        
+        // Clean up the terms
+        sourceTerm = sourceTerm.replace(/\s+/g, ' ').trim();
+        targetTerm = targetTerm.replace(/\s+/g, ' ').trim();
+        
+        if (sourceTerm && targetTerm) {
+          source_terms.push(sourceTerm);
+          target_terms.push(targetTerm);
+        }
+      }
+    });
+    
+    return { source_terms, target_terms };
+  };
+
+  // Add this helper function to convert text_content.sections to markdown if available
+  const getSectionsAsMarkdown = (content: any): string => {
+    if (!content || !content.text_content || !content.text_content.sections) {
+      return '';
+    }
+    
+    // If sections array is empty, return empty string
+    if (!Array.isArray(content.text_content.sections) || content.text_content.sections.length === 0) {
+      return '';
+    }
+    
+    console.log('Found sections:', content.text_content.sections.length);
+    
+    // Convert the sections to markdown
+    return convertSectionsToMarkdown(content.text_content.sections);
+  };
+
+  // Update the renderContent function for the original tab
   const renderContent = () => {
     if (!content) return null;
-    
+
     const markdownStyles = getMarkdownStyles();
     const rules = createMarkdownRules();
     
-    // Enhance table styles if this is vocabulary content
-    if (isVocabularyContent(content)) {
-      // Add enhanced styling for vocabulary-specific content
-      const vocabularyStyles = {
-        ...markdownStyles,
-        table: {
-          ...markdownStyles.table,
-          width: '100%', // Full width table
-          marginVertical: 16,
-        },
-        th: {
-          ...markdownStyles.th,
-          backgroundColor: theme.colors.background02,
-          fontWeight: 'bold', 
-          fontSize: fontSettings.size - 2, // Use fontSettings instead of fontSize
-          flex: 1, // Equal width
-          width: '50%', // Force 50% width
-          maxWidth: '50%',
-        },
-        td: {
-          ...markdownStyles.td,
-          fontSize: fontSettings.size - 2, // Use fontSettings instead of fontSize
-          flex: 1, // Equal width
-          width: '50%', // Force 50% width
-          maxWidth: '50%',
-          borderRightWidth: 1,
-          borderRightColor: theme.colors.stroke,
-        }
-      };
+    // Handle different tabs correctly
+    if (selectedTab === 'original') {
+      // Original tab - could be raw text OR vocabulary
       
-      // For vocabulary content, we need the full width for tables
-      const contentText = selectedTab === 'summary' && hasSummary(content) ? 
-        getSummary(content) : 
-        convertSectionsToMarkdown(content.text_content.sections);
+      // First check: Is this vocabulary content?
+      const isVocabulary = isVocabularyContent(content);
+      console.log(`Original tab: Rendering content as ${isVocabulary ? 'vocabulary' : 'regular text'}`);
+      
+      if (isVocabulary) {
+        // If it's vocabulary content, render using vocabulary table
+        return renderVocabularyContent();
+      } else {
+        // For non-vocabulary, try to use sections if available, fall back to raw_text
+        const sectionsMarkdown = getSectionsAsMarkdown(content);
         
-      return (
-        <View style={{width: '100%'}}>
-          <Markdown style={vocabularyStyles as any} rules={rules}>
-            {contentText}
+        // If we have sections content, use it
+        if (sectionsMarkdown) {
+          console.log('Using sections for original content');
+          return (
+            <Markdown style={markdownStyles} rules={rules}>
+              {sectionsMarkdown}
+            </Markdown>
+          );
+        }
+        
+        // Otherwise use raw text, applying some basic structure
+        const rawText = content.text_content?.raw_text || 
+                       (hasOriginalText(content) ? content.original_text : '');
+        
+        // Apply basic formatting to make important sections stand out
+        const formattedText = formatRawText(rawText);
+        
+        return (
+          <Markdown style={markdownStyles} rules={rules}>
+            {formattedText}
           </Markdown>
-        </View>
+        );
+      }
+    } else if (selectedTab === 'summary') {
+      // Summary tab - ALWAYS renders summary as markdown, never as vocabulary
+      console.log('Summary tab: Rendering summary content');
+      
+      // Log some debugging info about the summary
+      if (content.summary) {
+        console.log('Summary content detected:', {
+          length: content.summary.length,
+          preview: content.summary.substring(0, 50) + '...',
+          hasMarkdown: content.summary.includes('#') || content.summary.includes('*')
+        });
+      } else {
+        console.log('No summary content available');
+      }
+      
+      return (
+        <Markdown style={markdownStyles} rules={rules}>
+          {content.summary || ''}
+        </Markdown>
       );
     }
     
-    // Regular content rendering
-    if (selectedTab === 'summary' && hasSummary(content)) {
-      const summary = getSummary(content);
-      console.log('Rendering summary markdown with proper component');
-      
-      return (
-        <Markdown style={markdownStyles} rules={rules}>
-          {summary}
-        </Markdown>
-      );
-    } else {
-      const originalText = convertSectionsToMarkdown(content.text_content.sections);
-      console.log('Rendering original text markdown with proper component');
-      
-      return (
-        <Markdown style={markdownStyles} rules={rules}>
-          {originalText}
-        </Markdown>
-      );
-    }
+    // Fallback - shouldn't normally reach here
+    return null;
   };
-  
+
+  // Add this helper to format raw text with basic markdown
+  const formatRawText = (text: string): string => {
+    if (!text) return '';
+    
+    // Split text into paragraphs
+    const paragraphs = text.split('\n').filter(p => p.trim());
+    
+    // Process each paragraph
+    return paragraphs.map((paragraph, index) => {
+      // Check if this looks like a title (all caps, short, at the beginning)
+      if (index === 0 && paragraph.length < 100 && paragraph === paragraph.toUpperCase()) {
+        return `# ${paragraph}\n\n`;
+      }
+      
+      // Check for important markers
+      if (paragraph.startsWith('TÄRKEÄÄ') || paragraph.startsWith('HUOMAA')) {
+        const marker = paragraph.split(' ')[0];
+        const content = paragraph.substring(marker.length).trim();
+        return `## ${marker}\n\n${content}\n\n`;
+      }
+      
+      // Regular paragraph
+      return `${paragraph}\n\n`;
+    }).join('');
+  };
+
+  // Add a dedicated vocabulary rendering function
+  const renderVocabularyContent = () => {
+    if (!content) return null;
+    
+    const vocabularyData = getVocabularyData(content);
+    if (!vocabularyData || vocabularyData.length === 0) {
+      return <Text style={styles.errorText}>No vocabulary data available</Text>;
+    }
+    
+    const languageInfo = getLanguageInfo(content);
+    const sourceHeader = languageInfo?.source_language || 'Term';
+    const targetHeader = languageInfo?.target_language || 'Definition';
+    
+    // Extract terms for the table
+    const source_terms = vocabularyData.map(item => item.source_term);
+    const target_terms = vocabularyData.map(item => item.target_term);
+    
+    return (
+      <View style={styles.vocabularyContainer}>
+        <VocabularyTable 
+          data={{
+            source_terms,
+            target_terms,
+            headers: [sourceHeader, targetHeader]
+          }}
+        />
+      </View>
+    );
+  };
+
   // Determine card count using our helper function
   const cardCount = content ? getCardCountText(content) : 'Loading...';
   
@@ -2797,6 +3072,51 @@ const styles = StyleSheet.create({
   },
   activeMessageIcon: {
     opacity: 1,
+  },
+
+  vocabularyTable: {
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.stroke,
+    marginVertical: 16,
+    backgroundColor: theme.colors.background,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.background02,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.stroke,
+    paddingVertical: 12,
+  },
+  tableHeaderCell: {
+    flex: 1,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    fontFamily: theme.fonts.medium,
+    color: theme.colors.text,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.stroke,
+    paddingVertical: 12,
+  },
+  tableCell: {
+    flex: 1,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.text,
+  },
+  sourceTermCell: {
+    color: theme.colors.primary,
+    fontFamily: theme.fonts.medium,
+  },
+  vocabularyContainer: {
+    marginTop: 16,
+    marginBottom: 24,
   },
 });
 
