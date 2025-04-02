@@ -34,22 +34,14 @@ const availableLanguages = [
   { code: 'fi' as SupportedLanguage, name: 'Suomi' },
 ];
 
-// Determine default locale and ensure it's one of our supported languages
+// Simplify getDefaultLocale to always return Finnish
 const getDefaultLocale = (): SupportedLanguage => {
-  try {
-    // Try getting locale from expo-localization
-    const locale = Localization.locale.split('-')[0];
-    // Check if the locale is supported, otherwise fall back to 'en'
-    return (locale === 'en' || locale === 'fi') ? locale as SupportedLanguage : 'en';
-  } catch (error) {
-    console.warn('expo-localization not available, using default: en');
-    return 'en';
-  }
+  return 'fi'; // Always default to Finnish for new installations
 };
 
 // Language Provider component
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<SupportedLanguage>(getDefaultLocale());
+  const [language, setLanguage] = useState<SupportedLanguage>('fi'); // Start with Finnish by default
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load saved language preference on initial mount
@@ -60,15 +52,12 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'fi')) {
           setLanguage(savedLanguage);
         } else {
-          // Use device language if available and supported, otherwise default to English
-          const deviceLanguage = 
-            (Localization?.locale || '').split('-')[0] as SupportedLanguage;
-          if (deviceLanguage && translations[deviceLanguage]) {
-            setLanguage(deviceLanguage);
-          }
+          // No saved preference, use Finnish as default
+          setLanguage('fi');
         }
       } catch (error) {
         console.error('Failed to load language preference:', error);
+        setLanguage('fi'); // Default to Finnish in case of errors
       } finally {
         setIsLoaded(true);
       }

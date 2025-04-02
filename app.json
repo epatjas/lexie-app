@@ -1,59 +1,11 @@
 {
   "expo": {
-    "name": "LexieLearn",
+    "name": "LexieLearn Dev",
     "slug": "lexie-app",
     "version": "3.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "icon": "./assets/icon_opaque.png",
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.epatjas.lexieapp",
-      "buildNumber": "4",
-      "icon": "./assets/icon_opaque.png",
-      "icons": {
-        "app": "./assets/icon_opaque.png"
-      }
-    },
-    "android": {
-      "package": "com.epatjas.lexieapp",
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ],
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
-    },
-    "plugins": [
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow Lexie App to access your camera."
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Allow Lexie App to access your photos to create study sets."
-        }
-      ],
-      "expo-font",
-      "expo-sqlite",
-      [
-        "expo-av",
-        {
-          "microphonePermission": false
-        }
-      ],
-      "expo-build-properties"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "88553ff6-ef91-4843-9837-4385cbe0089a"
-      }
-    },
     "assetBundlePatterns": [
       "**/*",
       "assets/**/*"
@@ -63,24 +15,18 @@
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
-    "fonts": [
-      {
-        "asset": "assets/fonts/Geist-VariableFont_wght.ttf",
-        "family": "Geist"
-      },
-      {
-        "asset": "assets/OpenDyslexic-Regular.otf",
-        "family": "OpenDyslexic"
-      },
-      {
-        "asset": "assets/OpenDyslexic-Bold.otf",
-        "family": "OpenDyslexic-Bold"
-      },
-      {
-        "asset": "assets/OpenDyslexic-Italic.otf",
-        "family": "OpenDyslexic-Italic"
-      }
+    "plugins": [
+      "expo-camera",
+      "expo-image-picker",
+      "expo-font",
+      "expo-sqlite",
+      "expo-av"
     ],
+    "extra": {
+      "eas": {
+        "projectId": "88553ff6-ef91-4843-9837-4385cbe0089a"
+      }
+    },
     "updates": {
       "fallbackToCacheTimeout": 0
     },

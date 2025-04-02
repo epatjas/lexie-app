@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 7.0.0"
+    "version": ">= 7.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -8,6 +9,9 @@
       "distribution": "internal",
       "ios": {
         "resourceClass": "m-medium"
+      },
+      "env": {
+        "EAS_BUILD_PROFILE": "development"
       }
     },
     "preview": {
@@ -18,8 +22,10 @@
     },
     "production": {
       "ios": {
-        "resourceClass": "m-medium",
-        "buildConfiguration": "Release"
+        "resourceClass": "m-medium"
+      },
+      "env": {
+        "EAS_BUILD_PROFILE": "production"
       }
     }
   },
