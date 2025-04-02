@@ -56,7 +56,13 @@
       "goToFlashcards": "Siirry muistikortteihin"
     },
     "tableDisplay": "Taulukot eivät ehkä näy oikein tässä näkymässä. Kokeile muistikortteja.",
-    "noContentToPlay": "Ei sisältöä"
+    "noContentToPlay": "Ei sisältöä",
+    "introduction": {
+      "default": "Kävin tehtäväsi läpi. Näistä ohjeista voisi olla hyötyä sinulle ongelman ratkaisemiseen.",
+      "homeworkHelp": {
+        "fi": "Kävin tehtäväsi läpi. Näistä ohjeista voisi olla hyötyä sinulle ongelman ratkaisemiseen."
+      }
+    }
   },
   "processing": {
     "justAMoment": "Pieni hetki.",
@@ -310,7 +316,7 @@
     }
   },
   "flashcards": {
-    "title": "Opiskele",
+    "title": "Opi",
     "noCards": "Ei muistikortteja saatavilla",
     "stillLearning": "Harjoittelen vielä",
     "iKnowThis": "Osaan tämän",

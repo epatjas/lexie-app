@@ -56,7 +56,13 @@
       "goToFlashcards": "Go to Flashcards"
     },
     "tableDisplay": "Tables may not display correctly in this view. Try using flashcards for vocabulary practice.",
-    "noContentToPlay": "No content available to play"
+    "noContentToPlay": "No content available to play",
+    "introduction": {
+      "default": "I analyzed your content. Here's some material to help you master this subject.",
+      "homeworkHelp": {
+        "fi": "I analyzed your content. Here's some material to help you master this subject."
+      }
+    }
   },
   "processing": {
     "justAMoment": "Just a moment",

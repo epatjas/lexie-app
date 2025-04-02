@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, Animated, PanResponder } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
-import { ChevronLeft, StepForward, Volume2 as VolumeIcon, Brain } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Brain } from 'lucide-react-native';
 import theme from '../styles/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontSettings } from '../types/fontSettings';
@@ -39,9 +39,6 @@ export default function ConceptCardScreen({ route, navigation }: ConceptCardScre
     size: 16,
     isAllCaps: false
   });
-  
-  // Add state for the toast
-  const [showToast, setShowToast] = useState(false);
   
   // Update ref when currentIndex changes
   useEffect(() => {
@@ -271,12 +268,6 @@ export default function ConceptCardScreen({ route, navigation }: ConceptCardScre
     );
   };
   
-  // Add the toast handler
-  const handleAudioPress = () => {
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
-  };
-  
   // Guard against empty cards array
   if (!cards || cards.length === 0) {
     return (
@@ -358,41 +349,31 @@ export default function ConceptCardScreen({ route, navigation }: ConceptCardScre
               <Text style={styles.paginationText}>
                 {t('conceptCards.counter', { current: currentIndex + 1, total: cards.length })}
               </Text>
-              <TouchableOpacity onPress={handleAudioPress}>
-                <VolumeIcon color={theme.colors.text} size={20} />
-              </TouchableOpacity>
             </View>
           </View>
         </Animated.View>
       </View>
       
-      {/* Navigation Buttons - Ensuring proper alignment */}
+      {/* Navigation Buttons - Update to use chevron icons */}
       <View style={styles.buttonContainer}>
-        {/* This View ensures the space for the prev button exists even when button is hidden */}
+        {/* Previous button with ChevronLeft */}
         <View style={styles.buttonSlot}>
           {currentIndex > 0 && (
             <TouchableOpacity onPress={goToPreviousCard} style={styles.circleButton}>
-              <StepForward color="white" size={20} style={{ transform: [{ rotate: '180deg' }] }} />
+              <ChevronLeft color="white" size={24} />
             </TouchableOpacity>
           )}
         </View>
         
-        {/* This View ensures the next button always stays on the right */}
+        {/* Next button with ChevronRight */}
         <View style={styles.buttonSlot}>
           {currentIndex < cards.length - 1 && (
             <TouchableOpacity onPress={goToNextCard} style={styles.circleButton}>
-              <StepForward color="white" size={20} />
+              <ChevronRight color="white" size={24} />
             </TouchableOpacity>
           )}
         </View>
       </View>
-      
-      {/* Toast notification */}
-      {showToast && (
-        <View style={styles.toast}>
-          <Text style={styles.toastText}>{t('audio.comingSoon')}</Text>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
@@ -537,20 +518,5 @@ const styles = StyleSheet.create({
   },
   bulletPoint: {
     paddingLeft: 8,
-  },
-  toast: {
-    position: 'absolute',
-    top: '10%',
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    zIndex: 1000,
-  },
-  toastText: {
-    color: 'white',
-    fontSize: 14,
-    fontFamily: theme.fonts.medium,
   },
 }); 

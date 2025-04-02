@@ -149,11 +149,11 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const [content, setContent] = useState<StudySet | HomeworkHelp | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('summary');
+  const [activeTab, setActiveTab] = useState('original');
   const [refreshKey, setRefreshKey] = useState(0);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [showFeedbackToast, setShowFeedbackToast] = useState(false);
-  const [selectedTab, setSelectedTab] = useState('summary');
+  const [selectedTab, setSelectedTab] = useState('original');
   const { 
     playAudio, 
     pauseAudio, 
@@ -1669,16 +1669,15 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
               onScrollBeginDrag={() => setShowMoreOptions(false)}
             >
               <View style={{padding: 16}}>
-                {/* Introduction with language-appropriate fallback */}
-                {isHomeworkHelp(content) && (
-                  <View style={styles.introductionContainer}>
-                    <Text style={getTextStyle(styles.introText)}>
-                      {content.introduction || (content.homeworkHelp?.language === 'fi' 
-                        ? "Kävin tehtäväsi läpi. Näistä ohjeista voisi olla hyötyä sinulle ongelman ratkaisemiseen."
-                        : "I've reviewed your content. Here's some guidance to help you solve this problem.")}
-                    </Text>
-                  </View>
-                )}
+                {/* Introduction for all content types */}
+                <View style={styles.introductionContainer}>
+                  <Text style={getTextStyle(styles.introText)}>
+                    {content?.introduction || 
+                      (isHomeworkHelp(content) && content.homeworkHelp?.language === 'fi'
+                        ? t('studySet.introduction.homeworkHelp.fi')
+                        : t('studySet.introduction.default'))}
+                  </Text>
+                </View>
 
                 {/* Conditional rendering based on content type */}
                 {contentIsHomeworkHelp ? (
@@ -1844,24 +1843,25 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                       flexDirection: 'row',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      marginVertical: theme.spacing.sm,
+                      marginTop: theme.spacing.sm, // Keep spacing above
+                      marginBottom: 4, // Reduce spacing below the tabs (previously theme.spacing.sm)
                     }}>
                       <View style={styles.tabContainer}>
-                        <TouchableOpacity 
-                          style={[styles.tab, selectedTab === 'summary' && styles.activeTab]}
-                          onPress={() => setSelectedTab('summary')}
-                        >
-                          <Text style={[styles.tabText, selectedTab === 'summary' && styles.activeTabText]}>
-                            {t('studySet.summary')}
-                          </Text>
-                        </TouchableOpacity>
-                        
                         <TouchableOpacity 
                           style={[styles.tab, selectedTab === 'original' && styles.activeTab]}
                           onPress={() => setSelectedTab('original')}
                         >
                           <Text style={[styles.tabText, selectedTab === 'original' && styles.activeTabText]}>
                             {t('studySet.original')}
+                          </Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                          style={[styles.tab, selectedTab === 'summary' && styles.activeTab]}
+                          onPress={() => setSelectedTab('summary')}
+                        >
+                          <Text style={[styles.tabText, selectedTab === 'summary' && styles.activeTabText]}>
+                            {t('studySet.summary')}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -2265,11 +2265,11 @@ const styles = StyleSheet.create({
   messagesWrapper: {
     marginTop: 4,
     marginBottom: 16,
-    // Remove marginLeft and paddingLeft properties so they don't conflict with inline styles
+    
   },
   messageContainer: {
-    marginLeft: 0, // Reduce this from 8 to 0
-    marginStart: 0, // Remove this as well since we're handling the positioning differently
+    marginLeft: 0, 
+    marginStart: 0, 
     backgroundColor: theme.colors.background02,
     borderRadius: 16,
     padding: 12,
@@ -2654,8 +2654,6 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     backgroundColor: '#1F1F1F',
     borderRadius: 24,
-    padding: 4,
-    marginBottom: 8,
     width: 'auto',
   },
   tab: {
