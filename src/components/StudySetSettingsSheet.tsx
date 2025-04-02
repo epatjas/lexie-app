@@ -102,7 +102,7 @@ const StudySetSettingsSheet: React.FC<StudySetSettingsSheetProps> = ({
             
             <View style={styles.rightContainer}>
               {hasFolderAssigned && folderName && (
-                <Text style={[styles.folderNameText, { color: folderColor }]}>
+                <Text style={[styles.folderNameText, { color: theme.colors.primary }]}>
                   {folderName}
                 </Text>
               )}

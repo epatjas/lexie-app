@@ -111,6 +111,17 @@ const FontSelectionSheet: React.FC<FontSelectionSheetProps> = ({
     }
   };
 
+  const getTranslationKey = (font: string): string => {
+    switch (font) {
+      case "Standard": return "standard";
+      case "Reading": return "reading";
+      case "Dyslexia-friendly": return "dyslexiaFriendly";
+      case "High-visibility": return "highVisibility";
+      case "Monospaced": return "monospaced";
+      default: return font.toLowerCase();
+    }
+  };
+
   if (!visible) return null;
 
   return (
@@ -155,7 +166,7 @@ const FontSelectionSheet: React.FC<FontSelectionSheetProps> = ({
                   onPress={() => handleFontSelect(font)}
                 >
                   <Text style={getFontStyle(font)}>
-                    {t(`fontSettings.${font.toLowerCase().replace('-', 'Friendly')}`)}
+                    {t(`fontSettings.${getTranslationKey(font)}`)}
                   </Text>
                   {selectedFont === font && (
                     <View style={styles.selectedIndicator}>

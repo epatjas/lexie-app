@@ -987,7 +987,132 @@ export const createFolder = async (folder: { name: string; color: string }): Pro
   }
 };
 
-// ... other folder operations ...
+/**
+ * Updates a study set to belong to a folder
+ */
+export const updateStudySetFolder = async (studySetId: string, folderId: string | null): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    console.log(`Updating study set ${studySetId} to folder ${folderId || 'none'}`);
+    
+    // Update the folder_id field in the study_sets table
+    await db.runAsync(
+      'UPDATE study_sets SET folder_id = ?, updated_at = ? WHERE id = ?',
+      [folderId, Date.now(), studySetId]
+    );
+    
+    console.log('Study set folder updated successfully');
+  } catch (error) {
+    console.error('Failed to update study set folder:', error);
+    throw error;
+  }
+};
+
+/**
+ * Gets all study sets in a folder
+ */
+export const getStudySetsInFolder = async (folderId: string): Promise<StudySet[]> => {
+  try {
+    const db = await getDatabase();
+    
+    const results = await db.getAllAsync<StudySet>(
+      'SELECT * FROM study_sets WHERE folder_id = ? ORDER BY created_at DESC',
+      [folderId]
+    );
+    
+    // Parse text_content if needed
+    const parsedResults = results.map(set => ({
+      ...set,
+      text_content: typeof set.text_content === 'string' 
+        ? JSON.parse(set.text_content) 
+        : set.text_content
+    }));
+    
+    return parsedResults;
+  } catch (error) {
+    console.error('Error in getStudySetsInFolder:', error);
+    throw error;
+  }
+};
+
+/**
+ * Gets all folders from the database
+ */
+export const getFolders = async (): Promise<Folder[]> => {
+  try {
+    const db = await getDatabase();
+    
+    const results = await db.getAllAsync<Folder>(
+      'SELECT * FROM folders ORDER BY created_at DESC'
+    );
+    
+    return results;
+  } catch (error) {
+    console.error('Failed to get folders:', error);
+    throw error;
+  }
+};
+
+/**
+ * Updates a folder's name and color
+ */
+export const updateFolder = async (
+  folderId: string, 
+  updates: { name?: string; color?: string }
+): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    const now = Date.now();
+    
+    // Build the SQL query dynamically based on what needs to be updated
+    let sql = 'UPDATE folders SET updated_at = ?';
+    const params: any[] = [now];
+    
+    if (updates.name !== undefined) {
+      sql += ', name = ?';
+      params.push(updates.name);
+    }
+    
+    if (updates.color !== undefined) {
+      sql += ', color = ?';
+      params.push(updates.color);
+    }
+    
+    sql += ' WHERE id = ?';
+    params.push(folderId);
+    
+    await db.runAsync(sql, params);
+    
+    console.log('Folder updated successfully:', folderId);
+  } catch (error) {
+    console.error('Failed to update folder:', error);
+    throw error;
+  }
+};
+
+/**
+ * Deletes a folder
+ * Note: This will not remove the folder_id from study sets, so they will become "unassigned"
+ */
+export const deleteFolder = async (folderId: string): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    
+    // First, update any study sets with this folder to have null folder_id
+    await db.runAsync(
+      'UPDATE study_sets SET folder_id = NULL, updated_at = ? WHERE folder_id = ?',
+      [Date.now(), folderId]
+    );
+    
+    // Then delete the folder
+    await db.runAsync('DELETE FROM folders WHERE id = ?', [folderId]);
+    
+    console.log('Folder deleted successfully:', folderId);
+  } catch (error) {
+    console.error('Failed to delete folder:', error);
+    throw error;
+  }
+};
 
 // =====================================
 // Chat Operations

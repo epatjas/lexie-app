@@ -371,7 +371,13 @@ export default function LessonHistoryScreen({ navigation }: LessonHistoryScreenP
         onPress={() => item.id && navigation.navigate('StudySet', { id: item.id })}
       >
         <View>
-          <Text style={styles.lessonTitle}>{item.title}</Text>
+          <Text 
+            style={styles.lessonTitle} 
+            numberOfLines={1} 
+            ellipsizeMode="tail"
+          >
+            {item.title}
+          </Text>
           <View style={styles.detailsRow}>
             <Text style={styles.lessonDate}>{formatDateForDisplay(item.created_at)}</Text>
             
@@ -602,6 +608,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.medium,
     color: theme.colors.text,
     marginBottom: 4,
+    flexShrink: 1,
   },
   lessonDate: {
     fontSize: 14,

@@ -22,6 +22,7 @@ import { FOLDER_COLORS } from '../constants/colors';
 import FolderEditModal from './FolderEditModal';
 import DragHandle from './DragHandle';
 import { useTranslation } from '../i18n/LanguageContext';
+import { updateStudySetFolder } from '../services/Database';
 
 interface FolderSelectModalProps {
   visible: boolean;
@@ -29,6 +30,7 @@ interface FolderSelectModalProps {
   onCreateNew: () => void;
   folders: FolderType[];
   selectedFolderId?: string | null;
+  selectedStudySetId?: string;
   onSelect: (folderId: string | null) => void;
   onUpdateFolder: (folderId: string, name: string, color: string) => void;
 }
@@ -87,6 +89,7 @@ export default function FolderSelectModal({
   onCreateNew,
   folders,
   selectedFolderId,
+  selectedStudySetId,
   onSelect,
   onUpdateFolder,
 }: FolderSelectModalProps) {
@@ -160,6 +163,21 @@ export default function FolderSelectModal({
     }
   };
 
+  const handleFolderSelect = async (folderId: string | null) => {
+    try {
+      onSelect(folderId);
+      
+      if (selectedStudySetId) {
+        await updateStudySetFolder(selectedStudySetId, folderId);
+      }
+      
+      onClose();
+    } catch (error) {
+      console.error('Error selecting folder:', error);
+      Alert.alert(t('alerts.error'), t('alerts.assignToFolderFailed'));
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -196,7 +214,7 @@ export default function FolderSelectModal({
                         key={folder.id}
                         folder={folder}
                         isSelected={folder.id === selectedFolderId}
-                        onPress={() => onSelect(folder.id)}
+                        onPress={() => handleFolderSelect(folder.id)}
                         onMorePress={() => handleMorePress(folder)}
                       />
                     ))}

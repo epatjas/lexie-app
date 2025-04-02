@@ -25,14 +25,14 @@
   },
   "welcome": {
     "title": "LexieLearn",
-    "description": "Lexie auttaa sinua harjoittelemaan. Lataa kuva ja Lexie hoitaa loput.",
+    "description": "Lexie auttaa sinua harjoittelemaan. Ota kuva ja Lexie hoitaa loput.",
     "startButton": "Aloita"
   },
   "home": {
     "greeting": "Hei 👋🏻",
-    "questionPrompt": "Mitä haluaisit\noppia tänään?",
-    "startLesson": "Aloita harjoittelu",
-    "lessons": "Aiemmat harjoitukset"
+    "questionPrompt": "Mitä haluaisit oppia\n tänään?",
+    "startLesson": "Aloita",
+    "lessons": "Aiemmat setit"
   },
   "studySet": {
     "title": "Harjoitus",
@@ -59,7 +59,7 @@
     "noContentToPlay": "Ei sisältöä"
   },
   "processing": {
-    "justAMoment": "Hetkinen.",
+    "justAMoment": "Pieni hetki.",
     "readingWork": "Käyn materiaaliasi läpi. Tämä vie vain hetken.",
     "creatingLesson": "Luon harjoitusta.",
     "organizingContent": "Sain tekstin talteen. Jäsentelen sitä nyt.",
@@ -266,13 +266,13 @@
     }
   },
   "lessonHistory": {
-    "title": "Aiemmat harjoitukset",
-    "loading": "Ladataan harjoituksia...",
+    "title": "Aiemmat setit",
+    "loading": "Ladataan settejä...",
     "empty": {
       "noLessons": "Tyhjää toistaiseksi.",
       "startFirst": "Ota kuva ja pääset alkuun."
     },
-    "newLesson": "Uusi harjoitus",
+    "newLesson": "Luo uusi setti",
     "timeSections": {
       "today": "Tänään",
       "thisWeek": "Tällä viikolla",
@@ -295,10 +295,10 @@
     "fontFamily": "Fontti",
     "allCaps": "ISOT KIRJAIMET",
     "standard": "Tavallinen",
-    "reading": "Lukeminen",
-    "dyslexiaFriendly": "Lukihäiriöystävällinen",
-    "highVisibility": "Korkea näkyvyys",
-    "monospaced": "Monospaced",
+    "reading": "Lukutila",
+    "dyslexiaFriendly": "Dysleksia-fontti",
+    "highVisibility": "Selkeälukuinen",
+    "monospaced": "Tasavälinen",
     "case": "KIRJAINKOKO"
   },
   "folder": {

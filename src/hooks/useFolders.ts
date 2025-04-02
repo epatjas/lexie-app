@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Folder } from '../types/types';
-import { getFolders, createFolder, updateStudySetFolder, updateFolder as updateFolderInDb, deleteFolder as deleteFolderInDb, getDatabase } from '../services/Database';
+import { getFolders, createFolder, updateStudySetFolder, updateFolder as updateFolderInDb, deleteFolder as deleteFolderInDb, getDatabase, getStudySetsInFolder } from '../services/Database';
 
 // Define a new type that includes study_set_count
 type FolderWithCount = Folder & { 
@@ -86,9 +86,10 @@ export function useFolders() {
     try {
       await updateStudySetFolder(studySetId, folderId);
       await refreshFolders(); // Refresh after assigning
+      return true;
     } catch (error) {
       console.error('Error assigning study set to folder:', error);
-      throw error;
+      return false;
     }
   };
 

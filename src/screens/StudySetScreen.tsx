@@ -2059,8 +2059,9 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
             visible={folderSelectVisible}
             onClose={() => setFolderSelectVisible(false)}
             onCreateNew={handleCreateNewFolder}
-            folders={folders}
-            selectedFolderId={content?.folder_id || null}
+            folders={folders || []}
+            selectedFolderId={studySet?.folder_id || null}
+            selectedStudySetId={studySet?.id} // Pass the study set ID here
             onSelect={handleFolderSelect}
             onUpdateFolder={updateFolder}
           />
