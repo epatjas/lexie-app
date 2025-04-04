@@ -84,17 +84,158 @@ const hasOriginalText = (content: any): content is { original_text: string } => 
   return content && typeof content.original_text === 'string';
 };
 
-// Update the helper function to be more type-safe
-const getVocabularyData = (content: any): VocabularyItem[] | null => {
-  if (!content) return null;
+// Add this helper function to clean markdown syntax
+const cleanMarkdownSyntax = (text: string): string => {
+  if (!text) return '';
   
-  // Safely check for vocabulary_data with proper typing
+  return text
+    // Replace bold syntax with plain text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    // Replace italic syntax with plain text
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/_(.*?)_/g, '$1')
+    // Clean up any other markdown indicators
+    .replace(/`(.*?)`/g, '$1')
+    .replace(/~~(.*?)~~/g, '$1')
+    .trim();
+};
+
+// Now update the parseTextTable function to clean the terms
+const parseTextTable = (text: string): { 
+  source_terms: string[],
+  target_terms: string[],
+  headers: [string, string] 
+} | null => {
+  if (!text) return null;
+  
+  // Split by lines and filter for only lines starting with |
+  const lines = text.split('\n')
+    .map(line => line.trim())
+    .filter(line => line.startsWith('|'));
+  
+  console.log('Parsing table text:', { lineCount: lines.length, firstLine: lines[0] });
+  
+  // Need at least 2 lines (header + content)
+  if (lines.length < 2) return null;
+  
+  // Process the header row
+  const headerRow = lines[0];
+  const headerCells = headerRow.split('|')
+    .map(cell => cell.trim())
+    .filter(cell => cell.length > 0);
+  
+  // Default headers if we can't extract them
+  const headers: [string, string] = headerCells.length >= 2 
+    ? [headerCells[0], headerCells[1]]
+    : ['Term', 'Definition'];
+  
+  // Skip header row and separator row (if it exists)
+  const startIndex = lines.length > 1 && lines[1].includes('--') ? 2 : 1;
+  
+  // Process data rows
+  const sourceTerms: string[] = [];
+  const targetTerms: string[] = [];
+  
+  for (let i = startIndex; i < lines.length; i++) {
+    const row = lines[i];
+    const cells = row.split('|')
+      .map(cell => cell.trim())
+      .filter(cell => cell.length > 0);
+    
+    if (cells.length >= 2) {
+      // Clean markdown syntax from the terms
+      sourceTerms.push(cleanMarkdownSyntax(cells[0]));
+      targetTerms.push(cleanMarkdownSyntax(cells[1]));
+    }
+  }
+  
+  // Only return valid data
+  if (sourceTerms.length > 0 && targetTerms.length > 0) {
+    console.log(`Successfully parsed ${sourceTerms.length} vocabulary terms from text table`);
+    return {
+      source_terms: sourceTerms,
+      target_terms: targetTerms,
+      headers
+    };
+  }
+  
+  console.log('Failed to parse any vocabulary terms from text');
+  return null;
+};
+
+// Now completely replace the getVocabularyData function
+const getVocabularyData = (content: any): { items: VocabularyItem[], headers?: [string, string] } | null => {
+  if (!content) {
+    console.log('getVocabularyData: content is null');
+    return null;
+  }
+  
+  // First try getting structured vocabulary data
   if (content.vocabulary_data && 
       Array.isArray(content.vocabulary_data) && 
       content.vocabulary_data.length > 0) {
-    return content.vocabulary_data;
+    console.log('Found structured vocabulary_data array');
+    return { items: content.vocabulary_data };
   }
   
+  // Not finding structured data, try parsing from text
+  let textToCheck = '';
+  
+  // Check original_text first
+  if (hasOriginalText(content)) {
+    textToCheck = content.original_text;
+    console.log('Using original_text for parsing');
+  } 
+  // Then try raw_text
+  else if (content.text_content && content.text_content.raw_text) {
+    textToCheck = content.text_content.raw_text;
+    console.log('Using text_content.raw_text for parsing');
+  }
+  
+  // If we have text with table format, parse it into vocabulary items
+  if (textToCheck && textToCheck.includes('|')) {
+    console.log('Text contains pipe characters, attempting to parse table');
+    const parsedTable = parseTextTable(textToCheck);
+    
+    if (parsedTable) {
+      // Convert to vocabulary items format and preserve headers
+      return {
+        items: parsedTable.source_terms.map((term, index) => ({
+          source_term: term,
+          target_term: parsedTable.target_terms[index] || ''
+        })),
+        headers: parsedTable.headers
+      };
+    }
+  }
+  
+  // Last resort: try to extract from the first section if it looks like vocabulary
+  if (content.text_content?.sections && Array.isArray(content.text_content.sections)) {
+    console.log('Trying to find vocabulary in text sections');
+    
+    // Get the raw text from all sections
+    const allSectionsText = content.text_content.sections
+      .map((section: any) => section.raw_text || '')
+      .join('\n');
+    
+    if (allSectionsText.includes('|')) {
+      console.log('Found pipe characters in sections text');
+      const parsedTable = parseTextTable(allSectionsText);
+      
+      if (parsedTable) {
+        // Convert to vocabulary items format and preserve headers
+        return {
+          items: parsedTable.source_terms.map((term, index) => ({
+            source_term: term,
+            target_term: parsedTable.target_terms[index] || ''
+          })),
+          headers: parsedTable.headers
+        };
+      }
+    }
+  }
+  
+  console.log('Failed to find any vocabulary data in content');
   return null;
 };
 
@@ -131,6 +272,7 @@ const isVocabularyContent = (content: any): boolean => {
   // Log detailed check results for debugging
   const checkResult = {
     hasOriginalText: false,
+    hasRawText: false,
     hasTableMarkers: false,
     hasTableHeader: false,
     hasVocabularyData: false,
@@ -138,21 +280,28 @@ const isVocabularyContent = (content: any): boolean => {
     contentType: content.contentType || 'unknown',
   };
 
+  // Check original_text property
   if (hasOriginalText(content)) {
     checkResult.hasOriginalText = true;
     // Only check for table markers if there are multiple lines starting with |
-    // and there aren't many long paragraphs (vocabulary typically has short entries)
     const lines = content.original_text.split('\n');
     const tableLineCount = lines.filter(line => line.trim().startsWith('|')).length;
-    const longParagraphCount = lines.filter(line => line.trim().length > 100).length;
     
-    checkResult.hasTableMarkers = tableLineCount > 3; // Multiple table rows
+    checkResult.hasTableMarkers = tableLineCount > 2; // At least 3 lines (header + divider + content)
     checkResult.hasTableHeader = content.original_text.includes('--|--');
     
-    // If there are many long paragraphs, this is likely not vocabulary content
-    if (longParagraphCount > 5) {
-      console.log('Content has many long paragraphs, likely not vocabulary');
-      return false;
+    console.log('Original text table markers:', tableLineCount, 'table lines found');
+  }
+
+  // Also check text_content.raw_text property
+  if (content.text_content && typeof content.text_content.raw_text === 'string') {
+    checkResult.hasRawText = true;
+    const lines = content.text_content.raw_text.split('\n');
+    const tableLineCount = lines.filter(line => line.trim().startsWith('|')).length;
+    
+    if (tableLineCount > 2) {
+      checkResult.hasTableMarkers = true;
+      console.log('Raw text contains table markers:', tableLineCount, 'table lines found');
     }
   }
 
@@ -168,16 +317,19 @@ const isVocabularyContent = (content: any): boolean => {
   // Check content_type property if available
   const explicitVocabularyType = content.content_type === 'vocabulary';
 
+  // Enhanced decision logic - include table markers as a factor
+  const decision = explicitVocabularyType || 
+         checkResult.hasVocabularyData || 
+         checkResult.hasVocabularyTables ||
+         checkResult.hasTableMarkers;  // This is new - detect based on text format
+
   console.log('Vocabulary content check:', {
     ...checkResult,
     explicitVocabularyType,
-    decision: explicitVocabularyType || checkResult.hasVocabularyData || checkResult.hasVocabularyTables
+    decision
   });
 
-  // Prioritize explicit content type markers and vocabulary data
-  return explicitVocabularyType || 
-         checkResult.hasVocabularyData || 
-         checkResult.hasVocabularyTables;
+  return decision;
 }
 
 const cleanTextForSpeech = (text: string): string => {
@@ -761,11 +913,11 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     if (!sections || !Array.isArray(sections)) return '';
     
     // Use our helper functions to safely extract data
-    const vocabularyData = getVocabularyData(content);
+    const vocabularyResult = getVocabularyData(content);
     const languageInfo = getLanguageInfo(content);
     
     // First process vocabulary data if present - with proper type safety
-    if (vocabularyData && vocabularyData.length > 0) {
+    if (vocabularyResult && vocabularyResult.items.length > 0) {
       // Get language info for table headers
       const sourceLanguage = languageInfo?.source_language || 'Source';
       const targetLanguage = languageInfo?.target_language || 'Target';
@@ -773,7 +925,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       // Create a markdown table from vocabulary data
       let vocabularyTable = `| ${sourceLanguage} | ${targetLanguage} |\n|------------|------------|\n`;
       
-      vocabularyData.forEach(item => {
+      vocabularyResult.items.forEach(item => {
         vocabularyTable += `| **${item.source_term}** | ${item.target_term} |\n`;
       });
       
@@ -1300,14 +1452,27 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const renderVocabularyContent = () => {
     if (!content) return null;
     
-    const vocabularyData = getVocabularyData(content);
-    if (!vocabularyData || vocabularyData.length === 0) {
+    const vocabularyResult = getVocabularyData(content);
+    if (!vocabularyResult || !vocabularyResult.items || vocabularyResult.items.length === 0) {
+      console.log('No vocabulary data available');
       return <Text style={styles.errorText}>No vocabulary data available</Text>;
     }
     
-    const languageInfo = getLanguageInfo(content);
-    const sourceHeader = languageInfo?.source_language || 'Term';
-    const targetHeader = languageInfo?.target_language || 'Definition';
+    const vocabularyData = vocabularyResult.items;
+    console.log(`Rendering vocabulary table with ${vocabularyData.length} terms`);
+    
+    // First try to use headers from the parsed table
+    let sourceHeader = vocabularyResult.headers?.[0];
+    let targetHeader = vocabularyResult.headers?.[1];
+    
+    // If no headers from parsed table, try to get from languageInfo
+    if (!sourceHeader || !targetHeader) {
+      const languageInfo = getLanguageInfo(content);
+      sourceHeader = languageInfo?.source_language || 'Term';
+      targetHeader = languageInfo?.target_language || 'Definition';
+    }
+    
+    console.log('Using table headers:', sourceHeader, targetHeader);
     
     // Extract terms for the table
     const source_terms = vocabularyData.map(item => item.source_term);
