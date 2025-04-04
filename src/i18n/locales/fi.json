@@ -170,7 +170,7 @@
     "deleteError": "Harjoittelusetin poistaminen epäonnistui",
     "takePictureError": "Kuvan ottaminen epäonnistui. Yritä uudelleen.",
     "permission": "Kameran käyttöoikeus",
-    "cameraAccess": "Anna Lexielle lupa käyttää kameraa."
+    "cameraAccess": "Anna Lexielle lupa käyttää kameraa harjoittelusetin luomiseen."
   },
   "scanPage": {
     "title": "Ota kuva",

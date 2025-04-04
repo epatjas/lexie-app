@@ -51,11 +51,11 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Allow Lexie App to access your camera.</string>
+	<string>To scan your study materials and create personalized learning resources like flashcards and quizzes.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your microphone</string>
+	<string>LexieLearn uses microphone access to provide audio content and voice features to support your learning experience.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Allow Lexie App to access your photos to create study sets.</string>
+	<string>LexieLearn needs access to your photos to import study materials and create customized learning resources.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>SplashScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

@@ -2,4 +2,5 @@
   <string name="app_name">LexieLearn</string>
   <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
   <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
+  <string name="camera_permission_description">LexieLearn uses your camera to capture photos of your study materials like textbooks and notes, which are then analyzed to create personalized learning resources such as flashcards and quizzes.</string>
 </resources>

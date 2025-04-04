@@ -1,0 +1,9 @@
+const requestCameraPermission = async () => {
+  try {
+    const granted = await request(PERMISSIONS.ANDROID.CAMERA);
+    // or for iOS: await request(PERMISSIONS.IOS.CAMERA);
+    // ... existing code ...
+  } catch (err) {
+    // ... existing code ...
+  }
+}; 
