@@ -24,9 +24,11 @@ module.exports = ({ config }) => {
   
   return {
     ...config,
+    version: "3.0.2",
     ios: {
       ...config.ios,
-      bundleIdentifier: "com.epatjas.lexieapp"
+      bundleIdentifier: "com.epatjas.lexieapp",
+      buildNumber: "6"
     },
     android: {
       ...config.android,
