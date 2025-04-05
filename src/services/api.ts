@@ -596,3 +596,41 @@ export const testServerConnection = async () => {
     return false;
   }
 };
+
+// Add this function after your other imports
+export const remoteLog = async (message: string, data?: any): Promise<void> => {
+  try {
+    const deviceInfo = {
+      platform: Platform.OS,
+      version: Platform.Version,
+      model: Device.modelName || 'unknown',
+      deviceName: Device.deviceName || 'unknown',
+      manufacturer: Device.manufacturer || 'unknown'
+    };
+    
+    console.log(`[Local Log] About to send to ${API_URL}/client-logs:`, message);
+    
+    // Send log to server
+    const response = await axios.post(`${API_URL}/client-logs`, {
+      message,
+      data,
+      device: JSON.stringify(deviceInfo),
+      timestamp: new Date().toISOString()
+    }, {
+      timeout: 5000
+    });
+    
+    console.log(`[Remote Log] Success:`, response.status);
+  } catch (e) {
+    // More detailed error logging
+    console.error('Failed to send remote log:', e);
+    if (axios.isAxiosError(e)) {
+      console.error('Axios error details:', {
+        status: e.response?.status,
+        statusText: e.response?.statusText,
+        url: e.config?.url,
+        method: e.config?.method
+      });
+    }
+  }
+};

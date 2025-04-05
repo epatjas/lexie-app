@@ -13,8 +13,9 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Modal,
+  Platform,
 } from 'react-native';
-import { analyzeImages, getProcessingStatus } from '../services/api';
+import { analyzeImages, getProcessingStatus, remoteLog } from '../services/api';
 import { createStudySet } from '../services/Database';
 import { Analytics, EventType } from '../services/AnalyticsService';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -35,6 +36,7 @@ import axios from 'axios';
 import { getActiveProfile } from '../utils/storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from '../i18n/LanguageContext';
+import * as Device from 'expo-device';
 
 type PreviewScreenParams = {
   photos: Array<{uri: string; base64?: string}>;
@@ -137,12 +139,18 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
   const handleAnalyze = async () => {
     const startTime = Date.now();
     try {
+      remoteLog('Starting image analysis', { 
+        imageCount: photos.length,
+        device: Platform.OS + '-' + (Device.modelName || 'unknown')
+      });
+      
       setIsProcessing(true);
       setProcessingStartTime(Date.now());
       
       // Get active profile first
       const activeProfile = await getActiveProfile();
       if (!activeProfile) {
+        remoteLog('No active profile found');
         throw new Error('No active profile found');
       }
 
@@ -155,19 +163,28 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
       }, 0) / (1024 * 1024); // Convert to MB
 
       console.log('[Client] Total image size before compression:', totalSize.toFixed(2) + 'MB');
+      remoteLog('Image sizes before compression', { totalSizeMB: totalSize.toFixed(2) });
 
-      if (totalSize > 50) { // 50MB limit
-        throw new Error('Total image size is too large. Please select fewer images.');
-      }
-
+      // Log that we're about to make API request
+      remoteLog('Making API request to analyze images');
+      
       const result = await analyzeImages(photos);
+      
+      // Log successful API response
+      remoteLog('API request successful', { 
+        resultTitle: result.title,
+        contentType: result.contentType,
+        responseSize: JSON.stringify(result).length
+      });
       
       // Add validation for result
       if (!result || !result.text_content) {
+        remoteLog('Invalid response format from server', result);
         throw new Error('Invalid response format from server');
       }
 
       // Database timing
+      remoteLog('Starting database operations');
       console.log('[Timing] Creating study set in database...');
       const dbStartTime = Date.now();
       console.log('[Debug] API result content type:', result.contentType);
@@ -192,42 +209,68 @@ export default function PreviewScreen({ route, navigation }: PreviewScreenNaviga
         studySetData.homeworkHelp = result.homeworkHelp;
       }
       
-      const studySet = await createStudySet(studySetData);
-      const dbEndTime = Date.now();
-      
-      // Track study set creation in analytics
-      Analytics.logEvent(EventType.STUDY_SET_CREATED, { study_set_id: studySet.id });
+      try {
+        const studySet = await createStudySet(studySetData);
+        const dbEndTime = Date.now();
+        
+        // Track study set creation in analytics
+        Analytics.logEvent(EventType.STUDY_SET_CREATED, { study_set_id: studySet.id });
 
-      // Add post-creation log to verify content type was saved
-      console.log('[Debug] Created study set with content type:', studySet.contentType);
-      
-      // Final timing summary
-      console.log('[Timing] Process completed. Full breakdown:', {
-        totalTime: dbEndTime - startTime,
-        databaseOperation: dbEndTime - dbStartTime,
-      });
+        // Add post-creation log to verify content type was saved
+        console.log('[Debug] Created study set with content type:', studySet.contentType);
+        remoteLog('Database operation completed successfully', {
+          studySetId: studySet.id,
+          dbOperationTime: dbEndTime - dbStartTime
+        });
+        
+        // Final timing summary
+        console.log('[Timing] Process completed. Full breakdown:', {
+          totalTime: dbEndTime - startTime,
+          databaseOperation: dbEndTime - dbStartTime,
+        });
 
-      setIsProcessing(false);
+        setIsProcessing(false);
 
-      // Fix: Check if ID exists before navigating
-      if (studySet.id) {
-        navigation.navigate('StudySet', { id: studySet.id });
-      } else {
-        // Handle the case where id is undefined
-        console.error('Created study set has no ID');
-        Alert.alert(
-          'Error',
-          'Failed to create study materials properly. Please try again.'
-        );
+        // Fix: Check if ID exists before navigating
+        if (studySet.id) {
+          remoteLog('Navigating to StudySet screen', { id: studySet.id });
+          navigation.navigate('StudySet', { id: studySet.id });
+        } else {
+          // Handle the case where id is undefined
+          console.error('Created study set has no ID');
+          remoteLog('Error: Created study set has no ID', studySetData);
+          Alert.alert(
+            'Error',
+            'Failed to create study materials properly. Please try again.'
+          );
+        }
+      } catch (dbError) {
+        // Log database errors specifically
+        remoteLog('Database error during createStudySet', { 
+          error: dbError instanceof Error ? dbError.message : 'Unknown DB error',
+          stack: dbError instanceof Error ? dbError.stack : null
+        });
+        throw dbError; // Rethrow to be caught by outer catch
       }
     } catch (error) {
       setIsProcessing(false);
       
-      // Enhanced error handling
+      // Enhanced error logging
       console.error('[Error] Analysis failed:', {
         error,
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         errorStack: error instanceof Error ? error.stack : undefined
+      });
+      
+      // Remote log the error with as much detail as possible
+      remoteLog('Error in handleAnalyze', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        code: error instanceof Error ? (error as any).code : undefined,
+        name: error instanceof Error ? error.name : typeof error,
+        isAxiosError: axios.isAxiosError(error),
+        responseStatus: axios.isAxiosError(error) ? error.response?.status : undefined,
+        processingTime: Date.now() - startTime
       });
 
       let errorMessage = t('alerts.processingError');
