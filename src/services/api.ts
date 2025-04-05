@@ -5,19 +5,19 @@ import axios from 'axios';
 import { StudyMaterials, StudySet, HomeworkHelp } from '../types/types';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { getDatabase } from '../services/Database';
+import { Platform } from 'react-native';
+import * as Device from 'expo-device';
 
 // Server configuration
 const DEV_API_URL = 'http://192.168.178.27:3000';
 const PROD_API_URL = 'https://lexie-server.onrender.com';
 const isDevelopment = __DEV__;
-export const API_URL = isDevelopment ? DEV_API_URL : PROD_API_URL;
 
-// Add this debug log to verify the environment
-console.log('[Client] Environment:', {
-  isDevelopment: __DEV__,
-  apiUrl: API_URL,
-  buildDate: new Date().toISOString()
-});
+// Instead of device detection, just use PROD_API_URL for now
+export const API_URL = PROD_API_URL; // Always use production URL
+
+// Log which URL we're using
+console.log('[Client] Using API URL:', API_URL);
 
 // =====================================
 // Image Processing Utilities
@@ -210,8 +210,14 @@ export const analyzeImages = async (
         statusText: error.response?.statusText,
         data: error.response?.data,
         message: error.message,
-        responseData: error.response?.data // Log full response data for debugging
+        responseData: error.response?.data,
+        apiUrl: API_URL // Log which API URL was used
       });
+
+      // Show network error message specifically when can't connect
+      if (!error.response || error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
+        throw new Error('Network connection error. Please check your internet connection and try again.');
+      }
 
       // Provide more specific error messages based on status codes
       switch (error.response?.status) {
