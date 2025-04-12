@@ -599,6 +599,9 @@ export const testServerConnection = async () => {
 
 // Add this function after your other imports
 export const remoteLog = async (message: string, data?: any): Promise<void> => {
+  // Add this line to show logs in terminal and other consoles
+  console.log(`🔍 DEBUG: ${message}`, data);
+  
   try {
     const deviceInfo = {
       platform: Platform.OS,

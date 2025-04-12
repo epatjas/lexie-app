@@ -447,6 +447,13 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   // Add this to your state variables section
   const [messageFeedback, setMessageFeedback] = useState<Record<number, 'like' | 'dislike' | null>>({});
 
+  // Add this to your state variables
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+
+  // Add this to your state variables
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+
   // Hooks
   const { folders, addFolder, assignStudySetToFolder, updateFolder } = useFolders();
   const { studySet, refreshStudySet, loading, deleteStudySet } = useStudySetDetails(id);
@@ -679,7 +686,11 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
         console.log('Problem Summary (first 50 chars):', content.homeworkHelp.problem_summary.substring(0, 50) + '...');
       }
       if (content.homeworkHelp.approach_guidance) {
-        console.log('Approach Guidance (first 50 chars):', content.homeworkHelp.approach_guidance.substring(0, 50) + '...');
+        console.log('Approach Guidance:', 
+          Array.isArray(content.homeworkHelp.approach_guidance) 
+            ? (content.homeworkHelp.approach_guidance[0]?.substring(0, 50) || '') + '...'
+            : (content.homeworkHelp.approach_guidance?.substring(0, 50) || '') + '...'
+        );
       }
     }
   }, [content]);
@@ -1705,6 +1716,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       if (savedHistory) {
         const parsedHistory = JSON.parse(savedHistory);
         setMessages(parsedHistory);
+        // Don't trigger scrolling when loading history
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
@@ -1805,6 +1817,9 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
   const handleSend = async (message: string) => {
     if (!message.trim() || !content) return;
     
+    // Mark that the user has interacted with chat
+    setHasUserInteracted(true);
+    
     // Clear input and minimize chat immediately
     setInputText('');
     setIsActive(false);
@@ -1820,6 +1835,9 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     // Update messages with user message
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
+    
+    // Scroll to show the user message
+    scrollToBottom();
     
     // Track chat usage
     Analytics.logFeatureUse(FeatureType.CHAT, {
@@ -1860,9 +1878,7 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
       await saveChatHistory(finalMessages);
       
       // Scroll to show the new message
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      scrollToBottom();
     } catch (error) {
       console.error('[Chat] Failed to get chat response:', error);
       
@@ -2043,6 +2059,68 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
     };
   }, [id]); // Only re-run if study set ID changes
 
+  // Add a new effect to handle scrolling when isLexieTyping changes
+  useEffect(() => {
+    // Only scroll when Lexie is typing if user has interacted
+    if (hasUserInteracted && messages.length > 0) {
+      if (!isLexieTyping || isLexieTyping) {
+        scrollToBottom();
+      }
+    }
+  }, [isLexieTyping, messages.length, hasUserInteracted]);
+
+  // Add this at the top with your other refs
+  const scrollTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Add this function to check if user is near bottom
+  const handleScroll = (event: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingToBottom = 20;
+    
+    // Check if user is within 20px of bottom
+    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= 
+      contentSize.height - paddingToBottom;
+      
+    setIsNearBottom(isCloseToBottom);
+  };
+
+  // Update scrollToBottom to respect user position
+  const scrollToBottom = (immediate = false) => {
+    // Clear any pending scroll timer
+    if (scrollTimerRef.current) {
+      clearTimeout(scrollTimerRef.current);
+      scrollTimerRef.current = null;
+    }
+    
+    scrollTimerRef.current = setTimeout(() => {
+      // Always use animation for a smoother feel, just vary the timing
+      scrollViewRef.current?.scrollToEnd({ 
+        animated: true 
+      });
+      scrollTimerRef.current = null;
+    }, immediate ? 50 : 200);
+  };
+
+  // Add cleanup for timers when component unmounts
+  useEffect(() => {
+    return () => {
+      if (scrollTimerRef.current) {
+        clearTimeout(scrollTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Add this helper function to handle message container layout changes
+  const handleMessagesLayout = () => {
+    // Only scroll on layout changes if user has interacted
+    if (messages.length > 0 && hasUserInteracted) {
+      scrollToBottom(true);
+    }
+  };
+
+  // Add this at the top with your other ref declarations (near scrollViewRef)
+  const messagesWrapperRef = useRef<View>(null);
+
   return (
     <KeyboardAvoidingView 
       style={styles.container}
@@ -2107,6 +2185,10 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
               showsVerticalScrollIndicator={true}
               scrollEnabled={true}
               onScrollBeginDrag={() => setShowMoreOptions(false)}
+              // Add these two props to ensure scrolling works consistently
+              keyboardShouldPersistTaps="handled"
+              removeClippedSubviews={false}
+              onScroll={handleScroll}
             >
               <View style={{padding: 16}}>
                 {/* Introduction for all content types */}
@@ -2174,21 +2256,29 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                     
                     {/* Display homework help content with applied font settings */}
                     <View style={styles.homeworkContent}>
-                      {/* NEW FORMAT: Problem Summary with better formatting using helper function */}
-                      {isHomeworkHelp(content) && isNewFormat(content as HomeworkHelp) && content.homeworkHelp.problem_summary && (
+                      {/* Problem Summary with better formatting */}
+                      {isHomeworkHelp(content) && content.homeworkHelp.problem_summary && (
                         <View style={styles.problemSummaryContainer}>
                           {renderMarkdownContent(content.homeworkHelp.problem_summary)}
                         </View>
                       )}
 
-                      {/* NEW FORMAT: Approach Guidance - Updated style to match screenshot */}
-                      {isHomeworkHelp(content) && isNewFormat(content as HomeworkHelp) && (content as HomeworkHelp).homeworkHelp.approach_guidance && (
+                      {/* Approach Guidance */}
+                      {isHomeworkHelp(content) && (content as HomeworkHelp).homeworkHelp.approach_guidance && (
                         <View style={styles.approachGuidanceContainer}>
                           <Text style={getTextStyle(styles.approachGuidanceTitle)}>
                             {content.homeworkHelp.language === 'fi' ? t('studySet.howToApproach') : t('studySet.howToApproach')}
                           </Text>
                           {renderMarkdownContent(
-                            (content as HomeworkHelp).homeworkHelp.approach_guidance,
+                            (() => {
+                              const guidance = (content as HomeworkHelp).homeworkHelp.approach_guidance;
+                              // Check if it's an array and not undefined
+                              if (Array.isArray(guidance)) {
+                                return guidance.join('\n\n');
+                              }
+                              // Otherwise, return as is (either string or undefined)
+                              return guidance;
+                            })(),
                             getApproachGuidanceMarkdownStyles()
                           )}
                         </View>
@@ -2358,7 +2448,11 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
 
                 {/* Add messages section at the bottom of the content */}
                 {messages.length > 0 && (
-                  <View style={[styles.messagesWrapper, {marginLeft: -8}]}>
+                  <View 
+                    ref={messagesWrapperRef}
+                    style={[styles.messagesWrapper, {marginLeft: -8}]}
+                    onLayout={handleMessagesLayout}
+                  >
                     {messages.map((message, index) => (
                       <View 
                         key={index} 
@@ -2466,6 +2560,8 @@ export default function StudySetScreen({ route, navigation }: StudySetScreenProp
                 style={styles.chatButton}
                 onPress={() => {
                   setIsActive(true);
+                  // Mark that user is starting to interact
+                  setHasUserInteracted(true);
                   setTimeout(() => {
                     inputRef.current?.focus();
                   }, 100);

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { StudySet } from '../types/types';
+import { StudySet, HomeworkHelp } from '../types/types';
 import { getAllStudySets, getStudySet, deleteStudySet } from '../services/Database';
 import { getDatabase } from '../services/Database';
 import { useActiveProfile } from './useActiveProfile';
@@ -37,7 +37,7 @@ export function useStudySets() {
 
 // For managing single study set details
 export function useStudySetDetails(id: string | undefined) {
-  const [studySet, setStudySet] = useState<StudySet | null>(null);
+  const [studySet, setStudySet] = useState<StudySet | HomeworkHelp | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchStudySet = async () => {
